@@ -1,0 +1,76 @@
+'''
+Created on Apr 28, 2023
+
+@author: fechter
+'''
+
+import torch
+import numpy as np
+
+class Transformation(torch.nn.Module):
+  def __init__(self):
+    super(Transformation, self).__init__()
+    
+  def getIdentityTransform(self, imgshape, dtype=np.float32):
+    dim = len(imgshape)
+    if dim == 1:
+        id = np.mgrid[0: imgshape[0]]
+    elif dim == 2:
+        id = np.mgrid[0: imgshape[0], 0: imgshape[1]]
+    elif dim == 3:
+        id = np.mgrid[0:imgshape[0], 0:imgshape[1], 0:imgshape[2]]
+    else:
+        raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+      
+    id = np.array(id.astype(dtype))
+    if dim == 1:
+        id = id.reshape(1, imgshape[0])  # add a dummy first index
+    spacing = 1./ (np.array(imgshape)-1)
+
+    for d in range(dim):
+        id[d] *= spacing[d]
+        id[d] = id[d]*2 - 1
+
+    return torch.from_numpy(id.astype(np.float32))
+
+class Bilinear(Transformation):
+    """
+   Spatial transform function for 1D, 2D, and 3D. In BCXYZ format (this IS the format used in the current toolbox).
+   """
+
+    def __init__(self, zero_boundary=False, using_scale=False):
+        """
+        Constructor
+
+        :param ndim: (int) spatial transformation of the transform
+        """
+        super(Bilinear, self).__init__()
+        self.zero_boundary = 'zeros' if zero_boundary else 'border'
+        self.using_scale = using_scale
+        """ scale [-1,1] image intensity into [0,1], this is due to the zero boundary condition we may use here """
+
+    def forward_stn(self, input1, input2):
+        input2_ordered = torch.zeros_like(input2)
+        input2_ordered[:, 0, ...] = input2[:, 2, ...]
+        input2_ordered[:, 1, ...] = input2[:, 1, ...]
+        input2_ordered[:, 2, ...] = input2[:, 0, ...]
+
+        output = torch.nn.functional.grid_sample(input1, input2_ordered.permute([0, 2, 3, 4, 1]), padding_mode=self.zero_boundary, align_corners=True)
+        return output
+
+    def forward(self, input1, input2):
+        """
+        Perform the actual spatial transform
+
+        :param input1: image in BCXYZ format
+        :param input2: spatial transform in BdimXYZ format
+        :return: spatially transformed image in BCXYZ format
+        """
+        if self.using_scale:
+            output = self.forward_stn((input1 + 1) / 2, input2)
+            # print(STNVal(output, ini=-1).sum())
+            return output * 2 - 1
+        else:
+            output = self.forward_stn(input1, input2)
+            # print(STNVal(output, ini=-1).sum())
+            return output

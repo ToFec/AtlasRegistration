@@ -1,88 +1,95 @@
+from torch.utils.data import DataLoader
+from torch import optim
 import torch
 import numpy as np
-from datasets import *
-from torch.utils.data import DataLoader
-import evalMetrics as metrics
-from torch import optim
-from tensorboardX import SummaryWriter
-import time
 import datetime
 import os
 import sys
-from atlas_models import SVF_resid
-import SimpleITK as sitk
-from atlas_utils import *
+from atlasDataModule import AtlasDataModule
+from atlasModule import AtlasModule
+from imageTransformation import Bilinear
 sys.path.append(os.path.realpath(".."))
 import warnings
 import argparse
 import random
 import torch.backends.cudnn as cudnn
 
+from atlas_models import SVF_resid
+from config import Config
+from lossCalculator import LossCalculator
 
-parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('--epochs', default=500, type=int, metavar='N', help='number of total epochs to run')
-parser.add_argument('-b', '--batch-size', default=2, type=int,
-                    metavar='N',
-                    help='mini-batch size (default: 2), this is the total '
-                         'batch size of all GPUs on the current node when '
-                         'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
-                    metavar='LR', help='initial learning rate')
-parser.add_argument('--atlas-lr', '--atlas-learning-rate', default=1e4, type=float,
-                    metavar='ALR', help='initial atlas learning rate')
-parser.add_argument('--reg-factor', default=20000.0, type=float, help='regularization factor')
-parser.add_argument('--sim-factor', default=10.0, type=float, help='similarity factor')
-parser.add_argument('--image-pair-sim-factor', default=0.0, type=float, help='pairwise similarity factor')
-parser.add_argument('--seed', default=None, type=int, help='seed for initializing training.')
-parser.add_argument('--gpu', default=0, type=int, help='GPU id to use.')
-parser.add_argument('--sim-loss', default='SSD', type=str, help='Similarity Loss to use.')
-parser.add_argument('--save-per-epoch', default=10, type=int, help='number of epochs to save model.')
+def setSeeds(self, seed = 0):
+  torch.manual_seed(seed)
+  torch.cuda.manual_seed(seed)
+  np.random.seed(seed)
+  random.seed(seed)
+  cudnn.deterministic = True
+
+
+parser = argparse.ArgumentParser(description='Atlas Registration')
+parser.add_argument("-c", "--configFile", dest="configFile", help="configuration file")
 
 
 if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.seed is not None:
-        random.seed(args.seed)
-        torch.manual_seed(args.seed)
-        cudnn.deterministic = True
-        warnings.warn('You have chosen to seed training. '
-                      'This will turn on the CUDNN deterministic setting, '
-                      'which can slow down your training considerably! '
-                      'You may see unexpected behavior when restarting '
-                      'from checkpoints.')
+    configFile = args.configFile
+    if configFile:
+      config = Config(configFile)
+    else:
+      config = Config()    
+      
+    seed = config.getParam("seed")
 
-    if args.gpu is not None:
+    if seed is not None:
+      setSeeds(seed)
+
+    gpu = config.getParam("gpu")
+    if gpu is not None:
         warnings.warn('You have chosen a specific GPU. This will completely '
                       'disable data parallelism.')
 
-    train_single_list, valid_single_list = get_train_valid_list_forward_atlas()
-
-    max_epochs = args.epochs
-    batch_size = args.batch_size
-    lr = args.lr
-    atlas_lr = args.atlas_lr
-    loss_name = args.sim_loss
+    max_epochs = config.getParam("epochs")
+    save_per_epoch = config.getParam("saveEveryEpoch")
+    batch_size = config.getParam("batchSize")
+    lr = config.getParam("learningRate")
+    atlas_lr = config.getParam("learningRate")
+    loss_name = config.getParam("similarityLoss")
     best_score = 0.0
 
-    reg_factor = args.reg_factor
-    sim_factor = args.sim_factor
-    pair_sim_factor = args.image_pair_sim_factor
-    smooth_factor = 0.1
+    reg_factor = config.getParam("regularizationFactor")
+    sim_factor = config.getParam("similarityFactor")
+    pair_sim_factor = config.getParam("imagePairSimFactor")
+    smooth_factor = config.getParam("smoothingFactor")
 
-    using_affine_init = False
+    using_affine_init = config.getParam("affineInitialization")
 
-    SVFNet_train = OAI_Atlas_Opt_3D(train_single_list)
-    SVFNet_train_dataloader = DataLoader(SVFNet_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    SVFNet_atlas_update = OAI_Atlas_Opt_3D(train_single_list)
-    SVFNet_atlas_update_dataloader = DataLoader(SVFNet_atlas_update, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
-    SVFNet_val = OAI_Atlas_Opt_3D(valid_single_list)
-    SVFNet_val_dataloader = DataLoader(SVFNet_val, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
+    dataModule = AtlasDataModule(config)
+    network = SVF_resid(img_sz=np.array([80, 192, 192]), args=args)
+    lossCalculator = LossCalculator(config)
+    
+    loss = self.getLossFunction(self.params.getParam('lossFunction'))
+    optimizer = self.getOptimizer(self.params.getParam('optimizer'))
+    
+    model = AtlasModule(
+        net=network,
+        criterion=loss,
+        learning_rate=self.params.getLearningRate(),
+        optimizer_class=optimizer,
+        useLrScheduler=self.params.getParam('lrScheduler')
+    )
+
+    # SVFNet_train = OAI_Atlas_Opt_3D(train_single_list)
+    # SVFNet_train_dataloader = DataLoader(SVFNet_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    # SVFNet_atlas_update = OAI_Atlas_Opt_3D(train_single_list)
+    # SVFNet_atlas_update_dataloader = DataLoader(SVFNet_atlas_update, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
+    # SVFNet_val = OAI_Atlas_Opt_3D(valid_single_list)
+    # SVFNet_val_dataloader = DataLoader(SVFNet_val, batch_size=1, shuffle=False, num_workers=config.getParam("numberOfWorkersDataLoader"), pin_memory=True)
 
     experiment_name = 'CVPR22_OAI_3D_SVFNet_Forward_Atlas_Parameterize_' + str(loss_name) \
                       + '_affine_init_' + str(int(using_affine_init)) \
-                      + '_seed_' + str(args.seed) \
+                      + '_seed_' + str(seed) \
                       + '_reg_' + str(reg_factor) \
                       + '_atlas_sim_' + str(sim_factor) \
                       + '_pair_sim_' + str(pair_sim_factor) \
@@ -91,11 +98,13 @@ if __name__ == "__main__":
                       + '_batchsize_' + str(batch_size) \
                       + '_network_lr_' + str(lr) \
                       + '_atlas_lr_' + str(atlas_lr)
+                      
+    
     train_model = SVF_resid(img_sz=np.array([80, 192, 192]), args=args)
     train_model.weights_init()
-    if args.gpu is not None:
-        torch.cuda.set_device(args.gpu)
-        train_model.cuda(args.gpu)
+    if gpu is not None:
+        torch.cuda.set_device(gpu)
+        train_model.cuda(gpu)
     else:
         train_model.cuda()
 
@@ -120,16 +129,16 @@ if __name__ == "__main__":
 
     img_sz = np.array([80, 192, 192])
     batch_sz = batch_size
-    train_identity_map = gen_identity_map(img_sz).unsqueeze(0).repeat(batch_sz, 1, 1, 1, 1).cuda(args.gpu)
-    val_identity_map = gen_identity_map(img_sz).unsqueeze(0).cuda(args.gpu)
+    train_identity_map = gen_identity_map(img_sz).unsqueeze(0).repeat(batch_sz, 1, 1, 1, 1).cuda(gpu)
+    val_identity_map = gen_identity_map(img_sz).unsqueeze(0).cuda(gpu)
 
     for epoch in range(max_epochs):
         atlas_optimizer.zero_grad()
-        atlas_imgs = atlas_tensor.repeat(batch_sz, 1, 1, 1, 1).cuda(args.gpu)
-        atlas_segs = atlas_seg.repeat(batch_sz, 1, 1, 1, 1).cuda(args.gpu)
+        atlas_imgs = atlas_tensor.repeat(batch_sz, 1, 1, 1, 1).cuda(gpu)
+        atlas_segs = atlas_seg.repeat(batch_sz, 1, 1, 1, 1).cuda(gpu)
         for i, (src_imgs, src_segs, src_ids) in enumerate(SVFNet_train_dataloader):
             global_step = epoch * len(SVFNet_train_dataloader) + (i + 1) * batch_size
-            src_imgs, src_segs = src_imgs.cuda(args.gpu), src_segs.cuda(args.gpu)
+            src_imgs, src_segs = src_imgs.cuda(gpu), src_segs.cuda(gpu)
             optimizer.zero_grad()
 
             cat_input = torch.cat((atlas_imgs, src_imgs), 1)
@@ -180,15 +189,15 @@ if __name__ == "__main__":
         atlas_optimizer.step()
 
         ## Validate to save the best atlas and model parameters
-        if epoch % args.save_per_epoch == (args.save_per_epoch - 1):
+        if epoch % save_per_epoch == (save_per_epoch - 1):
             with torch.set_grad_enabled(False):
                 ## create avg seg
                 tmp_img, tmp_seg = 0, 0
                 dice_all = 0
-                atlas_imgs = atlas_tensor.cuda(args.gpu)
-                atlas_segs = atlas_seg.cuda(args.gpu)
+                atlas_imgs = atlas_tensor.cuda(gpu)
+                atlas_segs = atlas_seg.cuda(gpu)
                 for _, (mean_src_imgs, mean_src_segs, _) in enumerate(SVFNet_val_dataloader):
-                    mean_src_imgs, mean_src_segs = mean_src_imgs.cuda(args.gpu), mean_src_segs.cuda(args.gpu)
+                    mean_src_imgs, mean_src_segs = mean_src_imgs.cuda(gpu), mean_src_segs.cuda(gpu)
 
                     src_cat_input = torch.cat((atlas_imgs, mean_src_imgs), 1)
                     _, mean_neg_flow_src = train_model(src_cat_input)
@@ -201,7 +210,7 @@ if __name__ == "__main__":
 
                 ## inference
                 for _, (inf_src_imgs, inf_src_segs, _) in enumerate(SVFNet_val_dataloader):
-                    inf_src_imgs, inf_src_segs = inf_src_imgs.cuda(args.gpu), inf_src_segs.cuda(args.gpu)
+                    inf_src_imgs, inf_src_segs = inf_src_imgs.cuda(gpu), inf_src_segs.cuda(gpu)
                     src_cat_input = torch.cat((atlas_imgs, inf_src_imgs), 1)
                     pos_flow, _ = train_model(src_cat_input)
 
@@ -231,7 +240,7 @@ if __name__ == "__main__":
                     torch.save(best_state, save_model_path + 'model_best.pth.tar')
                     tmp_img, tmp_seg, JD_denominator = 0, 0, 0
                     for _, (update_src_imgs, update_src_segs, _) in enumerate(SVFNet_atlas_update_dataloader):
-                        update_src_imgs, update_src_segs = update_src_imgs.cuda(args.gpu), update_src_segs.cuda(args.gpu)
+                        update_src_imgs, update_src_segs = update_src_imgs.cuda(gpu), update_src_segs.cuda(gpu)
 
                         src_cat_input = torch.cat((atlas_imgs, update_src_imgs), 1)
                         update_pos_flow_src, update_neg_flow_src = train_model(src_cat_input)
@@ -240,7 +249,7 @@ if __name__ == "__main__":
 
                         update_warped_src_segs = bilinear(update_src_segs, update_neg_deform_field_src)
 
-                        JD_tensor = torch.from_numpy(jacobian_determinant(update_neg_deform_field_src)).unsqueeze(0).unsqueeze(0).cuda(args.gpu)
+                        JD_tensor = torch.from_numpy(jacobian_determinant(update_neg_deform_field_src)).unsqueeze(0).unsqueeze(0).cuda(gpu)
                         JD_denominator += JD_tensor
 
                         tmp_seg += (update_warped_src_segs*JD_tensor)

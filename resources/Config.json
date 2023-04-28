@@ -1,0 +1,27 @@
+{
+	"batchSize" : 2,
+	"epochs" : 500,
+	"saveEveryEpoch" : 10,
+    "trainingDataFile" : "./resources/DataTrain.csv",
+	"testDataFile" : "./resources/DataTest.csv",
+	"imageColIdxInTrainFile": 0,
+	"labelColIdxInTrainFile": 1,
+	"trainValRatio" : 0.8,
+	
+	"learningRate" : 1e-4,
+	"atlasLearningRate" : 1e-4,
+	"similarityLoss" : "SSD",
+	
+	"regularizationFactor" : 20000.0,
+	"similarityFactor" : 10.0,
+	"imagePairSimFactor" : 0.0,
+	"smoothingFactor" : 0.1,
+	
+	"affineInitialization" : false,
+	
+	"numberOfWorkersDataLoader" : 10,
+	"seed": 1234,
+	"gpu" : 0,
+	"csvDelimiter" : ";"
+	
+}

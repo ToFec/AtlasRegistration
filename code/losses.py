@@ -65,7 +65,14 @@ class Loss(object):
 
 
 
+class MSELoss(nn.MSELoss):
+    def __init__(self):
+        super().__init__(size_average=True)
 
+    def forward(self, input, target):
+      mseLoss = super().forward(input, target)
+      return mseLoss / input.shape[0]
+      
 
 class NCCLoss(nn.Module):
     """
@@ -79,8 +86,8 @@ class NCCLoss(nn.Module):
         nccSqr = ((input_minus_mean * target_minus_mean).mean(1)) / torch.sqrt(
                     ((input_minus_mean ** 2).mean(1)) * ((target_minus_mean ** 2).mean(1)))
         nccSqr =  nccSqr.mean()
-
-        return (1 - nccSqr)*input.shape[0]
+        
+        return (1 - nccSqr) 
 
 
 class LNCCLoss(nn.Module):
@@ -213,7 +220,7 @@ class LNCCLoss(nn.Module):
             lncc = 1 - lncc.mean()
             lncc_total += lncc * self.scale_weight[scale_id]
 
-        return lncc_total*(input.shape[0])
+        return lncc_total
 
 
 
@@ -666,6 +673,9 @@ class LaplaceOperator(nn.Module):
 
 
         return ddx + ddy + ddz
+      
+class LossFactory(object):
+  lossMap = {'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss}
 
 
 

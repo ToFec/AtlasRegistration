@@ -6,47 +6,6 @@ from losses import LNCCLoss, DiceLossMultiClass, BendingEnergyLoss, GradLoss, NC
 
 
 
-class Bilinear(nn.Module):
-    """
-   Spatial transform function for 1D, 2D, and 3D. In BCXYZ format (this IS the format used in the current toolbox).
-   """
-
-    def __init__(self, zero_boundary=False, using_scale=False):
-        """
-        Constructor
-
-        :param ndim: (int) spatial transformation of the transform
-        """
-        super(Bilinear, self).__init__()
-        self.zero_boundary = 'zeros' if zero_boundary else 'border'
-        self.using_scale = using_scale
-        """ scale [-1,1] image intensity into [0,1], this is due to the zero boundary condition we may use here """
-
-    def forward_stn(self, input1, input2):
-        input2_ordered = torch.zeros_like(input2)
-        input2_ordered[:, 0, ...] = input2[:, 2, ...]
-        input2_ordered[:, 1, ...] = input2[:, 1, ...]
-        input2_ordered[:, 2, ...] = input2[:, 0, ...]
-
-        output = torch.nn.functional.grid_sample(input1, input2_ordered.permute([0, 2, 3, 4, 1]), padding_mode=self.zero_boundary, align_corners=True)
-        return output
-
-    def forward(self, input1, input2):
-        """
-        Perform the actual spatial transform
-
-        :param input1: image in BCXYZ format
-        :param input2: spatial transform in BdimXYZ format
-        :return: spatially transformed image in BCXYZ format
-        """
-        if self.using_scale:
-            output = self.forward_stn((input1 + 1) / 2, input2)
-            # print(STNVal(output, ini=-1).sum())
-            return output * 2 - 1
-        else:
-            output = self.forward_stn(input1, input2)
-            # print(STNVal(output, ini=-1).sum())
-            return output
 
 
 def get_test_list():
@@ -60,22 +19,6 @@ def get_test_list():
             final_test_pair_list.append((final_test_list[i], final_test_list[j]))
 
     return final_test_list, final_test_pair_list
-
-
-def get_train_valid_list_forward_atlas():
-    with open('/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/train.txt', 'r') as f_train:
-        train_list = list(f_train.read().splitlines())
-    with open('/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/valid.txt', 'r') as f_valid:
-        valid_list = list(f_valid.read().splitlines())
-    with open('/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/test.txt', 'r') as f_test:
-        test_list = list(f_test.read().splitlines())
-
-    final_train_list = train_list + test_list[:-100]
-    final_valid_list = valid_list
-    final_test_list  = test_list[-100:]
-
-
-    return final_train_list, final_valid_list
 
 
 def identity_map(sz, dtype=np.float32):
