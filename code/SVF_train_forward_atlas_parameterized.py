@@ -69,7 +69,7 @@ if __name__ == "__main__":
     network = SVF_resid(img_sz=np.array([80, 192, 192]), args=args)
     lossCalculator = LossCalculator(config)
     
-    loss = self.getLossFunction(self.params.getParam('lossFunction'))
+    loss = LossCalculator(config)
     optimizer = self.getOptimizer(self.params.getParam('optimizer'))
     
     model = AtlasModule(

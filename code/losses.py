@@ -584,6 +584,17 @@ class GradLoss(nn.Module):
         return grad
 
 
+class DummyLoss(nn.Module):
+    """
+    N-D gradient loss.
+    """
+
+    def __init__(self):
+        super(DummyLoss, self).__init__()
+
+    def forward(self, *args):
+        return 1.0
+
 class BendingEnergyLoss(nn.Module):
     """
     regularization loss of bending energy of a 3d deformation field
@@ -675,7 +686,7 @@ class LaplaceOperator(nn.Module):
         return ddx + ddy + ddz
       
 class LossFactory(object):
-  lossMap = {'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss}
+  lossMap = {'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss, "BendingEnergy": BendingEnergyLoss, "GradLoss": GradLoss, "Dummy": DummyLoss}
 
 
 

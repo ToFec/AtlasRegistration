@@ -53,6 +53,10 @@ class AtlasModule(pl.LightningModule):
       images, _ = self.prepare_batch(batch)
       pos_flow, neg_flow = self.infer_batch(images)
       
+      
+      
+      
+      
       loss = self.criterion(y_hat, y)
       
       with torch.no_grad():
@@ -126,15 +130,6 @@ class AtlasModule(pl.LightningModule):
         
     def _calculateLoss(self):
       
-      sim_loss = get_sim_loss(svf_warped_atlas_imgs, src_imgs, loss_name)
-      reg_loss = get_reg_loss(pos_flow)
-      
-      if atlas_pair_sim_factor != 0.0:
-          atlas_pair_sim_loss = get_pair_sim_loss(svf_warped_src_imgs, loss_name)
-  
-      if image_pair_sim_factor != 0.0:
-          image_pair_sim_loss = get_pair_sim_loss_image_space(svf_warped_src_imgs_in_image_space, sec_src_imgs, loss_name)
-      y_hat, y = self.infer_batch(batch)
       loss = self.criterion(y_hat, y)
       loss = sim_factor * sim_loss + reg_factor * reg_loss + pair_sim_factor * pair_sim_loss
       return loss

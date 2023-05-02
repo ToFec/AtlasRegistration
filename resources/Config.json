@@ -15,6 +15,7 @@
 	"regularizationFactor" : 20000.0,
 	"similarityFactor" : 10.0,
 	"imagePairSimFactor" : 0.0,
+	"atlasPairSimFactor" : 0.0,
 	"smoothingFactor" : 0.1,
 	
 	"affineInitialization" : false,

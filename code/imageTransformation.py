@@ -8,22 +8,30 @@ import torch
 import numpy as np
 
 class Transformation(torch.nn.Module):
-  def __init__(self):
+  def __init__(self, shape = None):
     super(Transformation, self).__init__()
+    if shape:
+      self.identityTransform = self.getIdentityTransform(shape)
+    else:
+      self.identityTransform = None
     
-  def getIdentityTransform(self, imgshape, dtype=np.float32):
-    dim = len(imgshape)
-    if dim == 1:
+  def getIdentityTransform(self, shape, dtype=np.float32):
+    dim = len(shape)
+    
+    if dim == 3:
+        imgshape = shape[-1:]
         id = np.mgrid[0: imgshape[0]]
-    elif dim == 2:
+    elif dim == 4:
+        imgshape = shape[-2:]
         id = np.mgrid[0: imgshape[0], 0: imgshape[1]]
-    elif dim == 3:
+    elif dim == 5:
+        imgshape = shape[-3:]
         id = np.mgrid[0:imgshape[0], 0:imgshape[1], 0:imgshape[2]]
     else:
         raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
       
     id = np.array(id.astype(dtype))
-    if dim == 1:
+    if dim == 3:
         id = id.reshape(1, imgshape[0])  # add a dummy first index
     spacing = 1./ (np.array(imgshape)-1)
 
@@ -31,20 +39,28 @@ class Transformation(torch.nn.Module):
         id[d] *= spacing[d]
         id[d] = id[d]*2 - 1
 
-    return torch.from_numpy(id.astype(np.float32))
+    idTransform = torch.from_numpy(id.astype(np.float32))
+    return idTransform.unsqueeze(0).repeat(shape[0], 1, 1, 1, 1)
+  
+  def getDeformationField(self, flowField):
+    if not self.identityTransform:
+      self.identityTransform = self.getIdentityTransform(flowField.shape)
+    
+    return self.identityTransform + flowField
+    
 
 class Bilinear(Transformation):
     """
    Spatial transform function for 1D, 2D, and 3D. In BCXYZ format (this IS the format used in the current toolbox).
    """
 
-    def __init__(self, zero_boundary=False, using_scale=False):
+    def __init__(self, shape = None, zero_boundary=False, using_scale=False):
         """
         Constructor
 
         :param ndim: (int) spatial transformation of the transform
         """
-        super(Bilinear, self).__init__()
+        super(Bilinear, self).__init__(shape)
         self.zero_boundary = 'zeros' if zero_boundary else 'border'
         self.using_scale = using_scale
         """ scale [-1,1] image intensity into [0,1], this is due to the zero boundary condition we may use here """
