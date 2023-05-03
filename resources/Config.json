@@ -10,7 +10,9 @@
 	
 	"learningRate" : 1e-4,
 	"atlasLearningRate" : 1e-4,
+	"tuneLR" : false,
 	"similarityLoss" : "SSD",
+	"optimizer": "adam",
 	
 	"regularizationFactor" : 20000.0,
 	"similarityFactor" : 10.0,

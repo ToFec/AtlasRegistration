@@ -49,7 +49,8 @@ class AtlasDataModule(pl.LightningDataModule):
     def prepare_data(self):
       pass
       
-    
+    def getInitalAtlas(self):
+      pass
     
     def _prepare_data(self):
       

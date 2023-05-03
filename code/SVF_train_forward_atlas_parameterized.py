@@ -18,12 +18,22 @@ from atlas_models import SVF_resid
 from config import Config
 from lossCalculator import LossCalculator
 
-def setSeeds(self, seed = 0):
+from functools import partial
+import pytorch_lightning as pl
+from pytorch_lightning.loggers import TensorBoardLogger
+
+def getOptimizer(optimizerType):
+  if optimizerType == 'sgd':
+    return partial(torch.optim.SGD, momentum=0.9, nesterov=True)
+  return torch.optim.AdamW
+
+def setSeeds(seed = 0):
   torch.manual_seed(seed)
   torch.cuda.manual_seed(seed)
   np.random.seed(seed)
   random.seed(seed)
   cudnn.deterministic = True
+  pl.seed_everything(seed,workers=True)
 
 
 parser = argparse.ArgumentParser(description='Atlas Registration')
@@ -70,15 +80,72 @@ if __name__ == "__main__":
     lossCalculator = LossCalculator(config)
     
     loss = LossCalculator(config)
-    optimizer = self.getOptimizer(self.params.getParam('optimizer'))
+    optimizer = getOptimizer(config.getParam('optimizer'))
+    
+    data = AtlasDataModule(config)
+    
+    initialAtlas = data.getInitalAtlas()
     
     model = AtlasModule(
         net=network,
         criterion=loss,
-        learning_rate=self.params.getLearningRate(),
+        learning_rate=config.getParam('learningRate'),
         optimizer_class=optimizer,
-        useLrScheduler=self.params.getParam('lrScheduler')
+        useLrScheduler=config.getParam('lrScheduler')
     )
+        
+    
+    
+    callBackFunctions=[]
+      # early_stopping = pl.callbacks.early_stopping.EarlyStopping(
+      #     monitor='val_loss',
+      # )
+      # callBackFunctions.append(early_stopping)
+    stringForStoringVariables = "atlasRegistration" + + str(loss_name) \
+                      + '_affine_init_' + str(int(using_affine_init)) \
+                      + '_seed_' + str(seed) \
+                      + '_reg_' + str(reg_factor) \
+                      + '_atlas_sim_' + str(sim_factor) \
+                      + '_pair_sim_' + str(pair_sim_factor) \
+                      + '_smooth_' + str(smooth_factor) \
+                      + '_epoch_' + str(max_epochs) \
+                      + '_batchsize_' + str(batch_size) \
+                      + '_network_lr_' + str(lr) \
+                      + '_atlas_lr_' + str(atlas_lr)
+                      
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath='./checkpoints/',
+                                                       filename= stringForStoringVariables + '-{epoch:02d}-{val_loss:.2f}',
+                                                       every_n_epochs=save_per_epoch,
+                                                       monitor="val_loss",
+                                                       mode="min",
+                                                       save_top_k=3)
+    callBackFunctions.append(checkpoint_callback)
+    
+    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
+    callBackFunctions.append(lr_monitor)  
+    
+    logger = TensorBoardLogger("tb_logs", name=stringForStoringVariables)
+    
+    trainer = pl.Trainer(
+          gpus=1,
+          precision=32,
+          callbacks=callBackFunctions,
+          auto_lr_find=config.getParam('tuneLR'),
+          # profiler="simple",
+          logger=logger,
+          deterministic=True,
+          check_val_every_n_epoch=5
+      )
+      
+    trainer.tune(model,datamodule=data)
+      
+    trainer.logger._default_hp_metric = False
+      
+    start = datetime.now()
+      
+    print('Training started at', start)
+    trainer.fit(model=model, datamodule=data)
+    print('Training duration:', datetime.now() - start)
 
     # SVFNet_train = OAI_Atlas_Opt_3D(train_single_list)
     # SVFNet_train_dataloader = DataLoader(SVFNet_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)

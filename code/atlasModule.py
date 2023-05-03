@@ -12,13 +12,16 @@ import pl_bolts
 
 class AtlasModule(pl.LightningModule):
 
-    def __init__(self, net, loss, learning_rate, optimizer_class, useLrScheduler):
+    def __init__(self, net, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler):
         super().__init__()
+        self.automatic_optimization = False
         self.save_hyperparameters()
-        self.lr = learning_rate
+        self.nlr = networkLearning_rate
+        self.alr = atlasLearning_rate
         self.net = net
         self.criterion = loss
-        self.optimizer_class = optimizer_class
+        self.networkOptimizer_class = networkOptimizer_class
+        self.atlasOptimizer_class = atlasOptimizer_class
         self.lrScheduler = useLrScheduler
 
     def on_fit_start(self):
@@ -26,58 +29,62 @@ class AtlasModule(pl.LightningModule):
       self.atlasImages = initialAtlas.repeat(self.trainer.datamodule.batchSize, 1, 1, 1, 1)
 
     def configure_optimizers(self):       
-        optimizer = self.optimizer_class(self.parameters(), lr=(self.lr or self.learning_rate))
+        networkOptimizer = self.networkOptimizer_class(self.net.parameters(), lr=(self.nlr or self.learning_rate))
+        atlasOptimizer = self.atlasOptimizer_class(self.parameters(), lr=(self.alr or self.learning_rate))
+        
         if self.lrScheduler:
-          lr_scheduler = {
-            'scheduler': pl_bolts.optimizers.lr_scheduler.LinearWarmupCosineAnnealingLR(optimizer,warmup_epochs=10,max_epochs=100,warmup_start_lr=1e-6, eta_min=1e-6),
+          lr_scheduler_net = {
+            'scheduler': pl_bolts.optimizers.lr_scheduler.LinearWarmupCosineAnnealingLR(networkOptimizer,warmup_epochs=10,max_epochs=100,warmup_start_lr=1e-6, eta_min=1e-6),
+            'name' : 'WarumUpCosineLR'
+          }
+          lr_scheduler_atlas = {
+            'scheduler': pl_bolts.optimizers.lr_scheduler.LinearWarmupCosineAnnealingLR(atlasOptimizer,warmup_epochs=10,max_epochs=100,warmup_start_lr=1e-6, eta_min=1e-6),
             'name' : 'WarumUpCosineLR'
           }
         else:
-          lr_scheduler = {
-            'scheduler': torch.optim.lr_scheduler.ConstantLR(optimizer,factor= 1.0, total_iters = 0),
+          lr_scheduler_net = {
+            'scheduler': torch.optim.lr_scheduler.ConstantLR(networkOptimizer,factor= 1.0, total_iters = 0),
             'name' : 'ConstantLR'
           }
-        return [optimizer], [lr_scheduler]
+          lr_scheduler_atlas = {
+            'scheduler': torch.optim.lr_scheduler.ConstantLR(atlasOptimizer,factor= 1.0, total_iters = 0),
+            'name' : 'ConstantLR'
+          }
+          
+        return (
+            {"optimizer": networkOptimizer,"lr_scheduler": lr_scheduler_net},
+            {"optimizer": atlasOptimizer, "lr_scheduler": lr_scheduler_atlas},
+        )
+          
         
 
     def prepare_batch(self, batch):
         return batch['image'][tio.DATA], batch['label'][tio.DATA]
 
-    def infer_batch(self, images):
-        atlasAndImages = torch.cat((self.atlasImages, images), 1)
+    def infer_batch(self, images, atlasImages):
+        atlasAndImages = torch.cat((atlasImages, images), 1)
         pos_flow, neg_flow = self.net(atlasAndImages)
         return pos_flow, neg_flow
 
 
     def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
       images, _ = self.prepare_batch(batch)
-      pos_flow, neg_flow = self.infer_batch(images)
+      pos_flow, neg_flow = self.infer_batch(images, self.atlasImages)
       
-      
-      
-      
-      
-      loss = self.criterion(y_hat, y)
-      
-      with torch.no_grad():
-        tmp = torch.zeros_like(y,requires_grad=False)
-        tmp[y_hat > 0] = 1
-        correct = tmp.eq(y).sum().item()
-        
-        sensi = tmp[y > 0].eq(y[y > 0]).sum().item()
-        sensiTotal = torch.count_nonzero(y > 0).item()
-        spezi = tmp[y < 1].eq(y[y < 1]).sum().item()
-        speziTotal = torch.count_nonzero(y < 1).item()
-        
-      total=len(y)
-      
-      batch_dictionary={
-        "loss": loss, "correct": correct, "total": total, "sensitivity": sensi, "specificity" : spezi, "sensiTotal": sensiTotal, "speziTotal": speziTotal}
-      
-      return batch_dictionary  
+      loss = self.criterion.getLoss(pos_flow, neg_flow, images,  self.atlasImages)
+      return {"loss": loss}  
     
     def training_step(self, batch, batch_idx):
-      return self.gatherInfoOfTrainingValidationStep(batch, batch_idx)  
+      
+      optNetwork, _ = self.optimizers(use_pl_optimizer=True)
+
+      stepInfo = self.gatherInfoOfTrainingValidationStep(batch, batch_idx)
+      loss = stepInfo["loss"]
+      optNetwork.zero_grad()
+      self.manual_backward(loss)
+      optNetwork.step()
+    
+      return stepInfo
         
 
     def validation_step(self, batch, batch_idx):
@@ -93,44 +100,20 @@ class AtlasModule(pl.LightningModule):
      
     def epochEndLogging(self,outputs, trainValString): 
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        correct = sum([x["correct"] for  x in outputs])
-        total=sum([x["total"] for  x in outputs])
-        
-        sensi = sum([x["sensitivity"] for  x in outputs])
-        sensiTotal=sum([x["sensiTotal"] for  x in outputs])
-        if sensiTotal > 0:
-          sensitivity = sensi /sensiTotal
-        else:
-          sensitivity = 0
-        
-        
-        speci = sum([x["specificity"] for  x in outputs])
-        speziTotal=sum([x["speziTotal"] for  x in outputs])
-        if speziTotal > 0:
-          specificity = speci /speziTotal
-        else:
-          specificity = 0
           
         if(self.current_epoch==1):
           self.logger.experiment.add_graph(self.net,self.exampleInputArray)
         
         self.logger.experiment.add_scalar("Loss/" + trainValString,avg_loss,self.current_epoch)
-        self.logger.experiment.add_scalar("Accuracy/" + trainValString,correct/total,self.current_epoch)
-        self.logger.experiment.add_scalar("Sensitivity/" + trainValString,sensitivity,self.current_epoch)
-        self.logger.experiment.add_scalar("Specificity/" + trainValString,specificity,self.current_epoch)
-        self.logger.experiment.add_scalar("#Class0/" + trainValString,speziTotal,self.current_epoch)
-        self.logger.experiment.add_scalar("#Class1/" + trainValString,sensiTotal,self.current_epoch)      
       
     def training_epoch_end(self,outputs):
+      _ , optAtlas = self.optimizers(use_pl_optimizer=True)
+      optAtlas.step()
+      optAtlas.zero_grad()
       self.epochEndLogging(outputs, "Train")
         
       
     def validation_epoch_end(self,outputs):
       self.epochEndLogging(outputs, "Validation")
         
-    def _calculateLoss(self):
-      
-      loss = self.criterion(y_hat, y)
-      loss = sim_factor * sim_loss + reg_factor * reg_loss + pair_sim_factor * pair_sim_loss
-      return loss
       
