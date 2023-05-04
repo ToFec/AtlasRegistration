@@ -12,7 +12,7 @@ import pl_bolts
 
 class AtlasModule(pl.LightningModule):
 
-    def __init__(self, net, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler):
+    def __init__(self, net, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler, initialAtlasImg):
         super().__init__()
         self.automatic_optimization = False
         self.save_hyperparameters()
@@ -23,10 +23,7 @@ class AtlasModule(pl.LightningModule):
         self.networkOptimizer_class = networkOptimizer_class
         self.atlasOptimizer_class = atlasOptimizer_class
         self.lrScheduler = useLrScheduler
-
-    def on_fit_start(self):
-      initialAtlas = self.trainer.datamodule.atlasImage
-      self.atlasImages = initialAtlas.repeat(self.trainer.datamodule.batchSize, 1, 1, 1, 1)
+        self.atlasImages = initialAtlasImg
 
     def configure_optimizers(self):       
         networkOptimizer = self.networkOptimizer_class(self.net.parameters(), lr=(self.nlr or self.learning_rate))

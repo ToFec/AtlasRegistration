@@ -50,36 +50,39 @@ class AtlasDataModule(pl.LightningDataModule):
       pass
       
     def getInitalAtlas(self):
-      pass
+      return self.atlasImages.repeat(self.trainer.datamodule.batchSize, 1, 1, 1, 1)
     
     def _prepare_data(self):
       
-      with open(self.datasetTrainingFile) as csvDataFile:
+      self.iterateFile(self.datasetTrainingFile, self.train_subjects)
+      self.iterateFile(self.datasetTestFile, self.test_subjects)
+      
+    def iterateFile(self, inputFile, container):
+      with open(inputFile) as csvDataFile:
         csvReader = csv.reader(csvDataFile,delimiter=self.delimiter)
         for row in csvReader:
           imageFileName = row[self.imgFileNameColIdx]
            
           if (file_exists(imageFileName)):
-            labelImage = None
+            labelFileName = None
             if row[self.labelFileNameColIdx] > -1:
               labelFileName = row[self.labelFileNameColIdx]
-              labelImage = tio.LabelMap(labelFileName)
-            subject = tio.Subject(image = tio.ScalarImage(imageFileName), label = labelImage)
-            self.train_subjects.append(subject)        
-      
-      
-      with open(self.datasetTestFile) as csvDataFile:
-        csvReader = csv.reader(csvDataFile,delimiter=self.delimiter)
-        for row in csvReader:
-          imageFileName = row[self.imgFileNameColIdx]
-          if (file_exists(imageFileName)):
-            labelImage = None
-            if row[self.labelFileNameColIdx] > -1:
-              labelFileName = row[self.labelFileNameColIdx]
-              labelImage = tio.LabelMap(labelFileName)
-            subject = tio.Subject(image = tio.ScalarImage(imageFileName), label = labelImage)
-            self.test_subjects.append(subject)              
-
+            subject = self.getSubject(imageFileName, labelFileName)
+            container.append(subject)  
+    
+    def getSubject(self, imageFileName, labelFileName):
+      subject = None
+      if (file_exists(imageFileName)):
+        scalarImage = tio.ScalarImage(imageFileName)
+        labelImage = None
+        if labelFileName and file_exists(labelFileName):
+          labelImage = tio.LabelMap(labelFileName)
+          
+        samplieMesh = self.getSampleMesh(scalarImage, labelImage)
+          
+        subject = tio.Subject(image = scalarImage, label = labelImage, samplingMesh = samplieMesh)
+      return subject
+    
     def _getAugmentationTransform(self):
         augment = tio.Compose([
             tio.RandomAffine(
@@ -102,12 +105,54 @@ class AtlasDataModule(pl.LightningDataModule):
     def _setAtlasImage(self):
       if len(self.train_subjects) > 0:
         tmp = self.train_subjects[0]['image'][tio.DATA]
-        self.atlasImage = tmp[tio.DATA].unsqueeze(0)
+        self.atlasImage = tmp.unsqueeze(0).detach().clone()
         self.atlasImage.requires_grad = True
-
       else:
         self.atlasImage = None
       
+    
+    def getSampleMesh(self, scalarImage, labelImage):
+      from scipy import ndimage
+      import numpy as np
+      
+      self.
+      
+      vectors = [torch.arange(0, s) for s in size]
+      grids = torch.meshgrid(vectors)
+      grid = torch.stack(grids)
+      grid = torch.unsqueeze(grid, 0)
+      grid = grid.type(torch.FloatTensor)
+      
+      ##multiply grid indices by gridSpacing / imageSpacing
+      
+      ## add center of brainmaks to coordinates to center grid on brain
+      
+      ## resample image and mask with map_coordinates method?
+      
+      ##TODO: when calculating loss use grid too, gridNew = grid + defField; and sample image every time image info is accessed
+      ## -> metod should be moved to atlasModule  
+      
+      
+      #other coce
+      
+      c,h,w = img.shape
+      x, y = torch.arange(h)/(h-1), torch.arange(w)/(w-1)
+      grid = torch.dstack(torch.meshgrid(x, y))*2-1
+      
+      sampled = F.grid_sample(img[None], grid[None])
+      
+      ## other code end
+      
+      a = np.arange(12.).reshape((4, 3))
+      
+      a
+      array([[  0.,   1.,   2.],
+             [  3.,   4.,   5.],
+             [  6.,   7.,   8.],
+             [  9.,  10.,  11.]])
+      
+      ndimage.map_coordinates(a, [[0.5, 2], [0.5, 1]], order=1)
+      array([ 2.,  7.])
       
      
     # pytorch lightning hook

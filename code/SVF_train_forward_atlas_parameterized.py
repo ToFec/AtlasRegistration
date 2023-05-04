@@ -83,6 +83,8 @@ if __name__ == "__main__":
     optimizer = getOptimizer(config.getParam('optimizer'))
     
     data = AtlasDataModule(config)
+    data.prepare_data()
+    data.setup(stage="fit")
     
     initialAtlas = data.getInitalAtlas()
     
@@ -91,7 +93,8 @@ if __name__ == "__main__":
         criterion=loss,
         learning_rate=config.getParam('learningRate'),
         optimizer_class=optimizer,
-        useLrScheduler=config.getParam('lrScheduler')
+        useLrScheduler=config.getParam('lrScheduler'),
+        initialAtlas
     )
         
     
@@ -146,6 +149,9 @@ if __name__ == "__main__":
     print('Training started at', start)
     trainer.fit(model=model, datamodule=data)
     print('Training duration:', datetime.now() - start)
+    
+    return
+    
 
     # SVFNet_train = OAI_Atlas_Opt_3D(train_single_list)
     # SVFNet_train_dataloader = DataLoader(SVFNet_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
