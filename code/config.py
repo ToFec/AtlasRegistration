@@ -5,15 +5,13 @@ Created on Apr 11, 2022
 '''
 
 import os, json, logging
-import hypofocalfilehandler.resources
-import importlib_resources as ir
-
+from pathlib import Path
 
 class Config(object):
 
     def __init__(self, configFile = None):
       if configFile is None:
-        configFile = ir.files(hypofocalfilehandler.resources).joinpath("Config.json").as_posix()
+        configFile = Path(__file__).parents[1].joinpath("resources", "Config.json").as_posix()
       if not os.path.isfile(configFile):
         raise Exception("Configfile does not exist!")
       

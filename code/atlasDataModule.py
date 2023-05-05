@@ -10,6 +10,9 @@ from os.path import exists as file_exists
 import torchio as tio
 from torch.utils.data import random_split, DataLoader
 from typing import Optional
+import numpy as np
+import SimpleITK as sitk
+import torch
 
 from config import Config
 
@@ -28,7 +31,12 @@ class AtlasDataModule(pl.LightningDataModule):
       self.num_workers = config.getParam("numberOfWorkersDataLoader")
       self.shuffle = False
       self.imgFileNameColIdx = config.getParam("imageColIdxInTrainFile")
-      self.outcomeColIdx = config.getParam("labelColIdxInTrainFile")
+      self.labelFileNameColIdx = config.getParam("labelColIdxInTrainFile")
+      
+      
+      
+      self.registrationGridsize = config.getParam("registrationGridsize")
+      self.registrationGridSpacing = config.getParam("registrationGridSpacing")
       
       if config.getParam("csvDelimiter"):
         self.delimiter = config.getParam("csvDelimiter")
@@ -65,7 +73,7 @@ class AtlasDataModule(pl.LightningDataModule):
            
           if (file_exists(imageFileName)):
             labelFileName = None
-            if row[self.labelFileNameColIdx] > -1:
+            if self.labelFileNameColIdx > -1:
               labelFileName = row[self.labelFileNameColIdx]
             subject = self.getSubject(imageFileName, labelFileName)
             container.append(subject)  
@@ -112,47 +120,33 @@ class AtlasDataModule(pl.LightningDataModule):
       
     
     def getSampleMesh(self, scalarImage, labelImage):
-      from scipy import ndimage
-      import numpy as np
       
-      self.
+      if labelImage:
+        sitkLabelImage = labelImage.as_sitk()
+        label_statistic = sitk.LabelIntensityStatisticsImageFilter()
+        label_statistic.Execute(sitkLabelImage, sitkLabelImage > 0)
+        centerPoint = label_statistic.GetCentroid(1)
+      else:
+        centerPoint = scalarImage.get_center()
       
-      vectors = [torch.arange(0, s) for s in size]
-      grids = torch.meshgrid(vectors)
-      grid = torch.stack(grids)
-      grid = torch.unsqueeze(grid, 0)
-      grid = grid.type(torch.FloatTensor)
+      centerPoint = centerPoint - np.floor(np.multiply(self.registrationGridsize, self.registrationGridSpacing)/2.0)
       
-      ##multiply grid indices by gridSpacing / imageSpacing
+      sitkScalarImage = scalarImage.as_sitk()
+      imgSize = sitkScalarImage.GetSize()
       
-      ## add center of brainmaks to coordinates to center grid on brain
+      gridVecWorldC = [(np.arange(s) * self.registrationGridSpacing[idx]) + centerPoint[idx] for idx, s in enumerate(self.registrationGridsize)]
+      pointsWorldC = tuple(zip(*gridVecWorldC))
       
-      ## resample image and mask with map_coordinates method?
+      pointsImgC = [sitkScalarImage.TransformPhysicalPointToContinuousIndex(p) for p in pointsWorldC]
+      gridVectorImgC = tuple(zip(*pointsImgC))
       
-      ##TODO: when calculating loss use grid too, gridNew = grid + defField; and sample image every time image info is accessed
-      ## -> metod should be moved to atlasModule  
+      gridImgC = torch.meshgrid( [(torch.tensor(gridVectorImgC[i]) / (imgSize[i] - 1.0))*2.0-1.0 for i in range(0,len(gridVectorImgC))] ) 
       
+      gridImgC = torch.stack(gridImgC)
+      gridImgC = torch.unsqueeze(gridImgC, 0)
+      gridImgC = gridImgC.type(torch.FloatTensor)
       
-      #other coce
-      
-      c,h,w = img.shape
-      x, y = torch.arange(h)/(h-1), torch.arange(w)/(w-1)
-      grid = torch.dstack(torch.meshgrid(x, y))*2-1
-      
-      sampled = F.grid_sample(img[None], grid[None])
-      
-      ## other code end
-      
-      a = np.arange(12.).reshape((4, 3))
-      
-      a
-      array([[  0.,   1.,   2.],
-             [  3.,   4.,   5.],
-             [  6.,   7.,   8.],
-             [  9.,  10.,  11.]])
-      
-      ndimage.map_coordinates(a, [[0.5, 2], [0.5, 1]], order=1)
-      array([ 2.,  7.])
+      return gridImgC
       
      
     # pytorch lightning hook
