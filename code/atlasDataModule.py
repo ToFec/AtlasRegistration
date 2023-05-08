@@ -6,7 +6,7 @@ Created on Apr 28, 2023
 
 import pytorch_lightning as pl
 import csv
-from os.path import exists as file_exists
+import os
 import torchio as tio
 from torch.utils.data import random_split, DataLoader
 from typing import Optional
@@ -71,7 +71,7 @@ class AtlasDataModule(pl.LightningDataModule):
         for row in csvReader:
           imageFileName = row[self.imgFileNameColIdx]
            
-          if (file_exists(imageFileName)):
+          if (os.path.exists(imageFileName)):
             labelFileName = None
             if self.labelFileNameColIdx > -1:
               labelFileName = row[self.labelFileNameColIdx]
@@ -80,13 +80,18 @@ class AtlasDataModule(pl.LightningDataModule):
     
     def getSubject(self, imageFileName, labelFileName):
       subject = None
-      if (file_exists(imageFileName)):
+      if (os.path.exists(imageFileName)):
         scalarImage = tio.ScalarImage(imageFileName)
         labelImage = None
-        if labelFileName and file_exists(labelFileName):
+        if labelFileName and os.path.exists(labelFileName):
           labelImage = tio.LabelMap(labelFileName)
-          
-        samplieMesh = self.getSampleMesh(scalarImage, labelImage)
+        
+        meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
+        if os.path.exists(meshName):
+          samplieMesh = torch.load(meshName)
+        else:
+          samplieMesh = self.getSampleMesh(scalarImage, labelImage)
+          torch.save(samplieMesh, meshName)
           
         subject = tio.Subject(image = scalarImage, label = labelImage, samplingMesh = samplieMesh)
       return subject
@@ -132,17 +137,26 @@ class AtlasDataModule(pl.LightningDataModule):
       centerPoint = centerPoint - np.floor(np.multiply(self.registrationGridsize, self.registrationGridSpacing)/2.0)
       
       sitkScalarImage = scalarImage.as_sitk()
-      imgSize = sitkScalarImage.GetSize()
+      imgSize = torch.asarray(sitkScalarImage.GetSize())
       
       gridVecWorldC = [(np.arange(s) * self.registrationGridSpacing[idx]) + centerPoint[idx] for idx, s in enumerate(self.registrationGridsize)]
-      pointsWorldC = tuple(zip(*gridVecWorldC))
+      gridWorldC = np.meshgrid(*gridVecWorldC)
+      gridShape = (len(gridWorldC),) + gridWorldC[0].shape
+      flatGridWorldC = [s.flatten() for s in gridWorldC]
+      flatGridWorldC = np.stack(flatGridWorldC, 1)
       
-      pointsImgC = [sitkScalarImage.TransformPhysicalPointToContinuousIndex(p) for p in pointsWorldC]
-      gridVectorImgC = tuple(zip(*pointsImgC))
+      pointsImgC = torch.cat([(torch.asarray(sitkScalarImage.TransformPhysicalPointToContinuousIndex(p)) / (imgSize - 1.0))*2.0-1.0 for p in flatGridWorldC], dim=0)
+      gridImgC = pointsImgC.reshape(gridShape).flip(0)
       
-      gridImgC = torch.meshgrid( [(torch.tensor(gridVectorImgC[i]) / (imgSize[i] - 1.0))*2.0-1.0 for i in range(0,len(gridVectorImgC))] ) 
-      
-      gridImgC = torch.stack(gridImgC)
+      #
+      # pointsWorldC = tuple(zip(*gridVecWorldC))
+      #
+      #
+      # gridVectorImgC = tuple(zip(*pointsImgC))
+      #
+      # gridImgC = torch.meshgrid( [(torch.tensor(gridVectorImgC[i]) / (imgSize[i] - 1.0))*2.0-1.0 for i in range(0,len(gridVectorImgC))] ) 
+      #
+      # gridImgC = torch.stack(gridImgC)
       gridImgC = torch.unsqueeze(gridImgC, 0)
       gridImgC = gridImgC.type(torch.FloatTensor)
       

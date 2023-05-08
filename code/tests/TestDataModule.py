@@ -25,6 +25,8 @@ class Test(unittest.TestCase):
       mesh = firstTrainSubj['samplingMesh']
       mesh = mesh.permute([0, 2, 3, 4, 1])
       sampledImgData = torch.nn.functional.grid_sample(imageData, mesh,padding_mode="zeros")
+      tioImage = tio.ScalarImage(tensor=sampledImgData.squeeze(0))
+      tioImage.save("gridTest.nrrd", squeeze=True)
 
 
 if __name__ == "__main__":
