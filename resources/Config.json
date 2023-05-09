@@ -7,7 +7,7 @@
 	"imageColIdxInTrainFile": 0,
 	"labelColIdxInTrainFile": 1,
 	"trainValRatio" : 0.8,
-	"registrationGridsize" : [100, 100, 50],
+	"registrationGridsize" : [64, 56, 60],
 	"registrationGridSpacing" : [1.0, 1.0, 1.0],
 	
 	"learningRate" : 1e-4,
