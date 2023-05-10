@@ -88,12 +88,12 @@ class AtlasDataModule(pl.LightningDataModule):
         
         meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
         if os.path.exists(meshName):
-          samplieMesh = torch.load(meshName)
+          samplieMesh, sampleMeshOrigin = torch.load(meshName)
         else:
-          samplieMesh = self.getSampleMesh(scalarImage, labelImage)
-          torch.save(samplieMesh, meshName)
+          samplieMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, labelImage)
+          torch.save([samplieMesh,sampleMeshOrigin], meshName)
           
-        subject = tio.Subject(image = scalarImage, label = labelImage, samplingMesh = samplieMesh)
+        subject = tio.Subject(image = scalarImage, label = labelImage, samplingMesh = samplieMesh, meshOrigin = sampleMeshOrigin)
       return subject
     
     def _getAugmentationTransform(self):
@@ -150,6 +150,7 @@ class AtlasDataModule(pl.LightningDataModule):
       gridShape = gridWorldC[0].shape + (len(gridWorldC),)
       flatGridWorldC = [s.flatten() for s in gridWorldC]
       flatGridWorldC = torch.stack(flatGridWorldC, 1)
+      gridOrigin = flatGridWorldC[0,:]
       
       flatImgC = torch.matmul(dirMatrix,((flatGridWorldC - orig)/spacing)[:,:,None])
       flatImgC = flatImgC.squeeze()
@@ -160,7 +161,7 @@ class AtlasDataModule(pl.LightningDataModule):
       gridImgC = torch.unsqueeze(gridImgC, 0)
       gridImgC = gridImgC.type(torch.FloatTensor)
       
-      return gridImgC
+      return gridImgC, gridOrigin
       
      
     # pytorch lightning hook
