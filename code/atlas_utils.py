@@ -3,10 +3,23 @@ import torch.nn as nn
 import numpy as np
 import SimpleITK as sitk
 from losses import LNCCLoss, DiceLossMultiClass, BendingEnergyLoss, GradLoss, NCCLoss
+import random
+import torch.backends.cudnn as cudnn
+import pytorch_lightning as pl
+from functools import partial
 
+def setSeeds(seed = 0):
+  torch.manual_seed(seed)
+  torch.cuda.manual_seed(seed)
+  np.random.seed(seed)
+  random.seed(seed)
+  cudnn.deterministic = True
+  pl.seed_everything(seed,workers=True)
 
-
-
+def getOptimizer(optimizerType):
+  if optimizerType == 'sgd':
+    return partial(torch.optim.SGD, momentum=0.9, nesterov=True)
+  return torch.optim.AdamW
 
 def get_test_list():
     with open('/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/test.txt', 'r') as f_test:

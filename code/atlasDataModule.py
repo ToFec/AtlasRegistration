@@ -58,7 +58,7 @@ class AtlasDataModule(pl.LightningDataModule):
       pass
       
     def getInitalAtlas(self):
-      return self.atlasImages.repeat(self.trainer.datamodule.batchSize, 1, 1, 1, 1)
+      return self.atlasImage.repeat(self.batchSize, 1, 1, 1, 1)
     
     def _prepare_data(self):
       

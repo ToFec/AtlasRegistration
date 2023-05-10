@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from atlas_utils import *
+import imageTransformation
 
 
 dim = 3
@@ -68,13 +69,12 @@ class FcRel(nn.Module):
 
 
 class SVF_resid(nn.Module):
-    def __init__(self, img_sz, args, bn=False):
+    def __init__(self, img_sz,bn=False):
         super(SVF_resid, self).__init__()
         self.int_steps = 7
         self.img_sz = img_sz
         self.scale = 1.0 / (2 ** self.int_steps)
-        self.id_transform = gen_identity_map(self.img_sz, 1.0).cuda(args.gpu)
-        self.bilinear = Bilinear(zero_boundary=True)
+        self.bilinear = imageTransformation.Bilinear(zero_boundary=True)
         self.down_path_1 = conv_bn_rel(2, 16, 3, stride=1, active_unit='relu', same_padding=True, bn=False, group=2)
         self.down_path_2_1 = conv_bn_rel(16, 32, 3, stride=2, active_unit='relu', same_padding=True, bn=False, group=2)
         self.down_path_2_2 = conv_bn_rel(32, 32, 3, stride=1, active_unit='relu', same_padding=True, bn=False, group=2)
@@ -149,8 +149,8 @@ class SVF_resid(nn.Module):
         pos_flow = flow * self.scale
         neg_flow = -flow * self.scale
         for _ in range(self.int_steps):
-            pos_deform_field = pos_flow + self.id_transform
-            neg_deform_field = neg_flow + self.id_transform
+            pos_deform_field = self.bilinear.getDeformationField(pos_flow)
+            neg_deform_field = self.bilinear.getDeformationField(neg_flow)
             pos_flow_1 = self.bilinear(pos_flow, pos_deform_field)
             neg_flow_1 = self.bilinear(neg_flow, neg_deform_field)
             pos_flow = pos_flow_1 + pos_flow

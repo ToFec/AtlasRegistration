@@ -10,9 +10,10 @@ from atlasDataModule import AtlasDataModule
 import torchio as tio
 import torch
 import os
-import SimpleITK as sitk
+#import SimpleITK as sitk
 
 class Test(unittest.TestCase):
+
 
 
     def testGridGeneration(self):

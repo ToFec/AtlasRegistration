@@ -686,7 +686,7 @@ class LaplaceOperator(nn.Module):
         return ddx + ddy + ddz
       
 class LossFactory(object):
-  lossMap = {'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss, "BendingEnergy": BendingEnergyLoss, "GradLoss": GradLoss, "Dummy": DummyLoss}
+  lossMap = {'SSD': MSELoss, 'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss, "BendingEnergy": BendingEnergyLoss, "GradLoss": GradLoss, "Dummy": DummyLoss}
 
 
 

@@ -26,7 +26,7 @@
 	
 	"numberOfWorkersDataLoader" : 10,
 	"seed": 1234,
-	"gpu" : 0,
+	"accelerator" : "gpu",
 	"csvDelimiter" : ";"
 	
 }

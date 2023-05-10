@@ -1,4 +1,3 @@
-from torch.utils.data import DataLoader
 from torch import optim
 import torch
 import numpy as np
@@ -9,31 +8,16 @@ from atlasDataModule import AtlasDataModule
 from atlasModule import AtlasModule
 from imageTransformation import Bilinear
 sys.path.append(os.path.realpath(".."))
-import warnings
 import argparse
-import random
-import torch.backends.cudnn as cudnn
+
+import atlas_models as atlasUtils
 
 from atlas_models import SVF_resid
 from config import Config
 from lossCalculator import LossCalculator
 
-from functools import partial
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
-
-def getOptimizer(optimizerType):
-  if optimizerType == 'sgd':
-    return partial(torch.optim.SGD, momentum=0.9, nesterov=True)
-  return torch.optim.AdamW
-
-def setSeeds(seed = 0):
-  torch.manual_seed(seed)
-  torch.cuda.manual_seed(seed)
-  np.random.seed(seed)
-  random.seed(seed)
-  cudnn.deterministic = True
-  pl.seed_everything(seed,workers=True)
 
 
 parser = argparse.ArgumentParser(description='Atlas Registration')
@@ -53,12 +37,7 @@ if __name__ == "__main__":
     seed = config.getParam("seed")
 
     if seed is not None:
-      setSeeds(seed)
-
-    gpu = config.getParam("gpu")
-    if gpu is not None:
-        warnings.warn('You have chosen a specific GPU. This will completely '
-                      'disable data parallelism.')
+      atlasUtils.setSeeds(seed)
 
     max_epochs = config.getParam("epochs")
     save_per_epoch = config.getParam("saveEveryEpoch")
@@ -76,11 +55,11 @@ if __name__ == "__main__":
     using_affine_init = config.getParam("affineInitialization")
 
     dataModule = AtlasDataModule(config)
-    network = SVF_resid(img_sz=np.array([80, 192, 192]), args=args)
+    network = SVF_resid(img_sz=np.array(config.getParam("registrationGridsize")))
     lossCalculator = LossCalculator(config)
     
     loss = LossCalculator(config)
-    optimizer = getOptimizer(config.getParam('optimizer'))
+    optimizer = atlasUtils.getOptimizer(config.getParam('optimizer'))
     
     data = AtlasDataModule(config)
     data.prepare_data()
@@ -118,7 +97,7 @@ if __name__ == "__main__":
                       
     checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath='./checkpoints/',
                                                        filename= stringForStoringVariables + '-{epoch:02d}-{val_loss:.2f}',
-                                                       every_n_epochs=save_per_epoch,
+                                                       every_n_epochs=config.getParam("saveEveryEpoch"),
                                                        monitor="val_loss",
                                                        mode="min",
                                                        save_top_k=3)
@@ -130,7 +109,7 @@ if __name__ == "__main__":
     logger = TensorBoardLogger("tb_logs", name=stringForStoringVariables)
     
     trainer = pl.Trainer(
-          gpus=1,
+          accelerator=config.getParam("accelerator"),
           precision=32,
           callbacks=callBackFunctions,
           auto_lr_find=config.getParam('tuneLR'),

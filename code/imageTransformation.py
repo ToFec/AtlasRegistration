@@ -11,12 +11,10 @@ class Transformation(torch.nn.Module):
   def __init__(self, shape = None):
     super(Transformation, self).__init__()
     if shape:
-      self.identityTransform = self.getIdentityTransform(shape)
-    else:
-      self.identityTransform = None
+      self.setIdentityTransform(shape)
     
-  def getIdentityTransform(self, shape, dtype=np.float32):
-    dim = len(shape)
+  def setIdentityTransform(self, shape, dtype=np.float32):
+    dim = len(shape[2:])
     
     if dim == 3:
         imgshape = shape[-1:]
@@ -26,7 +24,7 @@ class Transformation(torch.nn.Module):
         id = np.mgrid[0: imgshape[0], 0: imgshape[1]]
     elif dim == 5:
         imgshape = shape[-3:]
-        id = np.mgrid[0:imgshape[0], 0:imgshape[1], 0:imgshape[2]]
+        id = np.mgrid[0:imgshape[3], 0:imgshape[1], 0:imgshape[2]]
     else:
         raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
       
@@ -39,12 +37,12 @@ class Transformation(torch.nn.Module):
         id[d] *= spacing[d]
         id[d] = id[d]*2 - 1
 
-    idTransform = torch.from_numpy(id.astype(np.float32))
-    return idTransform.unsqueeze(0).repeat(shape[0], 1, 1, 1, 1)
+    identityTransform = torch.from_numpy(id.astype(np.float32))
+    self.register_buffer("identityTransform", identityTransform)
   
   def getDeformationField(self, flowField):
     if not self.identityTransform:
-      self.identityTransform = self.getIdentityTransform(flowField.shape)
+      self.setIdentityTransform(flowField.shape)
     
     return self.identityTransform + flowField
     

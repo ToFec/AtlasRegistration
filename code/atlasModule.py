@@ -56,7 +56,7 @@ class AtlasModule(pl.LightningModule):
         
 
     def prepare_batch(self, batch):
-        return batch['image'][tio.DATA], batch['label'][tio.DATA]
+        return batch['image'][tio.DATA], batch['samplingMesh']
 
     def infer_batch(self, images, atlasImages):
         atlasAndImages = torch.cat((atlasImages, images), 1)
@@ -65,7 +65,8 @@ class AtlasModule(pl.LightningModule):
 
 
     def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
-      images, _ = self.prepare_batch(batch)
+      images, meshes = self.prepare_batch(batch)
+      
       pos_flow, neg_flow = self.infer_batch(images, self.atlasImages)
       
       loss = self.criterion.getLoss(pos_flow, neg_flow, images,  self.atlasImages)
