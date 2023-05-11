@@ -34,27 +34,48 @@ class LossCalculator():
     
         self.transformer = Bilinear()
     
-    def _getDefomredImages(self, posDeformationField, neg_flow, images):##TODO: statt die bilder und das posDeformationField zu flippen, flippe ich das neg_flow field; testen, ob immer noch passt
+    def _getDefomredImages(self, posDeformationField, neg_flow, images, meshes):##TODO: statt die bilder und das posDeformationField zu flippen, flippe ich das neg_flow field; testen, ob immer noch passt
+      
       # sec_pos_deform_field = torch.flip(posDeformationField, dims=[0])
       # sec_src_imgs = torch.flip(images, dims=[0])
       # svf_warped_src_imgs_in_image_space = self.transformer(images, (self.transformer((neg_flow, sec_pos_deform_field) + sec_pos_deform_field)))
-      sec_neg_flow = torch.flip(neg_flow)
-      warpedSrcImgsInImgSpace = self.transformer(images, (self.transformer((sec_neg_flow, posDeformationField) + posDeformationField)))
-      return warpedSrcImgsInImgSpace
+      # pair_sim_loss = self.similarityLoss(svf_warped_src_imgs_in_image_space, sec_src_imgs) 
+      # return pair_sim_loss
+      
+      sec_src_imgs = torch.flip(images, dims=[0])
+      negFlowAndMesh = neg_flow + meshes
+      secNegFlowAndMesh = torch.flip(negFlowAndMesh, dims=[0])
+      transforemdImageMeshToOtherImageSpace = self.transformer(secNegFlowAndMesh, posDeformationField)
+      return self.transformer.sampleImage(sec_src_imgs, transforemdImageMeshToOtherImageSpace)
+      
+      # sec_pos_deform_field = torch.flip(posDeformationField, dims=[0])
+      # transforemdImageMeshToOtherImageSpace = self.transformer(neg_flow + meshes, sec_pos_deform_field)
+      # return self.transformer.sampleImage(images, transforemdImageMeshToOtherImageSpace)
+      #
+      # sec_neg_flow = torch.flip(neg_flow)
+      # warpedSrcImgsInImgSpace = self.transformer(images, (self.transformer((sec_neg_flow, posDeformationField) + posDeformationField)))
+      # return warpedSrcImgsInImgSpace
     
     def _getImageSpaceSimilarityLoss(self, imgs0, imgs1):
       imgSpaceSimLoss = self.similarityLoss(imgs0, imgs1)
       return imgSpaceSimLoss / imgs0.shape[0]
     
 
-    def getLoss(self, pos_flow, neg_flow, images, atlasImages):
+    def getLoss(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes):
       
-      posDeformationField = self.transformer.getDeformationField(pos_flow)
-      negDeformationField = self.transformer.getDeformationField(neg_flow)
+      # posDeformationField = self.transformer.getDeformationField(pos_flow)
+      # deformedAtlasMeshes = self.transformer(atlasMeshes, posDeformationField)
+      # deformedAtlas = self.transformer.sampleImage(atlasImages, deformedAtlasMeshes)
       
-      warpedAtlas = self.transformer(atlasImages, posDeformationField)
       
-      sim_loss = self._getImageSpaceSimilarityLoss(warpedAtlas, images) * self.sim_factor
+      posDeformationFieldAtlas = atlasMeshes + pos_flow#
+      negDeformationField = meshes + neg_flow#self.transformer.getDeformationField(neg_flow)
+      
+      warpedAtlas = self.transformer(atlasImages, posDeformationFieldAtlas)
+      
+      sampledImages = self.transformer.sampleImage(images, meshes)
+      
+      sim_loss = self._getImageSpaceSimilarityLoss(warpedAtlas, sampledImages) * self.sim_factor
       
       reg_loss = self.regularizationLoss(pos_flow) * self.reg_factor
       

@@ -58,7 +58,7 @@ class AtlasDataModule(pl.LightningDataModule):
       pass
       
     def getInitalAtlas(self):
-      return self.atlasImage.repeat(self.batchSize, 1, 1, 1, 1)
+      return self.atlasImage.repeat(self.batchSize, 1, 1, 1, 1), self.atlasMesh.repeat(self.batchSize, 1, 1, 1)
     
     def _prepare_data(self):
       
@@ -82,9 +82,13 @@ class AtlasDataModule(pl.LightningDataModule):
       subject = None
       if (os.path.exists(imageFileName)):
         scalarImage = tio.ScalarImage(imageFileName)
+        
+        subjectDict = {"image": scalarImage}
+        
         labelImage = None
         if labelFileName and os.path.exists(labelFileName):
           labelImage = tio.LabelMap(labelFileName)
+          subjectDict["label"] = labelImage
         
         meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
         if os.path.exists(meshName):
@@ -92,8 +96,11 @@ class AtlasDataModule(pl.LightningDataModule):
         else:
           samplieMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, labelImage)
           torch.save([samplieMesh,sampleMeshOrigin], meshName)
+        
+        subjectDict["samplingMesh"] = samplieMesh
+        subjectDict["meshOrigin"] = sampleMeshOrigin
           
-        subject = tio.Subject(image = scalarImage, label = labelImage, samplingMesh = samplieMesh, meshOrigin = sampleMeshOrigin)
+        subject = tio.Subject(subjectDict)
       return subject
     
     def _getAugmentationTransform(self):
@@ -118,11 +125,14 @@ class AtlasDataModule(pl.LightningDataModule):
     def _setAtlasImage(self):
       if len(self.train_subjects) > 0:
         tmp = self.train_subjects[0]['image'][tio.DATA]
-        self.atlasImage = tmp.unsqueeze(0).detach().clone().type(torch.FloatTensor)
+        self.atlasImage = tmp.unsqueeze(0).unsqueeze(0).detach().clone().type(torch.FloatTensor)
         self.atlasImage.requires_grad = True
+        
+        atlasMesh = self.train_subjects[0]['samplingMesh']
+        self.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
       else:
         self.atlasImage = None
-      
+        self.atlasMesh = None
     
     def getSampleMesh(self, scalarImage, labelImage):
       
@@ -156,9 +166,10 @@ class AtlasDataModule(pl.LightningDataModule):
       flatImgC = flatImgC.squeeze()
       flatImgC = (flatImgC / (imgSize - 1.0))*2.0-1.0
       
-      gridImgC = flatImgC.reshape(gridShape).flip(-1)
+      gridImgC = flatImgC.reshape(gridShape)#.flip(-1)
+      gridImgC = torch.moveaxis(gridImgC,-1,0)
       
-      gridImgC = torch.unsqueeze(gridImgC, 0)
+      #gridImgC = torch.unsqueeze(gridImgC, 0)
       gridImgC = gridImgC.type(torch.FloatTensor)
       
       return gridImgC, gridOrigin

@@ -45,6 +45,13 @@ class Transformation(torch.nn.Module):
       self.setIdentityTransform(flowField.shape)
     
     return self.identityTransform + flowField
+  
+  def sampleImage(self,images, meshes):
+    meshes = torch.moveaxis(meshes,1,-1)
+    meshes = meshes.flip(-1)
+    sampledImage = torch.nn.functional.grid_sample(images, meshes,padding_mode="zeros", align_corners=True)
+    return sampledImage
+
     
 
 class Bilinear(Transformation):

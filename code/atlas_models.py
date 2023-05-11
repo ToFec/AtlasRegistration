@@ -101,6 +101,8 @@ class SVF_resid(nn.Module):
         self.up_path_2_3 = conv_bn_rel(16, 16, 3, stride=1, active_unit='None', same_padding=True)
         self.up_path_1_1 = conv_bn_rel(16, 16, 2, stride=2, active_unit='None', same_padding=False, bn=bn, reverse=True)
         self.up_path_1_2 = conv_bn_rel(16, 3, 3, stride=1, active_unit='None', same_padding=True)
+        
+        self.weights_init()
 
     def weights_init(self):
         for m in self.modules():

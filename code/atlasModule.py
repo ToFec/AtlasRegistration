@@ -9,10 +9,11 @@ import torchio as tio
 import torch
 import pytorch_lightning as pl
 import pl_bolts
+from imageTransformation import Transformation
 
 class AtlasModule(pl.LightningModule):
 
-    def __init__(self, net, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler, initialAtlasImg):
+    def __init__(self, net, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler):
         super().__init__()
         self.automatic_optimization = False
         self.save_hyperparameters()
@@ -23,7 +24,12 @@ class AtlasModule(pl.LightningModule):
         self.networkOptimizer_class = networkOptimizer_class
         self.atlasOptimizer_class = atlasOptimizer_class
         self.lrScheduler = useLrScheduler
-        self.atlasImages = initialAtlasImg
+        self.transformer = Transformation()
+        
+
+    def on_fit_start(self)->None:
+      pl.LightningModule.on_fit_start(self)
+      self.atlasImages, self.atlasMeshes = self.trainer.datamodule.getInitalAtlas()
 
     def configure_optimizers(self):       
         networkOptimizer = self.networkOptimizer_class(self.net.parameters(), lr=(self.nlr or self.learning_rate))
@@ -63,13 +69,12 @@ class AtlasModule(pl.LightningModule):
         pos_flow, neg_flow = self.net(atlasAndImages)
         return pos_flow, neg_flow
 
-
     def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
       images, meshes = self.prepare_batch(batch)
+      networkInput = self.transformer.sampleImage(images,meshes)
+      pos_flow, neg_flow = self.infer_batch(networkInput, self.atlasImages)
       
-      pos_flow, neg_flow = self.infer_batch(images, self.atlasImages)
-      
-      loss = self.criterion.getLoss(pos_flow, neg_flow, images,  self.atlasImages)
+      loss = self.criterion.getLoss(pos_flow, neg_flow, images, meshes, self.atlasImages, self.atlasMeshes)
       return {"loss": loss}  
     
     def training_step(self, batch, batch_idx):

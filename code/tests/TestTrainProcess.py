@@ -21,12 +21,11 @@ class Test(unittest.TestCase):
     def testBatchMethods(self):
       config = Config()
       data = AtlasDataModule(config)
+      config.setParam("numberOfWorkersDataLoader",0)
       config.setParam("registrationGridsize", [64, 56, 60])
       config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
       data.prepare_data()
       data.setup(stage="fit") 
-      
-      initialAtlas = data.getInitalAtlas()
       
       loss = LossCalculator(config)
       networkOptim = atlasUtils.getOptimizer(config.getParam('optimizer'))
@@ -37,15 +36,14 @@ class Test(unittest.TestCase):
           network,
           loss,
           networkLearning_rate=config.getParam('learningRate'),
-          networkLearning_rate=config.getParam('learningRate'),
+          atlasLearning_rate=config.getParam('learningRate'),
           networkOptimizer_class=networkOptim,
           atlasOptimizer_class=atlasOptim,
-          useLrScheduler=config.getParam('lrScheduler'),
-          initialAtlasImg=initialAtlas
+          useLrScheduler=config.getParam('lrScheduler')
       )      
-      #
-      # for batch in data.train_dataloader():
-      #   inputs, targets = model.prepare_batch(batch)
+      
+      for batch in data.train_dataloader():
+        inputs, meshes = model.prepare_batch(batch)
 
     def asdftestTraining(self):
       atlasUtils.setSeeds(1234)
