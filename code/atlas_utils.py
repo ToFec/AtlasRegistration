@@ -8,6 +8,26 @@ import torch.backends.cudnn as cudnn
 import pytorch_lightning as pl
 from functools import partial
 
+def loadDefField(filename):
+    defFieldITK = sitk.ReadImage(str(filename))
+    defFieldSpacing = defFieldITK.GetSpacing()
+    defFieldDirection = defFieldITK.GetDirection()
+    
+    defField = sitk.GetArrayFromImage(defFieldITK)
+    defField[...,0] = (defField[...,0] / defFieldSpacing[0]) * defFieldDirection[0]
+    defField[...,1] = (defField[...,1] / defFieldSpacing[1]) * defFieldDirection[4]
+    defField[...,2] = (defField[...,2] / defFieldSpacing[2]) * defFieldDirection[8]
+    
+    defField[..., 0] = defField[...,0] / ((defField.shape[2]-1) / 2.0)
+    defField[..., 1] = defField[..., 1] / ((defField.shape[1]-1) / 2.0)
+    defField[..., 2] = defField[..., 2] / ((defField.shape[0]-1) / 2.0)
+    
+    defField = np.expand_dims(defField, axis=0)
+    defField = torch.from_numpy(defField)
+    defField = defField.permute([0,4,3,2,1])
+    
+    return defField 
+
 def setSeeds(seed = 0):
   torch.manual_seed(seed)
   torch.cuda.manual_seed(seed)

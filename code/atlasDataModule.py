@@ -32,6 +32,8 @@ class AtlasDataModule(pl.LightningDataModule):
       self.shuffle = False
       self.imgFileNameColIdx = config.getParam("imageColIdxInTrainFile")
       self.labelFileNameColIdx = config.getParam("labelColIdxInTrainFile")
+      self.randomSplit = config.getParam("doRandomTrainValSetSplit")
+      self.doAugmentation = config.getParam("doDataAugmentation")
       
       
       
@@ -58,7 +60,7 @@ class AtlasDataModule(pl.LightningDataModule):
       pass
       
     def getInitalAtlas(self):
-      return self.atlasImage.repeat(self.batchSize, 1, 1, 1, 1), self.atlasMesh.repeat(self.batchSize, 1, 1, 1)
+      return self.atlasImage.repeat(self.batchSize, 1, 1, 1, 1), self.atlasMesh.repeat(self.batchSize, 1, 1, 1, 1)
     
     def _prepare_data(self):
       
@@ -104,6 +106,8 @@ class AtlasDataModule(pl.LightningDataModule):
       return subject
     
     def _getAugmentationTransform(self):
+      augment = None
+      if self.doAugmentation:
         augment = tio.Compose([
             tio.RandomAffine(
               scales=(0.9, 1.1),
@@ -112,20 +116,25 @@ class AtlasDataModule(pl.LightningDataModule):
               p=0.3),
             tio.RandomFlip(axes=('LR'),p=0.3)
         ])
-        return augment             
+      return augment             
      
     def _dataSplit(self):
       num_subjects = len(self.train_subjects)
       num_train_subjects = int(round(num_subjects * self.train_val_ratio))
       num_val_subjects = num_subjects - num_train_subjects
-      splits = num_train_subjects, num_val_subjects
-      train_subjects, val_subjects = random_split(self.train_subjects, splits)
+      
+      if self.randomSplit:
+        splits = num_train_subjects, num_val_subjects
+        train_subjects, val_subjects = random_split(self.train_subjects, splits)
+      else:
+        train_subjects = self.train_subjects[0:num_train_subjects]
+        val_subjects = self.train_subjects[num_train_subjects:num_subjects]
       return train_subjects, val_subjects
     
     def _setAtlasImage(self):
       if len(self.train_subjects) > 0:
         tmp = self.train_subjects[0]['image'][tio.DATA]
-        self.atlasImage = tmp.unsqueeze(0).unsqueeze(0).detach().clone().type(torch.FloatTensor)
+        self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
         self.atlasImage.requires_grad = True
         
         atlasMesh = self.train_subjects[0]['samplingMesh']

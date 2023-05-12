@@ -11,6 +11,10 @@ from lossCalculator import LossCalculator
 from atlasModule import AtlasModule
 from atlas_models import SVF_resid
 import numpy as np
+import torchio as tio
+import torch
+import SimpleITK as sitk
+import locale
 #import pytorch_lightning as pl
 #from pytorch_lightning.loggers import TensorBoardLogger
 #import datetime
@@ -18,20 +22,38 @@ import numpy as np
 class Test(unittest.TestCase):
 
 
+
     def testBatchMethods(self):
+      
       config = Config()
-      data = AtlasDataModule(config)
+      
+      config.setParam("trainingDataFile", "./resources/DataTestTrainingMethods.csv")
       config.setParam("numberOfWorkersDataLoader",0)
       config.setParam("registrationGridsize", [64, 56, 60])
       config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      config.setParam("doRandomTrainValSetSplit", False)
+      
+      
+      network = SVF_resid()
+      newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
+      config.setParam("registrationGridsize", newShape.tolist())
+      
+      
+      data = AtlasDataModule(config)
       data.prepare_data()
       data.setup(stage="fit") 
+      
+      tmp = data.val_set[0]['image'][tio.DATA]
+      data.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+      data.atlasImage.requires_grad = True
+      
+      atlasMesh = data.val_set[0]['samplingMesh']
+      data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
       
       loss = LossCalculator(config)
       networkOptim = atlasUtils.getOptimizer(config.getParam('optimizer'))
       atlasOptim = atlasUtils.getOptimizer(config.getParam('optimizer'))
-      network = SVF_resid(img_sz=np.array(config.getParam("registrationGridsize")))
-    
+
       model = AtlasModule(
           network,
           loss,
@@ -42,8 +64,35 @@ class Test(unittest.TestCase):
           useLrScheduler=config.getParam('lrScheduler')
       )      
       
+      model.setup("fit")
+      model.configure_optimizers()
+      model.atlasImages, model.atlasMeshes = data.getInitalAtlas()
+      
+      #defField = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
+      defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
+      # locale.setlocale(locale.LC_NUMERIC, "en_US")
       for batch in data.train_dataloader():
-        inputs, meshes = model.prepare_batch(batch)
+        images, meshes = model.prepare_batch(batch)
+        
+        
+        networkInputImages = model.transformer.sampleImage(images,meshes)
+        netWorkInputAtlasImages = model.transformer.sampleImage(model.atlasImages, model.atlasMeshes)
+        pos_flow, neg_flow = model.infer_batch(networkInputImages, netWorkInputAtlasImages)
+      
+        loss = model.criterion.getLoss(pos_flow, neg_flow, images, meshes, model.atlasImages, model.atlasMeshes)
+        
+        # deformaiton = meshes[0,None,:] + defField        
+        # tmpDeformed = model.transformer.sampleImage(images[0,None,:],deformaiton)
+        #
+        # meshOrigin = data.train_set[0]['meshOrigin']
+        # meshSpacing = config.getParam("registrationGridSpacing")
+        # meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
+        # sitkImage = sitk.GetImageFromArray(tmpDeformed.squeeze(0).squeeze(0).permute([2,1,0]))
+        # sitkImage.SetOrigin(meshOrigin.tolist())
+        # sitkImage.SetDirection(meshDir)
+        # sitkImage.SetSpacing(meshSpacing)
+        # sitk.WriteImage(sitkImage, "./resources/gridTest.nrrd")        
+        
 
     def asdftestTraining(self):
       atlasUtils.setSeeds(1234)

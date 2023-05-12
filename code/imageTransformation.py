@@ -10,38 +10,40 @@ import numpy as np
 class Transformation(torch.nn.Module):
   def __init__(self, shape = None):
     super(Transformation, self).__init__()
-    if shape:
-      self.setIdentityTransform(shape)
+    self.setIdentityTransform(shape)
     
   def setIdentityTransform(self, shape, dtype=np.float32):
-    dim = len(shape[2:])
-    
-    if dim == 3:
-        imgshape = shape[-1:]
-        id = np.mgrid[0: imgshape[0]]
-    elif dim == 4:
-        imgshape = shape[-2:]
-        id = np.mgrid[0: imgshape[0], 0: imgshape[1]]
-    elif dim == 5:
-        imgshape = shape[-3:]
-        id = np.mgrid[0:imgshape[3], 0:imgshape[1], 0:imgshape[2]]
-    else:
-        raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+    identityTransform = None
+    if shape:
       
-    id = np.array(id.astype(dtype))
-    if dim == 3:
-        id = id.reshape(1, imgshape[0])  # add a dummy first index
-    spacing = 1./ (np.array(imgshape)-1)
-
-    for d in range(dim):
-        id[d] *= spacing[d]
-        id[d] = id[d]*2 - 1
-
-    identityTransform = torch.from_numpy(id.astype(np.float32))
+      dim = len(shape)
+      
+      if dim == 3:
+          imgshape = shape[-1:]
+          id = np.mgrid[0: imgshape[0]]
+      elif dim == 4:
+          imgshape = shape[-2:]
+          id = np.mgrid[0: imgshape[0], 0: imgshape[1]]
+      elif dim == 5:
+          imgshape = shape[-3:]
+          id = np.mgrid[0:imgshape[0], 0:imgshape[1], 0:imgshape[2]]
+      else:
+          raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+        
+      id = np.array(id.astype(dtype))
+      if dim == 3:
+          id = id.reshape(1, imgshape[0])  # add a dummy first index
+      spacing = 1./ (np.array(imgshape)-1)
+  
+      for d in range(len(imgshape)):
+          id[d] *= spacing[d]
+          id[d] = id[d]*2 - 1
+  
+      identityTransform = torch.from_numpy(id.astype(np.float32))
     self.register_buffer("identityTransform", identityTransform)
   
   def getDeformationField(self, flowField):
-    if not self.identityTransform:
+    if self.identityTransform is None:
       self.setIdentityTransform(flowField.shape)
     
     return self.identityTransform + flowField

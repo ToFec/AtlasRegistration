@@ -68,8 +68,9 @@ class LossCalculator():
       # deformedAtlas = self.transformer.sampleImage(atlasImages, deformedAtlasMeshes)
       
       
-      posDeformationFieldAtlas = atlasMeshes + pos_flow#
-      negDeformationField = meshes + neg_flow#self.transformer.getDeformationField(neg_flow)
+      posDeformationFieldAtlas = atlasMeshes + pos_flow
+      posDeformationField = self.transformer.getDeformationField(pos_flow)
+      negDeformationFieldImages = meshes + neg_flow#self.transformer.getDeformationField(neg_flow)
       
       warpedAtlas = self.transformer(atlasImages, posDeformationFieldAtlas)
       
@@ -87,7 +88,7 @@ class LossCalculator():
         loss = loss + pair_sim_loss
         
       if self.atlasPairSimilarityFactor != 0.0: ##TODO: vergleicht nicht alle bild kombinationen, ausreichend oder umprogrammiren? 
-        warpedImages = self.transformer(images, negDeformationField)
+        warpedImages = self.transformer(images, negDeformationFieldImages)
         batch_size = images.shape[0]
         atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(warpedImages[:int(batch_size/2)], images[:int(batch_size/2)]) * self.atlasPairSimilarityFactor
         loss = loss + atlas_pair_sim_loss

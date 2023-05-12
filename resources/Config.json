@@ -7,6 +7,8 @@
 	"imageColIdxInTrainFile": 0,
 	"labelColIdxInTrainFile": 1,
 	"trainValRatio" : 0.8,
+	"doRandomTrainValSetSplit" : true,
+	"doDataAugmentation" : false,
 	"registrationGridsize" : [64, 56, 60],
 	"registrationGridSpacing" : [1.0, 1.0, 1.0],
 	

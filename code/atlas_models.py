@@ -69,10 +69,10 @@ class FcRel(nn.Module):
 
 
 class SVF_resid(nn.Module):
-    def __init__(self, img_sz,bn=False):
+    def __init__(self, bn=False):
         super(SVF_resid, self).__init__()
+        self.imageSizeModuloVal = 16
         self.int_steps = 7
-        self.img_sz = img_sz
         self.scale = 1.0 / (2 ** self.int_steps)
         self.bilinear = imageTransformation.Bilinear(zero_boundary=True)
         self.down_path_1 = conv_bn_rel(2, 16, 3, stride=1, active_unit='relu', same_padding=True, bn=False, group=2)
@@ -104,6 +104,12 @@ class SVF_resid(nn.Module):
         
         self.weights_init()
 
+    def getShapeForModel(self, shape):
+      shape = torch.tensor(shape)
+      remainderVals = torch.remainder(shape,self.imageSizeModuloVal)
+      newShape = shape + ((self.imageSizeModuloVal - remainderVals) * ((remainderVals != 0.0)))
+      return newShape
+    
     def weights_init(self):
         for m in self.modules():
             classname = m.__class__.__name__

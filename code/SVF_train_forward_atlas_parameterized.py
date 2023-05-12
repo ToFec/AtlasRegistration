@@ -54,8 +54,11 @@ if __name__ == "__main__":
 
     using_affine_init = config.getParam("affineInitialization")
 
+    network = SVF_resid()
+    newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
+    config.setParam("registrationGridsize", newShape.tolist())
+
     dataModule = AtlasDataModule(config)
-    network = SVF_resid(img_sz=np.array(config.getParam("registrationGridsize")))
     lossCalculator = LossCalculator(config)
     
     loss = LossCalculator(config)
