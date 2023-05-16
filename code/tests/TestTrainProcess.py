@@ -3,6 +3,7 @@ Created on May 10, 2023
 
 @author: fechter
 '''
+
 import unittest
 from config import Config
 from atlasDataModule import AtlasDataModule
@@ -10,17 +11,232 @@ import atlas_utils as atlasUtils
 from lossCalculator import LossCalculator
 from atlasModule import AtlasModule
 from atlas_models import SVF_resid
+from imageTransformation import Bilinear
 import numpy as np
 import torchio as tio
 import torch
 import SimpleITK as sitk
 import locale
+import os
+from SimpleITK.extra import ReadImage
 #import pytorch_lightning as pl
 #from pytorch_lightning.loggers import TensorBoardLogger
 #import datetime
 
 class Test(unittest.TestCase):
 
+
+    def testLossFunction(self):
+      config = Config()
+      
+      config.setParam("trainingDataFile", "./resources/DataTestTrainingMethods.csv")
+      config.setParam("numberOfWorkersDataLoader",0)
+      config.setParam("registrationGridsize", [64, 56, 60])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      config.setParam("doRandomTrainValSetSplit", False)
+      config.setParam("imagePairSimFactor", 1.0)
+      config.setParam("atlasPairSimFactor", 1.0)
+      config.setParam("similarityFactor", 1.0)
+      config.setParam("regularizationFactor", 1.0)      
+      
+      data = AtlasDataModule(config)
+      data.prepare_data()
+      data.setup(stage="fit") 
+      
+      tmp = data.val_set[0]['image'][tio.DATA]
+      data.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+      data.atlasImage.requires_grad = True
+      
+      atlasMesh = data.val_set[0]['samplingMesh']
+      data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
+      
+      lossCalculator = LossCalculator(config)
+      
+      atlasImages, atlasMeshes = data.getInitalAtlas()
+
+      neg_flow = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
+      neg_flow = torch.cat((neg_flow, neg_flow))
+      
+      pos_flow = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
+      pos_flow = torch.cat((pos_flow, pos_flow))
+      
+      locale.setlocale(locale.LC_NUMERIC, "en_US")
+      
+      for batch in data.train_dataloader():
+        images, meshes = batch['image'][tio.DATA], batch['samplingMesh']
+        
+        lossValue = lossCalculator.getLoss(pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes)
+        self.assertAlmostEqual(lossValue.detach().numpy(), 0.0014,delta=0.00005)
+        
+      if os.path.exists('./resources/DummyDeformedMesh.pt'):
+        os.remove('./resources/DummyDeformedMesh.pt')
+      if os.path.exists('./resources/DummyMesh.pt'):
+        os.remove('./resources/DummyMesh.pt')
+      if os.path.exists('./resources/DummyRotatedMesh.pt'):
+        os.remove('./resources/DummyRotatedMesh.pt')
+
+    def testCombinedForwardBackwardTransform(self):
+      config = Config()
+      
+      config.setParam("trainingDataFile", "./resources/DataTestTrainingMethods.csv")
+      config.setParam("numberOfWorkersDataLoader",0)
+      config.setParam("registrationGridsize", [64, 56, 60])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      config.setParam("doRandomTrainValSetSplit", False)
+      config.setParam("imagePairSimFactor", 1.0)
+      config.setParam("atlasPairSimFactor", 1.0)
+      config.setParam("similarityFactor", 1.0)
+      config.setParam("regularizationFactor", 1.0)      
+      
+      data = AtlasDataModule(config)
+      data.prepare_data()
+      data.setup(stage="fit") 
+      
+      tmp = data.val_set[0]['image'][tio.DATA]
+      data.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+      data.atlasImage.requires_grad = True
+      
+      atlasMesh = data.val_set[0]['samplingMesh']
+      data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
+      
+      
+      neg_flow = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
+      neg_flow = torch.cat((neg_flow, neg_flow))
+      
+      pos_flow = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
+      pos_flow = torch.cat((pos_flow, pos_flow))
+      
+      locale.setlocale(locale.LC_NUMERIC, "en_US")
+      transformer = Bilinear()
+      lossCalculator = LossCalculator(config)
+      
+      sitkReferenceImg = sitk.ReadImage("./resources/Dummy.nrrd")
+      sitkReferenceArray = sitk.GetArrayFromImage(sitkReferenceImg)
+      
+      for batch in data.train_dataloader():
+        images, meshes = batch['image'][tio.DATA], batch['samplingMesh']
+        
+        posDeformationField = transformer.getDeformationField(pos_flow)
+        deformedImages = lossCalculator._getDefomredImages(posDeformationField, neg_flow, images, meshes)
+        
+      
+        for i in range(deformedImages.shape[0]):
+          calculatedImageArray = deformedImages[i].detach().squeeze(0).permute([2,1,0])
+          self.assertTrue(torch.sum(calculatedImageArray - sitkReferenceArray).numpy() < -840.0)
+          self.assertTrue(torch.sum(calculatedImageArray - sitkReferenceArray).numpy() > -841.0)
+        
+      if os.path.exists('./resources/DummyDeformedMesh.pt'):
+        os.remove('./resources/DummyDeformedMesh.pt')
+      if os.path.exists('./resources/DummyMesh.pt'):
+        os.remove('./resources/DummyMesh.pt')
+      if os.path.exists('./resources/DummyRotatedMesh.pt'):
+        os.remove('./resources/DummyRotatedMesh.pt')
+    
+    def testBackwardDeformation(self):
+      
+      config = Config()
+      
+      config.setParam("trainingDataFile", "./resources/DataTestTrainingMethods.csv")
+      config.setParam("numberOfWorkersDataLoader",0)
+      config.setParam("registrationGridsize", [64, 56, 60])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      config.setParam("doRandomTrainValSetSplit", False)
+      
+      data = AtlasDataModule(config)
+      data.prepare_data()
+      data.setup(stage="fit") 
+      
+      tmp = data.val_set[0]['image'][tio.DATA]
+      data.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+      data.atlasImage.requires_grad = True
+      
+      atlasMesh = data.val_set[0]['samplingMesh']
+      data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
+      
+      atlasImage, atlasMesh = data.getInitalAtlas()
+      
+      defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
+      
+      locale.setlocale(locale.LC_NUMERIC, "en_US")
+      transformer = Bilinear()
+        
+      deformaiton = atlasMesh[0,None,:] + defField        
+      tmpDeformed = transformer.sampleImage(atlasImage[0,None,:],deformaiton)
+      
+      calculatedImageArray = tmpDeformed.detach().squeeze(0).squeeze(0).permute([2,1,0])
+      
+      # meshOrigin = data.val_set[0]['meshOrigin']
+      # meshSpacing = config.getParam("registrationGridSpacing")
+      # meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
+      # sitkImage = sitk.GetImageFromArray(tmpDeformed.detach().squeeze(0).squeeze(0).permute([2,1,0]))
+      # sitkImage.SetOrigin(meshOrigin.tolist())
+      # sitkImage.SetDirection(meshDir)
+      # sitkImage.SetSpacing(meshSpacing)
+      # sitk.WriteImage(sitkImage, "./resources/DummyDeformedInvTest.nrrd")
+        
+      sitkReferenceImg = sitk.ReadImage("./resources/Dummy.nrrd")
+      sitkReferenceArray = sitk.GetArrayFromImage(sitkReferenceImg)
+      
+      self.assertTrue(torch.sum(calculatedImageArray - sitkReferenceArray).numpy() < -117.0)
+      self.assertTrue(torch.sum(calculatedImageArray - sitkReferenceArray).numpy() > -118.0)
+          
+      if os.path.exists('./resources/DummyDeformedMesh.pt'):
+        os.remove('./resources/DummyDeformedMesh.pt')
+      if os.path.exists('./resources/DummyMesh.pt'):
+        os.remove('./resources/DummyMesh.pt')
+      if os.path.exists('./resources/DummyRotatedMesh.pt'):
+        os.remove('./resources/DummyRotatedMesh.pt')
+
+    def testForwardDeformation(self):
+      
+      config = Config()
+      
+      config.setParam("trainingDataFile", "./resources/DataTestTrainingMethods.csv")
+      config.setParam("numberOfWorkersDataLoader",0)
+      config.setParam("registrationGridsize", [64, 56, 60])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      config.setParam("doRandomTrainValSetSplit", False)
+      
+      data = AtlasDataModule(config)
+      data.prepare_data()
+      data.setup(stage="fit") 
+      
+      defField = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
+      
+      locale.setlocale(locale.LC_NUMERIC, "en_US")
+      transformer = Bilinear()
+      for batch in data.train_dataloader():
+        images, meshes = batch['image'][tio.DATA], batch['samplingMesh']
+        
+        
+        deformaiton = meshes[0,None,:] + defField        
+        tmpDeformed = transformer.sampleImage(images[0,None,:],deformaiton)
+        
+        # meshOrigin = data.train_set[0]['meshOrigin']
+        # meshSpacing = config.getParam("registrationGridSpacing")
+        # meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
+        # sitkImage = sitk.GetImageFromArray(tmpDeformed.squeeze(0).squeeze(0).permute([2,1,0]))
+        # sitkImage.SetOrigin(meshOrigin.tolist())
+        # sitkImage.SetDirection(meshDir)
+        # sitkImage.SetSpacing(meshSpacing)
+        # sitk.WriteImage(sitkImage, "./resources/DummyDeformedTest.nrrd")
+        #
+
+        calculatedImageArray = tmpDeformed.detach().squeeze(0).squeeze(0).permute([2,1,0])
+      
+        sitkReferenceImg = sitk.ReadImage("./resources/DummyDeformed.nrrd")
+        sitkReferenceArray = sitk.GetArrayFromImage(sitkReferenceImg)
+        
+        self.assertTrue(torch.sum(calculatedImageArray - sitkReferenceArray).numpy() > -3802.0)
+        self.assertTrue(torch.sum(calculatedImageArray - sitkReferenceArray).numpy() < -3801.0)
+        
+          
+      if os.path.exists('./resources/DummyDeformedMesh.pt'):
+        os.remove('./resources/DummyDeformedMesh.pt')
+      if os.path.exists('./resources/DummyMesh.pt'):
+        os.remove('./resources/DummyMesh.pt')
+      if os.path.exists('./resources/DummyRotatedMesh.pt'):
+        os.remove('./resources/DummyRotatedMesh.pt')
 
 
     def testBatchMethods(self):
@@ -36,7 +252,7 @@ class Test(unittest.TestCase):
       
       network = SVF_resid()
       newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
-      config.setParam("registrationGridsize", newShape.tolist())
+      #config.setParam("registrationGridsize", newShape.tolist())
       
       
       data = AtlasDataModule(config)
@@ -68,22 +284,23 @@ class Test(unittest.TestCase):
       model.configure_optimizers()
       model.atlasImages, model.atlasMeshes = data.getInitalAtlas()
       
-      #defField = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
-      defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
-      # locale.setlocale(locale.LC_NUMERIC, "en_US")
+      defField = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
+      #defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
+      
+      locale.setlocale(locale.LC_NUMERIC, "en_US")
       for batch in data.train_dataloader():
         images, meshes = model.prepare_batch(batch)
         
         
-        networkInputImages = model.transformer.sampleImage(images,meshes)
-        netWorkInputAtlasImages = model.transformer.sampleImage(model.atlasImages, model.atlasMeshes)
-        pos_flow, neg_flow = model.infer_batch(networkInputImages, netWorkInputAtlasImages)
+        #networkInputImages = model.transformer.sampleImage(images,meshes)
+        #netWorkInputAtlasImages = model.transformer.sampleImage(model.atlasImages, model.atlasMeshes)
+        #pos_flow, neg_flow = model.infer_batch(networkInputImages, netWorkInputAtlasImages)
       
-        loss = model.criterion.getLoss(pos_flow, neg_flow, images, meshes, model.atlasImages, model.atlasMeshes)
+        #loss = model.criterion.getLoss(pos_flow, neg_flow, images, meshes, model.atlasImages, model.atlasMeshes)
         
-        # deformaiton = meshes[0,None,:] + defField        
-        # tmpDeformed = model.transformer.sampleImage(images[0,None,:],deformaiton)
-        #
+        deformaiton = meshes[0,None,:] + defField        
+        tmpDeformed = model.transformer.sampleImage(images[0,None,:],deformaiton)
+        
         # meshOrigin = data.train_set[0]['meshOrigin']
         # meshSpacing = config.getParam("registrationGridSpacing")
         # meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
@@ -91,7 +308,15 @@ class Test(unittest.TestCase):
         # sitkImage.SetOrigin(meshOrigin.tolist())
         # sitkImage.SetDirection(meshDir)
         # sitkImage.SetSpacing(meshSpacing)
-        # sitk.WriteImage(sitkImage, "./resources/gridTest.nrrd")        
+        # sitk.WriteImage(sitkImage, "./resources/gridTest.nrrd")
+        
+          
+      if os.path.exists('./resources/DummyDeformedMesh.pt'):
+        os.remove('./resources/DummyDeformedMesh.pt')
+      if os.path.exists('./resources/DummyMesh.pt'):
+        os.remove('./resources/DummyMesh.pt')
+      if os.path.exists('./resources/DummyRotatedMesh.pt'):
+        os.remove('./resources/DummyRotatedMesh.pt')
         
 
     def asdftestTraining(self):

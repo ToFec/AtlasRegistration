@@ -34,31 +34,17 @@ class LossCalculator():
     
         self.transformer = Bilinear()
     
-    def _getDefomredImages(self, posDeformationField, neg_flow, images, meshes):##TODO: statt die bilder und das posDeformationField zu flippen, flippe ich das neg_flow field; testen, ob immer noch passt
-      
-      # sec_pos_deform_field = torch.flip(posDeformationField, dims=[0])
-      # sec_src_imgs = torch.flip(images, dims=[0])
-      # svf_warped_src_imgs_in_image_space = self.transformer(images, (self.transformer((neg_flow, sec_pos_deform_field) + sec_pos_deform_field)))
-      # pair_sim_loss = self.similarityLoss(svf_warped_src_imgs_in_image_space, sec_src_imgs) 
-      # return pair_sim_loss
-      
+    def _getDefomredImages(self, posDeformationField, neg_flow, images, meshes):
       sec_src_imgs = torch.flip(images, dims=[0])
       negFlowAndMesh = neg_flow + meshes
       secNegFlowAndMesh = torch.flip(negFlowAndMesh, dims=[0])
       transforemdImageMeshToOtherImageSpace = self.transformer(secNegFlowAndMesh, posDeformationField)
       return self.transformer.sampleImage(sec_src_imgs, transforemdImageMeshToOtherImageSpace)
-      
-      # sec_pos_deform_field = torch.flip(posDeformationField, dims=[0])
-      # transforemdImageMeshToOtherImageSpace = self.transformer(neg_flow + meshes, sec_pos_deform_field)
-      # return self.transformer.sampleImage(images, transforemdImageMeshToOtherImageSpace)
-      #
-      # sec_neg_flow = torch.flip(neg_flow)
-      # warpedSrcImgsInImgSpace = self.transformer(images, (self.transformer((sec_neg_flow, posDeformationField) + posDeformationField)))
-      # return warpedSrcImgsInImgSpace
+
     
     def _getImageSpaceSimilarityLoss(self, imgs0, imgs1):
       imgSpaceSimLoss = self.similarityLoss(imgs0, imgs1)
-      return imgSpaceSimLoss / imgs0.shape[0]
+      return imgSpaceSimLoss# / imgs0.shape[0]
     
 
     def getLoss(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes):
@@ -83,14 +69,14 @@ class LossCalculator():
       loss = sim_loss + reg_loss
       
       if self.imagePairSimilarityFactor != 0.0:
-        deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images)
+        deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
         pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, images) * self.imagePairSimilarityFactor
         loss = loss + pair_sim_loss
         
       if self.atlasPairSimilarityFactor != 0.0: ##TODO: vergleicht nicht alle bild kombinationen, ausreichend oder umprogrammiren? 
         warpedImages = self.transformer(images, negDeformationFieldImages)
         batch_size = images.shape[0]
-        atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(warpedImages[:int(batch_size/2)], images[:int(batch_size/2)]) * self.atlasPairSimilarityFactor
+        atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(warpedImages[:int(batch_size/2)], warpedImages[int(batch_size/2):]) * self.atlasPairSimilarityFactor
         loss = loss + atlas_pair_sim_loss
         
       return loss
