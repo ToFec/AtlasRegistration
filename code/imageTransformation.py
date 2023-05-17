@@ -48,10 +48,10 @@ class Transformation(torch.nn.Module):
     
     return self.identityTransform + flowField
   
-  def sampleImage(self,images, meshes):
+  def sampleImage(self,images, meshes,alignCorners=True):
     meshes = torch.moveaxis(meshes,1,-1)
     meshes = meshes.flip(-1)
-    sampledImage = torch.nn.functional.grid_sample(images, meshes,padding_mode="zeros", align_corners=True)
+    sampledImage = torch.nn.functional.grid_sample(images, meshes,padding_mode="zeros", align_corners=alignCorners)
     return sampledImage
 
     

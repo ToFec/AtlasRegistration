@@ -15,6 +15,7 @@ import SimpleITK as sitk
 import torch
 
 from config import Config
+from imageTransformation import Transformation
 
 
 class AtlasDataModule(pl.LightningDataModule):
@@ -34,6 +35,7 @@ class AtlasDataModule(pl.LightningDataModule):
       self.labelFileNameColIdx = config.getParam("labelColIdxInTrainFile")
       self.randomSplit = config.getParam("doRandomTrainValSetSplit")
       self.doAugmentation = config.getParam("doDataAugmentation")
+      self.initializeAtlasWithAverageImg = config.getParam("initializeAtlasWithAverageImg")
       
       
       
@@ -133,12 +135,29 @@ class AtlasDataModule(pl.LightningDataModule):
     
     def _setAtlasImage(self):
       if len(self.train_subjects) > 0:
-        tmp = self.train_subjects[0]['image'][tio.DATA]
-        self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
-        self.atlasImage.requires_grad = True
-        
-        atlasMesh = self.train_subjects[0]['samplingMesh']
-        self.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
+        if self.initializeAtlasWithAverageImg:
+          imgShape = list(self.train_subjects[0]['samplingMesh'].shape)
+          imgShape[0] = 1
+          imgShape = [1] + imgShape
+          transformer = Transformation(imgShape)
+          avgImg = torch.zeros(imgShape)
+          for train_subject in self.train_subjects:
+            tmpImg = train_subject['image'][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
+            tmpMesh = train_subject['samplingMesh'].unsqueeze(0)
+            sampledData = transformer.sampleImage(tmpImg, tmpMesh)
+            avgImg = avgImg + sampledData
+          avgImg = avgImg / len(self.train_subjects)
+          self.atlasImage = avgImg[0]
+          self.atlasImage.requires_grad = True
+          
+          self.atlasMesh = transformer.identityTransform
+        else:
+          tmp = self.train_subjects[0]['image'][tio.DATA]
+          self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+          self.atlasImage.requires_grad = True
+          
+          atlasMesh = self.train_subjects[0]['samplingMesh']
+          self.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
       else:
         self.atlasImage = None
         self.atlasMesh = None
@@ -199,8 +218,11 @@ class AtlasDataModule(pl.LightningDataModule):
           
         transform = self._getAugmentationTransform()
         self.train_set = tio.SubjectsDataset(train_subjects, transform=transform)
-        self.val_set = tio.SubjectsDataset(val_subjects, transform=transform)
-        
+        if len(val_subjects) > 0:
+          self.val_set = tio.SubjectsDataset(val_subjects, transform=transform)
+        else:
+          self.val_set = []
+          
         print("size of training set: ", len(self.train_set))
         print("size of validation set: ", len(self.val_set))
         

@@ -11,6 +11,7 @@
 	"doDataAugmentation" : false,
 	"registrationGridsize" : [64, 56, 60],
 	"registrationGridSpacing" : [1.0, 1.0, 1.0],
+	"initializeAtlasWithAverageImg" : false,
 	
 	"learningRate" : 1e-4,
 	"atlasLearningRate" : 1e-4,
