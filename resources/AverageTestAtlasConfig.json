@@ -1,18 +1,18 @@
 {
 	"batchSize" : 2,
 	"epochs" : 500,
-	"saveEveryEpoch" : 10,
-    "trainingDataFile" : "/home/fechter/workspace/AtlasRegistration/Aladdin/resources/DataTrain.csv",
-	"testDataFile" : "/home/fechter/workspace/AtlasRegistration/Aladdin/resources/DataTest.csv",
+    "saveEveryEpoch" : 10,
+    "trainingDataFile" : "/home/fechter/workspace/AtlasRegistration/Aladdin/resources/SimpleDatasset.csv",
+	"testDataFile" : "/home/fechter/workspace/AtlasRegistration/Aladdin/resources/SimpleDatasset.csv",
 	"imageColIdxInTrainFile": 0,
 	"labelColIdxInTrainFile": 1,
-	"trainValRatio" : 0.8,
-	"doRandomTrainValSetSplit" : true,
-	"doDataAugmentation" : false,
-	"doNormalisation" : false,
+	"trainValRatio" : 0.6,
+	"doRandomTrainValSetSplit" : false,
+    "doDataAugmentation" : true,
+    "doNormalisation" : true,
 	"registrationGridsize" : [64, 56, 60],
 	"registrationGridSpacing" : [1.0, 1.0, 1.0],
-	"initializeAtlasWithAverageImg" : false,
+	"initializeAtlasWithAverageImg" : true,
 	
 	"learningRate" : 1e-4,
 	"atlasLearningRate" : 1e-4,
@@ -29,6 +29,5 @@
 	"numberOfWorkersDataLoader" : 10,
 	"seed": 1234,
 	"accelerator" : "gpu",
-	"csvDelimiter" : ";"
-	
+    "csvDelimiter" : ";"
 }

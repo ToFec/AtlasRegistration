@@ -29,7 +29,9 @@ class AtlasModule(pl.LightningModule):
 
     def on_fit_start(self)->None:
       pl.LightningModule.on_fit_start(self)
-      self.atlasImages, self.atlasMeshes = self.trainer.datamodule.getInitalAtlas()
+      atlasImages, atlasMeshes = self.trainer.datamodule.getInitalAtlas()
+      self.atlasMeshes = atlasMeshes.to(self.device)
+      self.atlasImages = atlasImages.to(self.device)
 
     def configure_optimizers(self):       
         networkOptimizer = self.networkOptimizer_class(self.net.parameters(), lr=(self.nlr or self.learning_rate))

@@ -17,6 +17,8 @@ import torch
 from config import Config
 from imageTransformation import Transformation
 
+import imageTransformation
+
 
 class AtlasDataModule(pl.LightningDataModule):
     dataModuleName="AtlasDataModule"
@@ -35,6 +37,7 @@ class AtlasDataModule(pl.LightningDataModule):
       self.labelFileNameColIdx = config.getParam("labelColIdxInTrainFile")
       self.randomSplit = config.getParam("doRandomTrainValSetSplit")
       self.doAugmentation = config.getParam("doDataAugmentation")
+      self.doNormalisation = config.getParam("doNormalisation")
       self.initializeAtlasWithAverageImg = config.getParam("initializeAtlasWithAverageImg")
       
       
@@ -96,19 +99,33 @@ class AtlasDataModule(pl.LightningDataModule):
         
         meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
         if os.path.exists(meshName):
-          samplieMesh, sampleMeshOrigin = torch.load(meshName)
+          sampleMesh, sampleMeshOrigin = torch.load(meshName)
         else:
-          samplieMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, labelImage)
-          torch.save([samplieMesh,sampleMeshOrigin], meshName)
+          sampleMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, sampleMesh)
+          torch.save([sampleMesh,sampleMeshOrigin], meshName)
         
-        subjectDict["samplingMesh"] = samplieMesh
+        if labelImage is None:
+          labelImage = self._craeteLabelImage(scalarImage, sampleMesh)
+        
+        subjectDict["samplingMesh"] = sampleMesh
         subjectDict["meshOrigin"] = sampleMeshOrigin
           
         subject = tio.Subject(subjectDict)
       return subject
     
+    def _craeteLabelImage(self,scalarImage, sampleMesh):
+      imageData = scalarImage[tio.DATA]
+      imageData = imageData.unsqueeze(0)
+      mesh = sampleMesh['samplingMesh']  
+      mesh = mesh.unsqueeze(0)  
+      transformer = imageTransformation.Transformation()
+      #get min max coordinates from mesh and calculate index coordinates with those values
+      #then crate mask
+      TODO
+      sampledImg = transformer.sampleImage(imageData, mesh)
+    
     def _getAugmentationTransform(self):
-      augment = None
+      augmentations = []
       if self.doAugmentation:
         augment = tio.Compose([
             tio.RandomAffine(
@@ -118,7 +135,12 @@ class AtlasDataModule(pl.LightningDataModule):
               p=0.3),
             tio.RandomFlip(axes=('LR'),p=0.3)
         ])
-      return augment             
+        augmentations.append(augment)
+        
+      if self.doNormalisation:
+        transform = tio.ZNormalization(masking_method='label')
+        augmentations.append(transform)
+      return tio.Compose(augmentations)             
      
     def _dataSplit(self):
       num_subjects = len(self.train_subjects)

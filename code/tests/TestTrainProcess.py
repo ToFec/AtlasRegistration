@@ -19,12 +19,16 @@ import SimpleITK as sitk
 import locale
 import os
 from SimpleITK.extra import ReadImage
-#import pytorch_lightning as pl
-#from pytorch_lightning.loggers import TensorBoardLogger
-#import datetime
+from TrainAtlas import runTraining
 
 class Test(unittest.TestCase):
 
+
+    def testTrainProcess(self):
+      configFile = "./resources/AverageTestAtlasConfig.json"
+      config = Config(configFile)
+      runTraining(config)
+      
 
     def testLossFunction(self):
       config = Config()
