@@ -14,6 +14,48 @@ import imageTransformation
 import SimpleITK as sitk
 
 class Test(unittest.TestCase):
+  
+  
+    def testDummyMaskGeneration(self):
+      if os.path.exists('./resources/DummyRotatedMesh.pt'):
+        os.remove('./resources/DummyRotatedMesh.pt') 
+      config = Config()
+      config.setParam("registrationGridsize", [64, 56, 60])#[24, 22, 20])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      data = AtlasDataModule(config)
+      data.prepare_data()
+      data.setup(stage="fit")
+      firstTrainSubj = data.train_subjects[0]
+      tioImage = firstTrainSubj['image']
+      imageData = tioImage[tio.DATA]
+      imageData = imageData.unsqueeze(0)
+      mesh = firstTrainSubj['samplingMesh']
+      mesh = (mesh + 1.0) / 2.0
+      tmp = (mesh >= 0.0).all(axis=0)
+      mesh = mesh[:,tmp]
+      tmp = (mesh <= 1.0).all(axis=0)
+      mesh = mesh[:,tmp]
+      for dim in range(mesh.shape[0]):
+        mesh[dim] = mesh[dim] * (imageData.shape[-3+dim] - 1.0)
+      
+      meshCeil = torch.ceil(mesh).type(torch.int32)
+      meshFloor = torch.floor(mesh).type(torch.int32)
+      mesh = torch.cat((meshCeil, meshFloor),1)
+      labelData = torch.zeros_like(imageData)
+      labelData[:,:,mesh[0,:],mesh[1,:],mesh[2,:]] = 1.0
+      labelData = labelData.type(torch.int8)
+      
+      sitkReferenceImg = sitk.ReadImage("./resources/DummyRotated.nrrd")
+      
+      sitkImage = sitk.GetImageFromArray(labelData.squeeze(0).squeeze(0).permute([2,1,0]))
+      sitkImage.SetOrigin(sitkReferenceImg.GetOrigin())
+      sitkImage.SetDirection(sitkReferenceImg.GetDirection())
+      sitkImage.SetSpacing(sitkReferenceImg.GetSpacing())
+      sitk.WriteImage(sitkImage, "gridTest.nrrd")
+      
+      if os.path.exists('./resources/DummyRotatedMesh.pt'):
+        os.remove('./resources/DummyRotatedMesh.pt')  
+  
 
     def testAverageAtlasGeneration(self):
       config = Config()
@@ -98,9 +140,9 @@ class Test(unittest.TestCase):
     def testGridGeneration(self):
       
       config = Config()
-      data = AtlasDataModule(config)
       config.setParam("registrationGridsize", [64, 56, 60])
       config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      data = AtlasDataModule(config)
       data.prepare_data()
       data.setup(stage="fit")
       firstTrainSubj = data.train_subjects[0]

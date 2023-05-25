@@ -101,11 +101,11 @@ class AtlasDataModule(pl.LightningDataModule):
         if os.path.exists(meshName):
           sampleMesh, sampleMeshOrigin = torch.load(meshName)
         else:
-          sampleMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, sampleMesh)
+          sampleMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, labelImage)
           torch.save([sampleMesh,sampleMeshOrigin], meshName)
         
-        if labelImage is None:
-          labelImage = self._craeteLabelImage(scalarImage, sampleMesh)
+        # if labelImage is None:
+        #   labelImage = self._craeteLabelImage(scalarImage, sampleMesh)
         
         subjectDict["samplingMesh"] = sampleMesh
         subjectDict["meshOrigin"] = sampleMeshOrigin
