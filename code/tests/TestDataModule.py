@@ -38,11 +38,12 @@ class Test(unittest.TestCase):
       for dim in range(mesh.shape[0]):
         mesh[dim] = mesh[dim] * (imageData.shape[-3+dim] - 1.0)
       
-      meshCeil = torch.ceil(mesh).type(torch.int32)
-      meshFloor = torch.floor(mesh).type(torch.int32)
-      mesh = torch.cat((meshCeil, meshFloor),1)
+      meshFloor = torch.round(mesh).type(torch.int32)
       labelData = torch.zeros_like(imageData)
-      labelData[:,:,mesh[0,:],mesh[1,:],mesh[2,:]] = 1.0
+      labelData[:,:,meshFloor[0,:],meshFloor[1,:],meshFloor[2,:]] = 1.0
+      labelData = torch.nn.functional.conv3d(labelData, weight=torch.ones([1,1,3,3,3]), stride=1,padding=1)
+      labelData[labelData < 14] = 0
+      labelData[labelData >= 14] = 1
       labelData = labelData.type(torch.int8)
       
       sitkReferenceImg = sitk.ReadImage("./resources/DummyRotated.nrrd")
@@ -137,9 +138,38 @@ class Test(unittest.TestCase):
       if os.path.exists('./resources/DummyRotatedMesh.pt'):
         os.remove('./resources/DummyRotatedMesh.pt')
 
+    def testGridGeneration2(self):
+      
+      config = Config()
+      config.setParam("trainingDataFile","./resources/DataTrain1.csv")
+      config.setParam("registrationGridsize", [64, 56, 60])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      data = AtlasDataModule(config)
+      data.prepare_data()
+      data.setup(stage="fit")
+      firstTrainSubj = data.train_subjects[0]
+      tioImage = firstTrainSubj['image']
+      imageData = tioImage[tio.DATA]
+      imageData = imageData.unsqueeze(0)
+      mesh = firstTrainSubj['samplingMesh']
+      
+      mesh = mesh.unsqueeze(0)  
+      transformer = imageTransformation.Transformation()
+      sampledImgData = transformer.sampleImage(imageData.type(torch.FloatTensor), mesh)  
+      
+      sitkReferenceImg = sitk.ReadImage("./resources/Noise.nrrd")
+      sitkReferenceArray = sitk.GetArrayFromImage(sitkReferenceImg)
+      for i in range(sampledImgData.shape[0]):
+          calculatedImageArray = sampledImgData[i].detach().squeeze(0).permute([2,1,0])
+          self.assertTrue(torch.max(torch.abs(calculatedImageArray - sitkReferenceArray)).numpy() < 0.001)
+      
+      if os.path.exists('./resources/NoiseMesh.pt'):
+        os.remove('./resources/NoiseMesh.pt')
+
     def testGridGeneration(self):
       
       config = Config()
+      config.setParam("trainingDataFile","./resources/DataTrain.csv")
       config.setParam("registrationGridsize", [64, 56, 60])
       config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
       data = AtlasDataModule(config)
