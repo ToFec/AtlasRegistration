@@ -67,7 +67,7 @@ class AtlasModule(pl.LightningModule):
         return batch['image'][tio.DATA], batch['samplingMesh']
 
     def infer_batch(self, images, atlasImages):
-        atlasAndImages = torch.cat((atlasImages, images), 1)
+        atlasAndImages = torch.cat((atlasImages[0:images.shape[0],...], images), 1)
         pos_flow, neg_flow = self.net(atlasAndImages)
         return pos_flow, neg_flow
 
@@ -93,7 +93,10 @@ class AtlasModule(pl.LightningModule):
         
 
     def validation_step(self, batch, batch_idx):
-      return self.gatherInfoOfTrainingValidationStep(batch, batch_idx)  
+      stepInfo = self.gatherInfoOfTrainingValidationStep(batch, batch_idx)
+      loss = stepInfo["loss"]
+      self.log('val_loss', loss)
+      return stepInfo
         
       
     def test_step(self, batch, batch_idx):
@@ -107,7 +110,8 @@ class AtlasModule(pl.LightningModule):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
           
         if(self.current_epoch==1):
-          self.logger.experiment.add_graph(self.net,self.exampleInputArray)
+          exampleInputArray = torch.cat((self.atlasImages, self.atlasImages), 1)
+          self.logger.experiment.add_graph(self.net,exampleInputArray)
         
         self.logger.experiment.add_scalar("Loss/" + trainValString,avg_loss,self.current_epoch)
       

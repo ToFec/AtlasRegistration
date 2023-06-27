@@ -91,9 +91,9 @@ def runTraining(config):
           callbacks=callBackFunctions,
           auto_lr_find=config.getParam('tuneLR'),
           logger=logger,
-          deterministic=True,
+          deterministic="warn",
           check_val_every_n_epoch=5,
-          
+          max_epochs=max_epochs
       )
       
     trainer.tune(model,datamodule=data)

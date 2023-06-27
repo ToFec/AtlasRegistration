@@ -17,7 +17,6 @@ import torch
 from config import Config
 from imageTransformation import Transformation
 
-import imageTransformation
 
 
 class AtlasDataModule(pl.LightningDataModule):
@@ -39,6 +38,7 @@ class AtlasDataModule(pl.LightningDataModule):
       self.doAugmentation = config.getParam("doDataAugmentation")
       self.doNormalisation = config.getParam("doNormalisation")
       self.initializeAtlasWithAverageImg = config.getParam("initializeAtlasWithAverageImg")
+      self.loadImagesAsDataType=config.getParam("loadImagesAsDataType")
       
       
       
@@ -88,13 +88,18 @@ class AtlasDataModule(pl.LightningDataModule):
     def getSubject(self, imageFileName, labelFileName):
       subject = None
       if (os.path.exists(imageFileName)):
-        scalarImage = tio.ScalarImage(imageFileName)
+        sitkImage = sitk.ReadImage(imageFileName, sitk.GetPixelIDValueFromString(self.loadImagesAsDataType))
+        scalarImage = tio.ScalarImage.from_sitk(sitkImage)
         
         subjectDict = {"image": scalarImage}
         
         labelImage = None
         if labelFileName and os.path.exists(labelFileName):
-          labelImage = tio.LabelMap(labelFileName)
+          if self.doAugmentation:
+            sitkLabel = sitk.ReadImage(imageFileName, sitk.sitkFloat32)
+          else:
+            sitkLabel = sitk.ReadImage(imageFileName, sitk.sitkInt8)
+          labelImage = tio.LabelMap.from_sitk(sitkLabel)
         
         meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
         if os.path.exists(meshName):
@@ -105,7 +110,7 @@ class AtlasDataModule(pl.LightningDataModule):
         
         if labelImage is None:
           labelData = self._craeteLabelImage(scalarImage, sampleMesh)
-          labelImage = tio.LabelMap(tensor=labelData)
+          labelImage = tio.LabelMap(tensor=labelData, affine=scalarImage['affine'])
         subjectDict["label"] = labelImage
         
         subjectDict["samplingMesh"] = sampleMesh
@@ -133,7 +138,10 @@ class AtlasDataModule(pl.LightningDataModule):
       labelData = labelData.squeeze(0)
       labelData[labelData < 14] = 0
       labelData[labelData >= 14] = 1
-      labelData = labelData.type(torch.int8)
+      if self.doAugmentation:
+        labelData = labelData.type(torch.float32)
+      else:
+        labelData = labelData.type(torch.int8)
       
       
       return labelData
