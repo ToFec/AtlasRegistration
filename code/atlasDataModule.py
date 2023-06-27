@@ -95,7 +95,6 @@ class AtlasDataModule(pl.LightningDataModule):
         labelImage = None
         if labelFileName and os.path.exists(labelFileName):
           labelImage = tio.LabelMap(labelFileName)
-          subjectDict["label"] = labelImage
         
         meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
         if os.path.exists(meshName):
@@ -104,8 +103,10 @@ class AtlasDataModule(pl.LightningDataModule):
           sampleMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, labelImage)
           torch.save([sampleMesh,sampleMeshOrigin], meshName)
         
-        # if labelImage is None:
-        #   labelImage = self._craeteLabelImage(scalarImage, sampleMesh)
+        if labelImage is None:
+          labelData = self._craeteLabelImage(scalarImage, sampleMesh)
+          labelImage = tio.LabelMap(tensor=labelData)
+        subjectDict["label"] = labelImage
         
         subjectDict["samplingMesh"] = sampleMesh
         subjectDict["meshOrigin"] = sampleMeshOrigin
@@ -113,16 +114,31 @@ class AtlasDataModule(pl.LightningDataModule):
         subject = tio.Subject(subjectDict)
       return subject
     
-    def _craeteLabelImage(self,scalarImage, sampleMesh):
+    def _craeteLabelImage(self,scalarImage, mesh):
       imageData = scalarImage[tio.DATA]
-      imageData = imageData.unsqueeze(0)
-      mesh = sampleMesh['samplingMesh']  
-      mesh = mesh.unsqueeze(0)  
-      transformer = imageTransformation.Transformation()
-      #get min max coordinates from mesh and calculate index coordinates with those values
-      #then crate mask
-      TODO
-      sampledImg = transformer.sampleImage(imageData, mesh)
+      
+      mesh = (mesh + 1.0) / 2.0
+      tmp = (mesh >= 0.0).all(axis=0)
+      mesh = mesh[:,tmp]
+      tmp = (mesh <= 1.0).all(axis=0)
+      mesh = mesh[:,tmp]
+      for dim in range(mesh.shape[0]):
+        mesh[dim] = mesh[dim] * (imageData.shape[-3+dim] - 1.0)
+      
+      meshFloor = torch.round(mesh).type(torch.int32)
+      labelData = torch.zeros_like(imageData)
+      labelData[:,meshFloor[0,:],meshFloor[1,:],meshFloor[2,:]] = 1.0
+      labelData = labelData.unsqueeze(0)
+      labelData = torch.nn.functional.conv3d(labelData, weight=torch.ones([1,1,3,3,3],dtype=labelData.dtype), stride=1,padding=1)
+      labelData = labelData.squeeze(0)
+      labelData[labelData < 14] = 0
+      labelData[labelData >= 14] = 1
+      labelData = labelData.type(torch.int8)
+      
+      
+      return labelData
+      
+
     
     def _getAugmentationTransform(self):
       augmentations = []

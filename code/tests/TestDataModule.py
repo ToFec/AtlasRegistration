@@ -15,6 +15,67 @@ import SimpleITK as sitk
 
 class Test(unittest.TestCase):
   
+    def testNormalisation(self):
+      config = Config()
+      config.setParam("registrationGridsize", [64, 56, 60])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      config.setParam("initializeAtlasWithAverageImg", True)
+      config.setParam("trainingDataFile","./resources/DataTrainForAvgAtlasTest.csv")
+      config.setParam("doNormalisation", False)
+      data = AtlasDataModule(config)
+      
+      data.prepare_data()
+      data.setup(stage="fit")
+      
+      for batch in data.train_dataloader():
+        images, _, label = batch['image'][tio.DATA], batch['samplingMesh'], batch['label'][tio.DATA]
+        images = images.type(torch.FloatTensor)
+        for i in range(images.shape[0]): 
+          meanVal = images[i][label[i]>0].mean()
+          sdVal = images[i][label[i]>0].std()
+          self.assertNotAlmostEquals(0.0, meanVal.numpy(), 6)
+          self.assertNotAlmostEquals(1.0, sdVal.numpy(), 6)
+      
+      
+      if os.path.exists('./resources/rightMesh.pt'):
+        os.remove('./resources/rightMesh.pt')
+      if os.path.exists('./resources/leftMesh.pt'):
+        os.remove('./resources/leftMesh.pt')
+      if os.path.exists('./resources/frontMesh.pt'):
+        os.remove('./resources/frontMesh.pt')
+      if os.path.exists('./resources/backMesh.pt'):
+        os.remove('./resources/backMesh.pt')    
+  
+    def testNormalisation2(self):
+      config = Config()
+      config.setParam("registrationGridsize", [64, 56, 60])
+      config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
+      config.setParam("initializeAtlasWithAverageImg", True)
+      config.setParam("trainingDataFile","./resources/DataTrainForAvgAtlasTest.csv")
+      config.setParam("doNormalisation", True)
+      data = AtlasDataModule(config)
+      
+      data.prepare_data()
+      data.setup(stage="fit")
+      
+      for batch in data.train_dataloader():
+        images, _, label = batch['image'][tio.DATA], batch['samplingMesh'], batch['label'][tio.DATA]
+        for i in range(images.shape[0]): 
+          meanVal = images[i][label[i]>0].mean()
+          sdVal = images[i][label[i]>0].std()
+          self.assertAlmostEqual(0.0, meanVal.numpy(), 6)
+          self.assertAlmostEqual(1.0, sdVal.numpy(), 6)
+      
+      
+      if os.path.exists('./resources/rightMesh.pt'):
+        os.remove('./resources/rightMesh.pt')
+      if os.path.exists('./resources/leftMesh.pt'):
+        os.remove('./resources/leftMesh.pt')
+      if os.path.exists('./resources/frontMesh.pt'):
+        os.remove('./resources/frontMesh.pt')
+      if os.path.exists('./resources/backMesh.pt'):
+        os.remove('./resources/backMesh.pt')      
+  
   
     def testDummyMaskGeneration(self):
       if os.path.exists('./resources/DummyRotatedMesh.pt'):
@@ -27,32 +88,16 @@ class Test(unittest.TestCase):
       data.setup(stage="fit")
       firstTrainSubj = data.train_subjects[0]
       tioImage = firstTrainSubj['image']
-      imageData = tioImage[tio.DATA]
-      imageData = imageData.unsqueeze(0)
       mesh = firstTrainSubj['samplingMesh']
-      mesh = (mesh + 1.0) / 2.0
-      tmp = (mesh >= 0.0).all(axis=0)
-      mesh = mesh[:,tmp]
-      tmp = (mesh <= 1.0).all(axis=0)
-      mesh = mesh[:,tmp]
-      for dim in range(mesh.shape[0]):
-        mesh[dim] = mesh[dim] * (imageData.shape[-3+dim] - 1.0)
       
-      meshFloor = torch.round(mesh).type(torch.int32)
-      labelData = torch.zeros_like(imageData)
-      labelData[:,:,meshFloor[0,:],meshFloor[1,:],meshFloor[2,:]] = 1.0
-      labelData = torch.nn.functional.conv3d(labelData, weight=torch.ones([1,1,3,3,3]), stride=1,padding=1)
-      labelData[labelData < 14] = 0
-      labelData[labelData >= 14] = 1
-      labelData = labelData.type(torch.int8)
+      labelData = data._craeteLabelImage(tioImage, mesh)
       
-      sitkReferenceImg = sitk.ReadImage("./resources/DummyRotated.nrrd")
+      sitkReferenceImg = sitk.ReadImage("./resources/DummyRotatedDefaultMask.nrrd")
+      sitkReferenceArray = sitk.GetArrayFromImage(sitkReferenceImg)
       
-      sitkImage = sitk.GetImageFromArray(labelData.squeeze(0).squeeze(0).permute([2,1,0]))
-      sitkImage.SetOrigin(sitkReferenceImg.GetOrigin())
-      sitkImage.SetDirection(sitkReferenceImg.GetDirection())
-      sitkImage.SetSpacing(sitkReferenceImg.GetSpacing())
-      sitk.WriteImage(sitkImage, "gridTest.nrrd")
+      for i in range(labelData.shape[0]):
+          calculatedImageArray = labelData[i].detach().squeeze(0).permute([2,1,0])
+          self.assertTrue(torch.max(torch.abs(calculatedImageArray - sitkReferenceArray)).numpy() < 0.00001)
       
       if os.path.exists('./resources/DummyRotatedMesh.pt'):
         os.remove('./resources/DummyRotatedMesh.pt')  
