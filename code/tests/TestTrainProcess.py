@@ -27,6 +27,7 @@ class Test(unittest.TestCase):
     def testTrainProcess(self):
       configFile = "./resources/AverageTestAtlasConfig.json"
       config = Config(configFile)
+      config.setParam("epochs", 4)
       runTraining(config)
       
 
@@ -48,7 +49,7 @@ class Test(unittest.TestCase):
       data.setup(stage="fit") 
       
       tmp = data.val_set[0]['image'][tio.DATA]
-      data.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+      data.atlasImage = tmp.unsqueeze(0).detach().clone().type(torch.FloatTensor)
       data.atlasImage.requires_grad = True
       
       atlasMesh = data.val_set[0]['samplingMesh']
@@ -69,7 +70,7 @@ class Test(unittest.TestCase):
       for batch in data.train_dataloader():
         images, meshes = batch['image'][tio.DATA], batch['samplingMesh']
         
-        lossValue = lossCalculator.getLoss(pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes)
+        lossValue = lossCalculator.getLoss(pos_flow, neg_flow, images, meshes, atlasImages.expand(images.shape[0],-1,-1,-1,-1), atlasMeshes.expand(images.shape[0],-1,-1,-1,-1))
         self.assertAlmostEqual(lossValue.detach().numpy(), 0.0014,delta=0.00005)
         
       if os.path.exists('./resources/DummyDeformedMesh.pt'):
@@ -151,7 +152,7 @@ class Test(unittest.TestCase):
       data.setup(stage="fit") 
       
       tmp = data.val_set[0]['image'][tio.DATA]
-      data.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+      data.atlasImage = tmp.unsqueeze(0).detach().clone().type(torch.FloatTensor)
       data.atlasImage.requires_grad = True
       
       atlasMesh = data.val_set[0]['samplingMesh']

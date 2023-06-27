@@ -27,11 +27,22 @@ class AtlasModule(pl.LightningModule):
         self.transformer = Transformation()
         
 
+    def on_save_checkpoint(self, checkpoint):
+      checkpoint['atlasImage'] = self.atlasImage
+      checkpoint['atlasMesh'] = self.atlasMesh
+
     def on_fit_start(self)->None:
       pl.LightningModule.on_fit_start(self)
-      atlasImages, atlasMeshes = self.trainer.datamodule.getInitalAtlas()
-      self.atlasMeshes = atlasMeshes.to(self.device)
-      self.atlasImages = atlasImages.to(self.device)
+      atlasImage, atlasMesh = self.trainer.datamodule.getInitalAtlas()
+      atlasImage.requires_grad = True
+      self.atlasMesh = atlasMesh.to(self.device)
+      self.atlasImage = atlasImage.to(self.device)
+      
+    def _atlasMesh(self, batch_size):
+      return self.atlasMesh.expand(batch_size,-1,-1,-1,-1)
+    
+    def _atlasImage(self,batch_size):
+      return self.atlasImage.expand(batch_size,-1,-1,-1,-1)
 
     def configure_optimizers(self):       
         networkOptimizer = self.networkOptimizer_class(self.net.parameters(), lr=(self.nlr or self.learning_rate))
@@ -67,16 +78,16 @@ class AtlasModule(pl.LightningModule):
         return batch['image'][tio.DATA], batch['samplingMesh']
 
     def infer_batch(self, images, atlasImages):
-        atlasAndImages = torch.cat((atlasImages[0:images.shape[0],...], images), 1)
+        atlasAndImages = torch.cat((atlasImages, images), 1)
         pos_flow, neg_flow = self.net(atlasAndImages)
         return pos_flow, neg_flow
 
     def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
       images, meshes = self.prepare_batch(batch)
       networkInput = self.transformer.sampleImage(images,meshes)
-      pos_flow, neg_flow = self.infer_batch(networkInput, self.atlasImages)
+      pos_flow, neg_flow = self.infer_batch(networkInput, self._atlasImage(networkInput.shape[0]))
       
-      loss = self.criterion.getLoss(pos_flow, neg_flow, images, meshes, self.atlasImages, self.atlasMeshes)
+      loss = self.criterion.getLoss(pos_flow, neg_flow, images, meshes, self._atlasImage(images.shape[0]), self._atlasMesh(images.shape[0]))
       return {"loss": loss}  
     
     def training_step(self, batch, batch_idx):
@@ -110,7 +121,7 @@ class AtlasModule(pl.LightningModule):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
           
         if(self.current_epoch==1):
-          exampleInputArray = torch.cat((self.atlasImages, self.atlasImages), 1)
+          exampleInputArray = torch.cat((self._atlasImage(1), self._atlasImage(1)), 1)
           self.logger.experiment.add_graph(self.net,exampleInputArray)
         
         self.logger.experiment.add_scalar("Loss/" + trainValString,avg_loss,self.current_epoch)

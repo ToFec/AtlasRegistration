@@ -65,7 +65,7 @@ class AtlasDataModule(pl.LightningDataModule):
       pass
       
     def getInitalAtlas(self):
-      return self.atlasImage.repeat(self.batchSize, 1, 1, 1, 1), self.atlasMesh.repeat(self.batchSize, 1, 1, 1, 1)
+      return self.atlasImage, self.atlasMesh
     
     def _prepare_data(self):
       
@@ -194,16 +194,17 @@ class AtlasDataModule(pl.LightningDataModule):
             avgImg = avgImg + sampledData
           avgImg = avgImg / len(self.train_subjects)
           self.atlasImage = avgImg[0]
-          self.atlasImage.requires_grad = True
           
           self.atlasMesh = transformer.identityTransform
         else:
           tmp = self.train_subjects[0]['image'][tio.DATA]
           self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
-          self.atlasImage.requires_grad = True
           
           atlasMesh = self.train_subjects[0]['samplingMesh']
           self.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
+          
+        self.atlasImage = self.atlasImage.unsqueeze(0)
+        self.atlasMesh = self.atlasMesh.unsqueeze(0)
       else:
         self.atlasImage = None
         self.atlasMesh = None
