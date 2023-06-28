@@ -16,7 +16,6 @@ class AtlasModule(pl.LightningModule):
     def __init__(self, net, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler):
         super().__init__()
         self.automatic_optimization = False
-        self.save_hyperparameters()
         self.nlr = networkLearning_rate
         self.alr = atlasLearning_rate
         self.net = net
@@ -25,11 +24,16 @@ class AtlasModule(pl.LightningModule):
         self.atlasOptimizer_class = atlasOptimizer_class
         self.lrScheduler = useLrScheduler
         self.transformer = Transformation()
+        self.save_hyperparameters()
         
 
     def on_save_checkpoint(self, checkpoint):
       checkpoint['atlasImage'] = self.atlasImage
       checkpoint['atlasMesh'] = self.atlasMesh
+      
+    def on_load_checkpoint(self, checkpoint):
+      self.atlasImage = checkpoint['atlasImage']
+      self.atlasMesh = checkpoint['atlasMesh']      
 
     def on_fit_start(self)->None:
       pl.LightningModule.on_fit_start(self)
@@ -84,8 +88,9 @@ class AtlasModule(pl.LightningModule):
 
     def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
       images, meshes = self.prepare_batch(batch)
-      networkInput = self.transformer.sampleImage(images,meshes)
-      pos_flow, neg_flow = self.infer_batch(networkInput, self._atlasImage(networkInput.shape[0]))
+      networkImageToRegInput = self.transformer.sampleImage(images,meshes)
+      networkAtlasInput = self.transformer.sampleImage(self._atlasImage(networkImageToRegInput.shape[0]), self._atlasMesh(networkImageToRegInput.shape[0]))
+      pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
       
       loss = self.criterion.getLoss(pos_flow, neg_flow, images, meshes, self._atlasImage(images.shape[0]), self._atlasMesh(images.shape[0]))
       return {"loss": loss}  
@@ -111,11 +116,11 @@ class AtlasModule(pl.LightningModule):
         
       
     def test_step(self, batch, batch_idx):
-        images, _ = self.prepare_batch(batch)
-        y_hat, y = self.infer_batch(images)
-        loss = self.criterion(y_hat, y)
-        self.log('test_loss', loss)
-        return loss      
+      stepInfo = self.gatherInfoOfTrainingValidationStep(batch, batch_idx)
+      loss = stepInfo["loss"]
+      self.log('test_loss', loss)
+      return stepInfo      
+
      
     def epochEndLogging(self,outputs, trainValString): 
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
@@ -125,6 +130,11 @@ class AtlasModule(pl.LightningModule):
           self.logger.experiment.add_graph(self.net,exampleInputArray)
         
         self.logger.experiment.add_scalar("Loss/" + trainValString,avg_loss,self.current_epoch)
+        
+        networkAtlasInput = self.transformer.sampleImage(self._atlasImage(1), self._atlasMesh(1))
+        
+        networkAtlasInput = torch.Tensor.cpu(networkAtlasInput[0,0,int(networkAtlasInput.shape[2]/2),...])
+        self.logger.experiment.add_image("AtlasCenterSlice",networkAtlasInput,self.current_epoch,dataformats="HW")
       
     def training_epoch_end(self,outputs):
       _ , optAtlas = self.optimizers(use_pl_optimizer=True)
