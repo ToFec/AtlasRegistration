@@ -28,6 +28,9 @@ class Test(unittest.TestCase):
       configFile = "./resources/AverageTestAtlasConfig.json"
       config = Config(configFile)
       config.setParam("epochs", 4)
+      #config.setParam("accelerator", "cpu")
+      config.setParam("numberOfWorkersDataLoader", 1)
+      
       runTraining(config)
       
 

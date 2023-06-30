@@ -14,6 +14,7 @@ from lossCalculator import LossCalculator
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
+from ImageLogger import ImageLogger
 
 def runTraining(config):
   
@@ -44,9 +45,13 @@ def runTraining(config):
     data.prepare_data()
     data.setup(stage="fit")
     
+    atlasImage, atlasMesh = data.getInitalAtlas()
+    
     
     model = AtlasModule(
         network,
+        atlasImage,
+        atlasMesh,
         loss,
         networkLearning_rate=config.getParam('learningRate'),
         atlasLearning_rate=config.getParam('atlasLearningRate'),
@@ -82,6 +87,7 @@ def runTraining(config):
     callBackFunctions.append(lr_monitor)  
     
     logger = TensorBoardLogger("tb_logs", name=stringForStoringVariables)
+    imageLogger = ImageLogger("tb_logs", name=stringForStoringVariables)
     
     trainer = pl.Trainer(
           accelerator=config.getParam("accelerator"),
@@ -90,7 +96,7 @@ def runTraining(config):
           precision=32,
           callbacks=callBackFunctions,
           auto_lr_find=config.getParam('tuneLR'),
-          logger=logger,
+          logger=[logger, imageLogger],
           deterministic="warn",
           check_val_every_n_epoch=5,
           max_epochs=max_epochs

@@ -38,6 +38,7 @@ class AtlasDataModule(pl.LightningDataModule):
       self.doAugmentation = config.getParam("doDataAugmentation")
       self.doNormalisation = config.getParam("doNormalisation")
       self.initializeAtlasWithAverageImg = config.getParam("initializeAtlasWithAverageImg")
+      self.atlasDataToLoad = config.getParam("atlasImage")
       self.loadImagesAsDataType=config.getParam("loadImagesAsDataType")
       
       
@@ -83,7 +84,7 @@ class AtlasDataModule(pl.LightningDataModule):
             if self.labelFileNameColIdx > -1 and len(row) > self.labelFileNameColIdx:
               labelFileName = row[self.labelFileNameColIdx]
             subject = self.getSubject(imageFileName, labelFileName)
-            container.append(subject)  
+            container.append(subject)
     
     def getSubject(self, imageFileName, labelFileName):
       subject = None
@@ -196,6 +197,10 @@ class AtlasDataModule(pl.LightningDataModule):
           self.atlasImage = avgImg[0]
           
           self.atlasMesh = transformer.identityTransform
+        elif self.atlasDataToLoad is not None and os.path.exists(self.atlasDataToLoad):
+          subject = self.getSubject(self.atlasDataToLoad, None)
+          self.atlasImage = subject['image'][tio.DATA]
+          self.atlasMesh = subject['samplingMesh'].unsqueeze(0)
         else:
           tmp = self.train_subjects[0]['image'][tio.DATA]
           self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
