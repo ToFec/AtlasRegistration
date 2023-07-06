@@ -87,7 +87,10 @@ def runTraining(config):
     callBackFunctions.append(lr_monitor)  
     
     logger = TensorBoardLogger("tb_logs", name=stringForStoringVariables)
-    imageLogger = ImageLogger("tb_logs", name=stringForStoringVariables)
+    meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
+    meshOrigin = [0.0,0.0,0.0]
+    meshSpacing = config.getParam("registrationGridSpacing")
+    imageLogger = ImageLogger("tb_logs", name=stringForStoringVariables, imageOrigin=meshOrigin, imageSpacing=meshSpacing, imageDirections=meshDir, version=logger.version)
     
     trainer = pl.Trainer(
           accelerator=config.getParam("accelerator"),

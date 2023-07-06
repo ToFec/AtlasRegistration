@@ -157,12 +157,12 @@ class AtlasModule(pl.LightningModule):
         
         networkAtlasInput = self.transformer.sampleImage(self._atlasImage(1), self._atlasMesh(1))
         
-        networkAtlasInput = torch.Tensor.cpu(networkAtlasInput[0,0,int(networkAtlasInput.shape[2]/2),...])
-        self.logger.experiment.add_image("AtlasCenterSlice",networkAtlasInput,self.current_epoch,dataformats="HW")
-        
+        networkAtlasInput = torch.Tensor.cpu(networkAtlasInput.detach())
+        self.logger.experiment.add_image("AtlasCenterSlice",networkAtlasInput[0,0,int(networkAtlasInput.shape[2]/2),...],self.current_epoch,dataformats="HW")
+        self.log_dict({"test":123})
         for logger in self.loggers:
           if isinstance(logger, ImageLogger):
-            logger.saveImage()
+            logger.saveImage(networkAtlasInput, "AtlasImage", self.current_epoch)
           
       
     def training_epoch_end(self,outputs):
