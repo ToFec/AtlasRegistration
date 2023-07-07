@@ -72,8 +72,9 @@ def getModelAndData(config, stageType):
 
 def runTests(config):
   model, data = getModelAndData(config, "test")
-
-  trainer = pl.Trainer()
+  
+  logger = TensorBoardLogger("tb_logs", name="test_" + getCheckPointString(config))
+  trainer = pl.Trainer(logger=logger)
     
   start = dt.datetime.now()
     
