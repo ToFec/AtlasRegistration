@@ -6,8 +6,8 @@ Created on Jun 30, 2023
 from pytorch_lightning.loggers.logger import Logger, rank_zero_experiment
 from pytorch_lightning.utilities import rank_zero_only
 
-import SimpleITK as sitk
 import os
+import atlas_utils
 
 class ImageLogger(Logger):
   
@@ -46,11 +46,9 @@ class ImageLogger(Logger):
         pass
       
     def saveImage(self,imageData, imageName, epoch):
-        sitkImage = sitk.GetImageFromArray(imageData.squeeze(0).squeeze(0).permute([2,1,0]))
-        sitkImage.SetOrigin(self._imageOrigin)
-        sitkImage.SetDirection(self._imageDirection)
-        sitkImage.SetSpacing(self._imageSpacing)
-        sitk.WriteImage(sitkImage, os.path.join(self._save_dir, self._name, f"version_{self._version}",  imageName + str(epoch) + ".nrrd"))
+      imageDataToSave = imageData.squeeze(0).squeeze(0).permute([2,1,0])
+      imageName = os.path.join(self._save_dir, self._name, f"version_{self._version}",  imageName + str(epoch) + ".nrrd")
+      atlas_utils.saveImage(imageDataToSave, imageName, self._imageOrigin, self._imageSpacing, self._imageDirection)
 
     @rank_zero_only
     def finalize(self, status):

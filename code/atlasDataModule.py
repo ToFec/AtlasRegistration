@@ -200,13 +200,13 @@ class AtlasDataModule(pl.LightningDataModule):
         elif self.atlasDataToLoad is not None and os.path.exists(self.atlasDataToLoad):
           subject = self.getSubject(self.atlasDataToLoad, None)
           self.atlasImage = subject['image'][tio.DATA]
-          self.atlasMesh = subject['samplingMesh'].unsqueeze(0)
+          self.atlasMesh = subject['samplingMesh']
         else:
           tmp = self.train_subjects[0]['image'][tio.DATA]
           self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
           
           atlasMesh = self.train_subjects[0]['samplingMesh']
-          self.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
+          self.atlasMesh = atlasMesh.detach().clone()
           
         self.atlasImage = self.atlasImage.unsqueeze(0)
         self.atlasMesh = self.atlasMesh.unsqueeze(0)
@@ -291,4 +291,7 @@ class AtlasDataModule(pl.LightningDataModule):
 
     # pytorch lightning hook
     def test_dataloader(self):
-        return DataLoader(self.test_set, self.batchSize, num_workers=self.num_workers)      
+        return DataLoader(self.test_set, self.batchSize, num_workers=self.num_workers)
+      
+    def predict_dataloader(self):
+        return DataLoader(self.test_set, self.batchSize, num_workers=self.num_workers)

@@ -26,7 +26,14 @@ def loadDefField(filename):
     defField = torch.from_numpy(defField)
     defField = defField.permute([0,4,3,2,1])
     
-    return defField 
+    return defField
+  
+def saveImage(imageData, imageName,origin, spacing, direction):
+  sitkImage = sitk.GetImageFromArray(imageData)
+  sitkImage.SetOrigin(origin)
+  sitkImage.SetDirection(direction)
+  sitkImage.SetSpacing(spacing)
+  sitk.WriteImage(sitkImage, imageName)
 
 def setSeeds(seed = 0):
   torch.manual_seed(seed)
