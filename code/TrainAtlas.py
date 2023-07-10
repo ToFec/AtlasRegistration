@@ -15,6 +15,7 @@ from lossCalculator import LossCalculator
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from ImageLogger import ImageLogger
+from DeformationFieldAndDeformedImageWriter import DeformationFieldAndDeformedImageWriter
 
 def getCheckPointString(config):
     seed = config.getParam("seed")
@@ -84,9 +85,9 @@ def runTests(config):
 
 def runPrediction(config):
   model, data = getModelAndData(config, "test")
-  trainer = pl.Trainer()
+  pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch_and_epoch")
+  trainer = pl.Trainer(callbacks=[pred_writer])
   start = dt.datetime.now()
-    
   print('Training started at', start)
   predictions = trainer.predict(model=model, dataloaders=data.predict_dataloader())
   print('Training duration:', dt.datetime.now() - start)  
@@ -111,13 +112,14 @@ def runTraining(config):
     data.prepare_data()
     data.setup(stage="fit")
     
-    atlasImage, atlasMesh = data.getInitalAtlas()
+    atlasImage, atlasMesh, atlasOrigin = data.getInitalAtlas()
     
     
     model = AtlasModule(
         network,
         atlasImage,
         atlasMesh,
+        atlasOrigin,
         loss,
         networkLearning_rate=config.getParam('learningRate'),
         atlasLearning_rate=config.getParam('atlasLearningRate'),
@@ -145,7 +147,7 @@ def runTraining(config):
     
     logger = TensorBoardLogger("tb_logs", name=stringForStoringVariables)
     meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
-    meshOrigin = [0.0,0.0,0.0]
+    meshOrigin = atlasOrigin.tolist()
     meshSpacing = config.getParam("registrationGridSpacing")
     imageLogger = ImageLogger("tb_logs", name=stringForStoringVariables, imageOrigin=meshOrigin, imageSpacing=meshSpacing, imageDirections=meshDir, version=logger.version)
     

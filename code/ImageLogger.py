@@ -46,9 +46,8 @@ class ImageLogger(Logger):
         pass
       
     def saveImage(self,imageData, imageName, epoch):
-      imageDataToSave = imageData.squeeze(0).squeeze(0).permute([2,1,0])
       imageName = os.path.join(self._save_dir, self._name, f"version_{self._version}",  imageName + str(epoch) + ".nrrd")
-      atlas_utils.saveImage(imageDataToSave, imageName, self._imageOrigin, self._imageSpacing, self._imageDirection)
+      atlas_utils.saveImageTensor(imageData, imageName, self._imageOrigin, self._imageSpacing, self._imageDirection)
 
     @rank_zero_only
     def finalize(self, status):

@@ -28,6 +28,10 @@ def loadDefField(filename):
     
     return defField
   
+def saveImageTensor(imageData, imageName,origin, spacing, direction):
+  imageDataToSave = imageData.squeeze(0).squeeze(0).permute([2,1,0])
+  saveImage(imageDataToSave, imageName, origin, spacing, direction)  
+  
 def saveImage(imageData, imageName,origin, spacing, direction):
   sitkImage = sitk.GetImageFromArray(imageData)
   sitkImage.SetOrigin(origin)

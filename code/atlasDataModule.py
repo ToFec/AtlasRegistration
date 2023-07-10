@@ -66,7 +66,7 @@ class AtlasDataModule(pl.LightningDataModule):
       pass
       
     def getInitalAtlas(self):
-      return self.atlasImage, self.atlasMesh
+      return self.atlasImage, self.atlasMesh, self.atlasOrigin
     
     def _prepare_data(self):
       
@@ -91,7 +91,7 @@ class AtlasDataModule(pl.LightningDataModule):
       if (os.path.exists(imageFileName)):
         sitkImage = sitk.ReadImage(imageFileName, sitk.GetPixelIDValueFromString(self.loadImagesAsDataType))
         scalarImage = tio.ScalarImage.from_sitk(sitkImage)
-        
+        scalarImage['path'] = imageFileName
         subjectDict = {"image": scalarImage}
         
         labelImage = None
@@ -195,24 +195,28 @@ class AtlasDataModule(pl.LightningDataModule):
             avgImg = avgImg + sampledData
           avgImg = avgImg / len(self.train_subjects)
           self.atlasImage = avgImg[0]
-          
+          self.atlasOrigin = [0.0, 0.0, 0.0]
           self.atlasMesh = transformer.identityTransform
         elif self.atlasDataToLoad is not None and os.path.exists(self.atlasDataToLoad):
           subject = self.getSubject(self.atlasDataToLoad, None)
           self.atlasImage = subject['image'][tio.DATA]
           self.atlasMesh = subject['samplingMesh']
+          self.atlasOrigin = subject['meshOrigin']
         else:
           tmp = self.train_subjects[0]['image'][tio.DATA]
           self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
           
           atlasMesh = self.train_subjects[0]['samplingMesh']
+          atlasOrigin = self.train_subjects[0]['meshOrigin']
           self.atlasMesh = atlasMesh.detach().clone()
+          self.atlasOrigin = atlasOrigin.detach().clone()
           
         self.atlasImage = self.atlasImage.unsqueeze(0)
         self.atlasMesh = self.atlasMesh.unsqueeze(0)
       else:
         self.atlasImage = None
         self.atlasMesh = None
+        self.atlasOrigin = None
     
     def getSampleMesh(self, scalarImage, labelImage):
       

@@ -14,7 +14,7 @@ from imageTransformation import Transformation
 
 class AtlasModule(pl.LightningModule):
 
-    def __init__(self, net, atlasImage, atlasMesh, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler):
+    def __init__(self, net, atlasImage, atlasMesh, atlasOrigin, loss, networkLearning_rate, atlasLearning_rate, networkOptimizer_class, atlasOptimizer_class, useLrScheduler):
         super().__init__()
         self.automatic_optimization = False
         self.nlr = networkLearning_rate
@@ -29,6 +29,7 @@ class AtlasModule(pl.LightningModule):
         self.atlasImage = torch.nn.Parameter(atlasImage)
         # self.atlasImage.requires_grad = True
         self.register_buffer("atlasMesh", atlasMesh, True)
+        self.register_buffer("atlasOrigin", atlasOrigin, True)
         # self.atlasMesh = torch.nn.Parameter(atlasMesh)
         # self.atlasMesh.requires_grad = False
         # self.register_parameter("tmp", self.tmp)
@@ -56,10 +57,10 @@ class AtlasModule(pl.LightningModule):
     #   self.atlasMesh = self.atlasMesh.to(self.device)
     #   self.atlasImage = self.atlasImage.to(self.device)
       
-    def _atlasMesh(self, batch_size):
+    def getInputAtlasMesh(self, batch_size):
       return self.atlasMesh.expand(batch_size,-1,-1,-1,-1)
     
-    def _atlasImage(self,batch_size):
+    def getInputAtlasImage(self,batch_size):
       return self.atlasImage.expand(batch_size,-1,-1,-1,-1)
 
     def configure_optimizers(self):       
@@ -105,10 +106,10 @@ class AtlasModule(pl.LightningModule):
     def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
       images, meshes = self.prepare_batch(batch)
       networkImageToRegInput = self.transformer.sampleImage(images,meshes)
-      networkAtlasInput = self.transformer.sampleImage(self._atlasImage(networkImageToRegInput.shape[0]), self._atlasMesh(networkImageToRegInput.shape[0]))
+      networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(networkImageToRegInput.shape[0]), self.getInputAtlasMesh(networkImageToRegInput.shape[0]))
       pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
       
-      sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLosses(pos_flow, neg_flow, images, meshes, self._atlasImage(images.shape[0]), self._atlasMesh(images.shape[0]))
+      sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLosses(pos_flow, neg_flow, images, meshes, self.getInputAtlasImage(images.shape[0]), self.getInputAtlasMesh(images.shape[0]))
       loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss
       return {"loss": loss, "sim_loss": sim_loss, "reg_loss": reg_loss, "pair_sim_loss": pair_sim_loss, "atlas_pair_sim_loss": atlas_pair_sim_loss}  
     
@@ -127,7 +128,7 @@ class AtlasModule(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
       images, meshes = self.prepare_batch(batch)
       networkImageToRegInput = self.transformer.sampleImage(images,meshes)
-      networkAtlasInput = self.transformer.sampleImage(self._atlasImage(networkImageToRegInput.shape[0]), self._atlasMesh(networkImageToRegInput.shape[0]))
+      networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(networkImageToRegInput.shape[0]), self.getInputAtlasMesh(networkImageToRegInput.shape[0]))
       pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
       return pos_flow, neg_flow
 
@@ -157,13 +158,13 @@ class AtlasModule(pl.LightningModule):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
           
         if(self.current_epoch==1):
-          networkAtlasInput = self.transformer.sampleImage(self._atlasImage(1), self._atlasMesh(1))
+          networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(1), self.getInputAtlasMesh(1))
           exampleInputArray = torch.cat((networkAtlasInput, networkAtlasInput), 1)
           self.logger.experiment.add_graph(self.net,exampleInputArray)
         
         self.logger.experiment.add_scalar("Loss/" + trainValString,avg_loss,self.current_epoch)
         
-        networkAtlasInput = self.transformer.sampleImage(self._atlasImage(1), self._atlasMesh(1))
+        networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(1), self.getInputAtlasMesh(1))
         
         networkAtlasInput = torch.Tensor.cpu(networkAtlasInput.detach())
         self.logger.experiment.add_image("AtlasCenterSlice",networkAtlasInput[0,0,int(networkAtlasInput.shape[2]/2),...],self.current_epoch,dataformats="HW")

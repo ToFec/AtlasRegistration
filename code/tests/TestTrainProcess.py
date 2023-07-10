@@ -60,7 +60,7 @@ class Test(unittest.TestCase):
       
       lossCalculator = LossCalculator(config)
       
-      atlasImages, atlasMeshes = data.getInitalAtlas()
+      atlasImages, atlasMeshes, _ = data.getInitalAtlas()
 
       neg_flow = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
       neg_flow = torch.cat((neg_flow, neg_flow))
@@ -161,7 +161,7 @@ class Test(unittest.TestCase):
       atlasMesh = data.val_set[0]['samplingMesh']
       data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
       
-      atlasImage, atlasMesh = data.getInitalAtlas()
+      atlasImage, atlasMesh, _ = data.getInitalAtlas()
       
       defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
       
@@ -267,30 +267,29 @@ class Test(unittest.TestCase):
       data.prepare_data()
       data.setup(stage="fit") 
       
-      tmp = data.val_set[0]['image'][tio.DATA]
-      data.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
-      data.atlasImage.requires_grad = True
-      
-      atlasMesh = data.val_set[0]['samplingMesh']
-      data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
-      
       loss = LossCalculator(config)
       networkOptim = atlasUtils.getOptimizer(config.getParam('optimizer'))
       atlasOptim = atlasUtils.getOptimizer(config.getParam('optimizer'))
 
+      atlasImage, atlasMesh, atlasOrigin = data.getInitalAtlas()
+
+      
       model = AtlasModule(
-          network,
-          loss,
-          networkLearning_rate=config.getParam('learningRate'),
-          atlasLearning_rate=config.getParam('learningRate'),
-          networkOptimizer_class=networkOptim,
-          atlasOptimizer_class=atlasOptim,
-          useLrScheduler=config.getParam('lrScheduler')
-      )      
+        network,
+        atlasImage,
+        atlasMesh,
+        atlasOrigin,
+        loss,
+        networkLearning_rate=config.getParam('learningRate'),
+        atlasLearning_rate=config.getParam('atlasLearningRate'),
+        networkOptimizer_class=networkOptim,
+        atlasOptimizer_class=atlasOptim,
+        useLrScheduler=config.getParam('lrScheduler')
+      )     
       
       model.setup("fit")
       model.configure_optimizers()
-      model.atlasImages, model.atlasMeshes = data.getInitalAtlas()
+      model.atlasImages, model.atlasMeshes, _ = data.getInitalAtlas()
       
       defField = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
       #defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
