@@ -4,7 +4,6 @@ Created on Jul 10, 2023
 @author: fechter
 '''
 from pytorch_lightning.callbacks import BasePredictionWriter
-import torch
 import os
 
 from imageTransformation import Bilinear
@@ -36,6 +35,8 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
       for i in range(0,warpedAtlas.shape[0]):
         fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
         atlas_utils.saveImageTensor(warpedAtlas[i,None,...], os.path.join(self.output_dir, fileBaseName + "AtlasDef.nrrd"), meshOrigin[i].tolist(), self.meshSpacing, self.meshDir)
+        
+        atlas_utils.saveDefField(os.path.join(self.output_dir, fileBaseName + "AtlasDefField.nrrd"), pos_flow[i,None,...], meshOrigin[i].tolist(), self.meshSpacing, self.meshDir)
       
       
       negDeformationFieldImages = meshes + neg_flow
@@ -43,7 +44,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
       for i in range(0,warpedImages.shape[0]):
         fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
         atlas_utils.saveImageTensor(warpedImages[i,None,...], os.path.join(self.output_dir, fileBaseName + "Def.nrrd"), atlasOrigin, self.meshSpacing, self.meshDir)
-      
+        atlas_utils.saveDefField(os.path.join(self.output_dir, fileBaseName + "DefField.nrrd"), neg_flow[i,None,...],atlasOrigin, self.meshSpacing, self.meshDir)
 
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
       pass

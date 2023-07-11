@@ -44,7 +44,7 @@ class LossCalculator():
     
     def _getImageSpaceSimilarityLoss(self, imgs0, imgs1):
       imgSpaceSimLoss = self.similarityLoss(imgs0, imgs1)
-      return imgSpaceSimLoss# / imgs0.shape[0]
+      return imgSpaceSimLoss / imgs0.shape[0]
     
 
 

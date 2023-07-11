@@ -14,7 +14,7 @@ def loadDefField(filename):
     defFieldDirection = defFieldITK.GetDirection()
     
     defField = sitk.GetArrayFromImage(defFieldITK)
-    defField[...,0] = (defField[...,0] / defFieldSpacing[0]) * defFieldDirection[0]
+    defField[...,0] = (defField[...,0] / defFieldSpacing[0]) * defFieldDirection[0]#should be sign of direction or reorient to standard direction?
     defField[...,1] = (defField[...,1] / defFieldSpacing[1]) * defFieldDirection[4]
     defField[...,2] = (defField[...,2] / defFieldSpacing[2]) * defFieldDirection[8]
     
@@ -27,6 +27,28 @@ def loadDefField(filename):
     defField = defField.permute([0,4,3,2,1])
     
     return defField
+  
+def saveDefField(filename, defField, origin, spacing, direction):
+  
+  defField = defField[0,...].detach()
+  defField = defField.permute([3,2,1,0])
+  
+  defField[..., 0] = defField[...,0] * ((defField.shape[2]-1) / 2.0)
+  defField[..., 1] = defField[..., 1] * ((defField.shape[1]-1) / 2.0)
+  defField[..., 2] = defField[..., 2] * ((defField.shape[0]-1) / 2.0)
+  
+  defField[...,0] = defField[...,0] * spacing[0]
+  defField[...,1] = defField[...,1] * spacing[1]
+  defField[...,2] = defField[...,2] * spacing[2]
+  
+  defDataToSave = sitk.GetImageFromArray(defField, isVector=True)      
+      
+  defDataToSave.SetSpacing( spacing )
+  defDataToSave.SetOrigin( origin)
+  defDataToSave.SetDirection( direction )
+      
+  sitk.WriteImage(defDataToSave, filename)      
+    
   
 def saveImageTensor(imageData, imageName,origin, spacing, direction):
   imageDataToSave = imageData.squeeze(0).squeeze(0).permute([2,1,0])

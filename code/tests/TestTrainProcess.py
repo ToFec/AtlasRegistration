@@ -140,6 +140,12 @@ class Test(unittest.TestCase):
       if os.path.exists('./resources/DummyRotatedMesh.pt'):
         os.remove('./resources/DummyRotatedMesh.pt')
     
+    def testLoadAndSaveOfDefField(self):
+      defFieldITK = sitk.ReadImage("./resources/DummyDeformationFieldInv.nrrd")
+      defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
+      
+      atlasUtils.saveDefField("./resources/DummyDeformationFieldInvSaved.nrrd", defField, defFieldITK.GetOrigin(), defFieldITK.GetSpacing(), defFieldITK.GetDirection())
+    
     def testBackwardDeformation(self):
       
       config = Config()
