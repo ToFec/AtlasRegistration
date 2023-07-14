@@ -155,6 +155,7 @@ def runTraining(config):
           accelerator=config.getParam("accelerator"),
           devices="auto", 
          # strategy="auto",
+          overfit_batches=2,
           precision=32,
           callbacks=callBackFunctions,
           auto_lr_find=config.getParam('tuneLR'),

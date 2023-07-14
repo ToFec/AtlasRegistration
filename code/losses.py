@@ -69,9 +69,9 @@ class MSELoss(nn.MSELoss):
     def __init__(self):
         super().__init__(size_average=True)
 
-    def forward(self, input, target):
-      mseLoss = super().forward(input, target)
-      return mseLoss / input.shape[0]
+    def forward(self, inputTensor, target):
+      mseLoss = super().forward(inputTensor, target)
+      return mseLoss / inputTensor.shape[0]
       
 
 class NCCLoss(nn.Module):

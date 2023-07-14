@@ -175,6 +175,9 @@ class AtlasModule(pl.LightningModule):
           
       
     def training_epoch_end(self,outputs):
+      ###
+      ##in case of heterogeneous/speckled atlas, a smooth loss can be used here
+      ####
       _ , optAtlas = self.optimizers(use_pl_optimizer=True)
       optAtlas.step()
       optAtlas.zero_grad()

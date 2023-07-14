@@ -120,8 +120,8 @@ class AtlasDataModule(pl.LightningDataModule):
         subject = tio.Subject(subjectDict)
       return subject
     
-    def _craeteLabelImage(self,scalarImage, mesh):
-      imageData = scalarImage[tio.DATA]
+    
+    def _craeteLabelImageData(self,imageData, mesh):
       
       mesh = (mesh + 1.0) / 2.0
       tmp = (mesh >= 0.0).all(axis=0)
@@ -146,6 +146,11 @@ class AtlasDataModule(pl.LightningDataModule):
       
       
       return labelData
+          
+    
+    def _craeteLabelImage(self,scalarImage, mesh):
+      imageData = scalarImage[tio.DATA]
+      return self._craeteLabelImageData(imageData, mesh)
       
 
     
@@ -210,6 +215,13 @@ class AtlasDataModule(pl.LightningDataModule):
           atlasOrigin = self.train_subjects[0]['meshOrigin']
           self.atlasMesh = atlasMesh.detach().clone()
           self.atlasOrigin = atlasOrigin.detach().clone()
+        
+        if self.doNormalisation:
+          labelData = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
+          subject = tio.Subject({"label": tio.LabelMap(tensor=labelData), "image": tio.ScalarImage(tensor=self.atlasImage)})
+          transform = tio.ZNormalization(masking_method='label')
+          normalizedAtlasSubject = transform(subject)
+          self.atlasImage = normalizedAtlasSubject['image'][tio.DATA]
           
         self.atlasImage = self.atlasImage.unsqueeze(0)
         self.atlasMesh = self.atlasMesh.unsqueeze(0)
