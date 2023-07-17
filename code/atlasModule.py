@@ -106,7 +106,7 @@ class AtlasModule(pl.LightningModule):
     def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
       images, meshes = self.prepare_batch(batch)
       networkImageToRegInput = self.transformer.sampleImage(images,meshes)
-      networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(networkImageToRegInput.shape[0]), self.getInputAtlasMesh(networkImageToRegInput.shape[0]))
+      networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(networkImageToRegInput.shape[0]).detach(), self.getInputAtlasMesh(networkImageToRegInput.shape[0]))
       pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
       
       sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLosses(pos_flow, neg_flow, images, meshes, self.getInputAtlasImage(images.shape[0]), self.getInputAtlasMesh(images.shape[0]))
