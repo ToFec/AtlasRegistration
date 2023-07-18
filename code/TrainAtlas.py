@@ -33,13 +33,15 @@ def getCheckPointString(config):
     reg_factor = config.getParam("regularizationFactor")
     sim_factor = config.getParam("similarityFactor")
     pair_sim_factor = config.getParam("imagePairSimFactor")
+    atlas_Pair_Sim_Factor = config.getParam("atlasPairSimFactor")
     smooth_factor = config.getParam("smoothingFactor")
           
     stringForStoringVariables = "atlasRegistration" + str(loss_name) \
                 + '_seed_' + str(seed) \
                 + '_reg_' + str(reg_factor) \
                 + '_atlas_sim_' + str(sim_factor) \
-                + '_pair_sim_' + str(pair_sim_factor) \
+                + '_image_pair_sim_' + str(pair_sim_factor) \
+                + '_atlas_pair_sim_factor' + str(atlas_Pair_Sim_Factor) \
                 + '_smooth_' + str(smooth_factor) \
                 + '_epoch_' + str(max_epochs) \
                 + '_batchsize_' + str(batch_size) \
