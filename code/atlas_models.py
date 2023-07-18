@@ -66,6 +66,20 @@ class FcRel(nn.Module):
             x = self.active_unit(x)
         return x
 
+class Dummy(nn.Module):
+  def __init__(self):
+    super(Dummy, self).__init__()
+    self.x = torch.nn.Parameter(torch.randn([1]))
+    
+  def forward(self, x):
+    xShape = list(x.shape)
+    pos_flow = torch.zeros([xShape[0], 3] + xShape[2:],device=x.device)
+    neg_flow = torch.zeros([xShape[0], 3] + xShape[2:],device=x.device)
+    return pos_flow, neg_flow
+
+
+  def getShapeForModel(self, shape):
+    return torch.tensor(shape)
 
 
 class SVF_resid(nn.Module):

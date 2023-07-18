@@ -3,6 +3,7 @@ import os
 import sys
 from atlasDataModule import AtlasDataModule
 from atlasModule import AtlasModule
+import NetworkFactory
 sys.path.append(os.path.realpath(".."))
 import argparse
 
@@ -26,7 +27,7 @@ def getCheckPointString(config):
     max_epochs = config.getParam("epochs")
     batch_size = config.getParam("batchSize")
     lr = config.getParam("learningRate")
-    atlas_lr = config.getParam("learningRate")
+    atlas_lr = config.getParam("atlasLearningRate")
     loss_name = config.getParam("similarityLoss")
 
     reg_factor = config.getParam("regularizationFactor")
@@ -101,7 +102,7 @@ def runTraining(config):
 
     max_epochs = config.getParam("epochs")
 
-    network = SVF_resid()
+    network = NetworkFactory.getNetwork(config)
     newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
     config.setParam("registrationGridsize", newShape.tolist())
 
