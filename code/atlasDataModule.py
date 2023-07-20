@@ -96,10 +96,7 @@ class AtlasDataModule(pl.LightningDataModule):
         
         labelImage = None
         if labelFileName and os.path.exists(labelFileName):
-          if self.doAugmentation:
-            sitkLabel = sitk.ReadImage(imageFileName, sitk.sitkFloat32)
-          else:
-            sitkLabel = sitk.ReadImage(imageFileName, sitk.sitkInt8)
+          sitkLabel = sitk.ReadImage(imageFileName, sitk.sitkFloat32)
           labelImage = tio.LabelMap.from_sitk(sitkLabel)
         
         meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
@@ -139,10 +136,7 @@ class AtlasDataModule(pl.LightningDataModule):
       labelData = labelData.squeeze(0)
       labelData[labelData < 14] = 0
       labelData[labelData >= 14] = 1
-      if self.doAugmentation:
-        labelData = labelData.type(torch.float32)
-      else:
-        labelData = labelData.type(torch.int8)
+      labelData = labelData.type(torch.float32)
       
       
       return labelData

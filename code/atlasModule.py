@@ -97,8 +97,15 @@ class AtlasModule(pl.LightningModule):
           
         
 
+    def _createNetworkInput(self, images, meshes):
+        networkImageToRegInput = self.transformer.sampleImage(images,meshes)
+        networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(networkImageToRegInput.shape[0], detached=True), self.getInputAtlasMesh(networkImageToRegInput.shape[0]))
+        return networkImageToRegInput, networkAtlasInput
+      
     def prepare_batch(self, batch):
-        return batch['image'][tio.DATA], batch['samplingMesh']
+        images= batch['image'][tio.DATA]
+        meshes =  batch['samplingMesh']
+        return images, meshes
 
     def infer_batch(self, images, atlasImages):
         atlasAndImages = torch.cat((atlasImages, images), 1)
@@ -106,12 +113,7 @@ class AtlasModule(pl.LightningModule):
         return pos_flow, neg_flow
 
 
-    def gatherInfoOfTrainingValidationStep(self, batch, batch_idx):
-      images, meshes = self.prepare_batch(batch)
-      networkImageToRegInput = self.transformer.sampleImage(images,meshes)
-      networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(networkImageToRegInput.shape[0], detached=True), self.getInputAtlasMesh(networkImageToRegInput.shape[0]))
-      pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
-      
+    def gatherInfoOfTrainingValidationStep(self, pos_flow, neg_flow, images, meshes):
       sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLosses(pos_flow, neg_flow, images, meshes, self.getInputAtlasImage(images.shape[0]), self.getInputAtlasMesh(images.shape[0]))
       loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss
       return {"loss": loss, "sim_loss": sim_loss, "reg_loss": reg_loss, "pair_sim_loss": pair_sim_loss, "atlas_pair_sim_loss": atlas_pair_sim_loss}  
@@ -120,7 +122,11 @@ class AtlasModule(pl.LightningModule):
       
       optNetwork, _ = self.optimizers(use_pl_optimizer=True)
 
-      stepInfo = self.gatherInfoOfTrainingValidationStep(batch, batch_idx)
+      images, meshes = self.prepare_batch(batch)
+      networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
+      pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
+      
+      stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes)
       loss = stepInfo["loss"]
       optNetwork.zero_grad()
       self.manual_backward(loss)
@@ -130,30 +136,48 @@ class AtlasModule(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
       images, meshes = self.prepare_batch(batch)
-      networkImageToRegInput = self.transformer.sampleImage(images,meshes)
-      networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(networkImageToRegInput.shape[0]), self.getInputAtlasMesh(networkImageToRegInput.shape[0]))
+      networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
       pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
       return pos_flow, neg_flow
 
     def validation_step(self, batch, batch_idx):
-      stepInfo = self.gatherInfoOfTrainingValidationStep(batch, batch_idx)
-      loss = stepInfo["loss"]
-      self.log('val_loss', loss)
+      images, meshes = self.prepare_batch(batch)
+      networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
+      pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
+      stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes)
+
+      self.log('val_loss', stepInfo["loss"])
       self.log('val_sim_loss', stepInfo["sim_loss"])
       self.log('val_reg_loss', stepInfo["reg_loss"])
       self.log('val_pair_sim_loss', stepInfo["pair_sim_loss"])
       self.log('val_atlas_pair_sim_loss', stepInfo["atlas_pair_sim_loss"])
+      
+      imgSpaceDsc, atlasSpacedsc = self.criterion.getDiceLosses(pos_flow, neg_flow, batch['label'][tio.DATA], meshes)
+      
+      self.log('val_img_space_dsc', 1 - imgSpaceDsc)
+      self.log('val_atlas_space_dsc', 1 - atlasSpacedsc)
+      
       return stepInfo
         
       
     def test_step(self, batch, batch_idx):
-      stepInfo = self.gatherInfoOfTrainingValidationStep(batch, batch_idx)
+      images, meshes = self.prepare_batch(batch)
+      networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
+      pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
+      stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes)
+      
       loss = stepInfo["loss"]
       self.log('test_loss', loss)
       self.log('test_sim_loss', stepInfo["sim_loss"])
       self.log('test_reg_loss', stepInfo["reg_loss"])
       self.log('test_pair_sim_loss', stepInfo["pair_sim_loss"])
       self.log('test_atlas_pair_sim_loss', stepInfo["atlas_pair_sim_loss"])
+      
+      imgSpaceDsc, atlasSpacedsc = self.criterion.getDiceLosses(pos_flow, neg_flow, batch['label'][tio.DATA], meshes)
+      
+      self.log('test_img_space_dsc', 1 - imgSpaceDsc)
+      self.log('test_atlas_space_dsc', 1 - atlasSpacedsc)
+      
       return stepInfo      
 
      

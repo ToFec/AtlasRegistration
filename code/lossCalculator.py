@@ -14,6 +14,7 @@ class LossCalculator():
         similartiyLossName = config.getParam("similarityLoss")
         self.sim_factor = config.getParam("similarityFactor")
         self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
+        self.diceLoss = LossFactory.lossMap["DiceLossMultiClass"]()
           
         self.reg_factor = config.getParam("regularizationFactor")
         if self.reg_factor != 0.0:
@@ -41,6 +42,10 @@ class LossCalculator():
       transforemdImageMeshToOtherImageSpace = self.transformer(secNegFlowAndMesh, posDeformationField)
       return self.transformer.sampleImage(sec_src_imgs, transforemdImageMeshToOtherImageSpace)
 
+    
+    def _getDiceloss(self, label0, label1):
+      dscLoss = self.diceLoss(label0, label1)
+      return dscLoss
     
     def _getImageSpaceSimilarityLoss(self, imgs0, imgs1):
       imgSpaceSimLoss = self.similarityLoss(imgs0, imgs1)
@@ -84,6 +89,21 @@ class LossCalculator():
         atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(warpedImages[:int(batch_size/2)], warpedImages[int(batch_size/2):]) * self.atlasPairSimilarityFactor
         
       return sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss
+    
+    
+    def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):
+      
+      posDeformationField = self.transformer.getDeformationField(pos_flow)
+      negDeformationFieldImages = meshes + neg_flow
+      
+      deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
+      imgSpaceDiceloss = self._getDiceloss(deformedLabels, labels)
+        
+      warpedLabels = self.transformer(labels, negDeformationFieldImages)
+      batch_size = labels.shape[0]
+      atlasSpaceDiceLoss = self._getDiceloss(warpedLabels[:int(batch_size/2)], warpedLabels[int(batch_size/2):])
+        
+      return imgSpaceDiceloss, atlasSpaceDiceLoss    
         
         
         

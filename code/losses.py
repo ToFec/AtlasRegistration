@@ -292,7 +292,6 @@ class FocalLoss(nn.Module):
 class DiceLoss(nn.Module):
     def initialize(self, class_num, weight = None):
         self.class_num = class_num
-        self.class_num = class_num
         if weight is None:
             self.weight =torch.ones(class_num, 1)/self.class_num
         else:
@@ -686,7 +685,7 @@ class LaplaceOperator(nn.Module):
         return ddx + ddy + ddz
       
 class LossFactory(object):
-  lossMap = {'SSD': MSELoss, 'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss, "BendingEnergy": BendingEnergyLoss, "GradLoss": GradLoss, "Dummy": DummyLoss}
+  lossMap = {'SSD': MSELoss, 'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss, "BendingEnergy": BendingEnergyLoss, "GradLoss": GradLoss, "Dummy": DummyLoss, "DiceLossMultiClass": DiceLossMultiClass, "GeneralDice": GeneralizedDiceLoss}
 
 
 
