@@ -27,7 +27,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
       neg_flow = prediction[1]
       posDeformationFieldAtlas = atlasMeshes + pos_flow
       warpedAtlas = self.transformer(atlasImages, posDeformationFieldAtlas)
-      imageNames = batch['image']['path']
+      imageNames = batch['imagePath']
       meshOrigin = batch['meshOrigin']
       atlasOrigin = pl_module.atlasOrigin.tolist()
       atlas_utils.saveImageTensor(atlasImages[0,None,...], os.path.join(self.output_dir, "Atlas.nrrd"), atlasOrigin, self.meshSpacing, self.meshDir)

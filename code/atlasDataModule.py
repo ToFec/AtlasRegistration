@@ -51,16 +51,6 @@ class AtlasDataModule(pl.LightningDataModule):
       else:
         self.delimiter = ";"
       
-      if config.getParam("sampleSizeIncrease"):
-        self.sampleSizeIncrease = config.getParam("sampleSizeIncrease")
-      else:
-        self.sampleSizeIncrease = 1
-      
-      if config.getParam("sampleSizeIncreaseValidation"):
-        self.sampleSizeIncreaseValidation = config.getParam("sampleSizeIncreaseValidation")
-      else:
-        self.sampleSizeIncreaseValidation = 1
-      
     # pytorch lightning hook
     def prepare_data(self):
       pass
@@ -91,8 +81,8 @@ class AtlasDataModule(pl.LightningDataModule):
       if (os.path.exists(imageFileName)):
         sitkImage = sitk.ReadImage(imageFileName, sitk.GetPixelIDValueFromString(self.loadImagesAsDataType))
         scalarImage = tio.ScalarImage.from_sitk(sitkImage)
-        scalarImage['path'] = imageFileName
         subjectDict = {"image": scalarImage}
+        subjectDict["imagePath"] = imageFileName
         
         labelImage = None
         if labelFileName and os.path.exists(labelFileName):
@@ -194,7 +184,7 @@ class AtlasDataModule(pl.LightningDataModule):
             avgImg = avgImg + sampledData
           avgImg = avgImg / len(self.train_subjects)
           self.atlasImage = avgImg[0]
-          self.atlasOrigin = [0.0, 0.0, 0.0]
+          self.atlasOrigin = torch.zeros(3)#[0.0, 0.0, 0.0]
           self.atlasMesh = transformer.identityTransform
         elif self.atlasDataToLoad is not None and os.path.exists(self.atlasDataToLoad):
           subject = self.getSubject(self.atlasDataToLoad, None)
@@ -231,7 +221,7 @@ class AtlasDataModule(pl.LightningDataModule):
       if labelImage:
         sitkLabelImage = labelImage.as_sitk()
         label_statistic = sitk.LabelIntensityStatisticsImageFilter()
-        label_statistic.Execute(sitkLabelImage, sitkLabelImage > 0)
+        label_statistic.Execute(sitk.Cast(sitkLabelImage, sitk.sitkInt32), sitkLabelImage > 0)
         centerPoint = label_statistic.GetCentroid(1)
       else:
         centerPoint = sitkScalarImage.TransformContinuousIndexToPhysicalPoint(np.asarray(sitkScalarImage.GetSize())/2.0)

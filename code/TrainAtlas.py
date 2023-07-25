@@ -8,10 +8,11 @@ sys.path.append(os.path.realpath(".."))
 import argparse
 
 import atlas_models as atlasUtils
+import atlas_utils
 
-from atlas_models import SVF_resid
 from config import Config
 from lossCalculator import LossCalculator
+from imageTransformation import Transformation
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -94,6 +95,57 @@ def runPrediction(config):
   print('Training started at', start)
   predictions = trainer.predict(model=model, dataloaders=data.predict_dataloader())
   print('Training duration:', dt.datetime.now() - start)  
+
+def runTestImgSampling(config, nuOfFilesToWrite):
+    network = NetworkFactory.getNetwork(config)
+    newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
+    config.setParam("registrationGridsize", newShape.tolist())
+    
+    transformer = Transformation()
+    
+    output_dir = config.getParam("outputPath")
+    meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
+    meshSpacing = config.getParam("registrationGridSpacing")
+
+    data = AtlasDataModule(config)  
+    data.setup(stage="fit")
+    
+    atlasImage, atlasMesh, atlasOrigin = data.getInitalAtlas()
+    
+    model = AtlasModule(
+        network,
+        atlasImage,
+        atlasMesh,
+        atlasOrigin,
+        None,
+        networkLearning_rate=config.getParam('learningRate'),
+        atlasLearning_rate=config.getParam('atlasLearningRate'),
+        networkOptimizer_class=None,
+        atlasOptimizer_class=None,
+        useLrScheduler=config.getParam('lrScheduler')
+    )     
+    
+    
+    sampledAtlas = transformer.sampleImage(atlasImage, atlasMesh)
+    
+    atlasOrigin = atlasOrigin.tolist()
+    atlas_utils.saveImageTensor(sampledAtlas[0,None,...], os.path.join(output_dir, "AtlasImageSampled.nrrd"), atlasOrigin, meshSpacing, meshDir)
+    
+
+    
+    filesWritten = 0
+    for batch in data.train_dataloader():
+      images, meshes = model.prepare_batch(batch)
+      imageNames = batch['imagePath']
+      meshOrigin = batch['meshOrigin']
+      networkImageToRegInput = transformer.sampleImage(images, meshes)
+      for i in range(0,networkImageToRegInput.shape[0]):
+        fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
+        atlas_utils.saveImageTensor(networkImageToRegInput[i,None,...], os.path.join(output_dir, fileBaseName + str(filesWritten) + "Sampled.nrrd"), meshOrigin[i].tolist(), meshSpacing, meshDir)
+        
+        filesWritten = filesWritten + 1
+        if filesWritten >= nuOfFilesToWrite:
+          return
 
 def runTraining(config):
   
@@ -188,6 +240,7 @@ parser = argparse.ArgumentParser(description='Atlas Registration')
 parser.add_argument("-c", "--configFile", dest="configFile", help="configuration file")
 parser.add_argument("-t", "--test", dest="runTests", action="store_true", help="run tests with best model")
 parser.add_argument("-p", "--predict", dest="predict", action="store_true")
+parser.add_argument("-s", "--testSampling", dest="testSampling", default=0, type=int )
 
 
 if __name__ == "__main__":
@@ -203,6 +256,8 @@ if __name__ == "__main__":
       runTests(config)
     elif args.predict:
       runPrediction(config)
+    elif args.testSampling > 0:
+      runTestImgSampling(config, args.testSampling)      
     else:
       runTraining(config)  
     
