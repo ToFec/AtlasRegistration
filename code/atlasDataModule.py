@@ -86,7 +86,7 @@ class AtlasDataModule(pl.LightningDataModule):
         
         labelImage = None
         if labelFileName and os.path.exists(labelFileName):
-          sitkLabel = sitk.ReadImage(imageFileName, sitk.sitkFloat32)
+          sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkFloat32)
           labelImage = tio.LabelMap.from_sitk(sitkLabel)
         
         meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
@@ -221,8 +221,8 @@ class AtlasDataModule(pl.LightningDataModule):
       if labelImage:
         sitkLabelImage = labelImage.as_sitk()
         label_statistic = sitk.LabelIntensityStatisticsImageFilter()
-        label_statistic.Execute(sitk.Cast(sitkLabelImage, sitk.sitkInt32), sitkLabelImage > 0)
-        centerPoint = label_statistic.GetCentroid(1)
+        label_statistic.Execute(sitkLabelImage > 0, sitkLabelImage)
+        centerPoint = label_statistic.GetCentroid(1)        
       else:
         centerPoint = sitkScalarImage.TransformContinuousIndexToPhysicalPoint(np.asarray(sitkScalarImage.GetSize())/2.0)
       
