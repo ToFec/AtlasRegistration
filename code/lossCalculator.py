@@ -81,7 +81,7 @@ class LossCalculator():
       
       if self.imagePairSimilarityFactor != 0.0:
         deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
-        pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, images) * self.imagePairSimilarityFactor
+        pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, sampledImages) * self.imagePairSimilarityFactor
         
       if self.atlasPairSimilarityFactor != 0.0: ##TODO: vergleicht nicht alle bild kombinationen, ausreichend oder umprogrammiren? 
         warpedImages = self.transformer(images, negDeformationFieldImages)
@@ -93,11 +93,13 @@ class LossCalculator():
     
     def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):
       
+      sampledLabels = self.transformer.sampleImage(labels, meshes)
+      
       posDeformationField = self.transformer.getDeformationField(pos_flow)
       negDeformationFieldImages = meshes + neg_flow
       
       deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
-      imgSpaceDiceloss = self._getDiceloss(deformedLabels, labels)
+      imgSpaceDiceloss = self._getDiceloss(deformedLabels, sampledLabels)
         
       warpedLabels = self.transformer(labels, negDeformationFieldImages)
       batch_size = labels.shape[0]

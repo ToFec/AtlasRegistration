@@ -354,6 +354,8 @@ class DiceLossMultiClass(nn.Module):
                              or class-wise probability of prediction when of size BxCxDxMxN
         :return:
         """
+        if source.shape[-3:] == target.squeeze().shape[-3:]:
+          a = 0
         assert source.shape[0] == target.shape[0]
         assert source.shape[-3:] == target.squeeze().shape[-3:]
 
