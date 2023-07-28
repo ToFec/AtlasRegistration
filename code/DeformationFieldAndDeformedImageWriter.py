@@ -43,6 +43,15 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
       warpedImages = self.transformer(images, negDeformationFieldImages)
       for i in range(0,warpedImages.shape[0]):
         fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
+        
+        if os.path.exists(os.path.join(self.output_dir, fileBaseName + "Def.nrrd")):
+          fileIdx = 0
+          fileBaseNameBUP = fileBaseName + str(fileIdx)
+          while os.path.exists(os.path.join(self.output_dir, fileBaseNameBUP + "Def.nrrd")):
+            fileIdx = fileIdx + 1
+            fileBaseNameBUP = fileBaseName + str(fileIdx)
+          fileBaseName = fileBaseNameBUP
+        
         atlas_utils.saveImageTensor(warpedImages[i,None,...], os.path.join(self.output_dir, fileBaseName + "Def.nrrd"), atlasOrigin, self.meshSpacing, self.meshDir)
         atlas_utils.saveDefField(os.path.join(self.output_dir, fileBaseName + "DefField.nrrd"), neg_flow[i,None,...],atlasOrigin, self.meshSpacing, self.meshDir)
 

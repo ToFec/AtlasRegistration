@@ -197,6 +197,8 @@ def runTraining(config):
                                                        save_top_k=3)
     callBackFunctions.append(checkpoint_callback)
     
+    callBackFunctions.append(pl.callbacks.DeviceStatsMonitor())
+    
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
     callBackFunctions.append(lr_monitor)  
     
@@ -205,6 +207,8 @@ def runTraining(config):
     meshOrigin = atlasOrigin.tolist()
     meshSpacing = config.getParam("registrationGridSpacing")
     imageLogger = ImageLogger("tb_logs", name=stringForStoringVariables, imageOrigin=meshOrigin, imageSpacing=meshSpacing, imageDirections=meshDir, version=logger.version)
+    
+    profiler = pl.profilers.AdvancedProfiler(dirpath=".", filename="perf_logs")
     
     trainer = pl.Trainer(
           accelerator=config.getParam("accelerator"),
@@ -215,6 +219,7 @@ def runTraining(config):
           callbacks=callBackFunctions,
           auto_lr_find=config.getParam('tuneLR'),
           logger=[logger, imageLogger],
+          profiler=profiler,
           deterministic="warn",
           check_val_every_n_epoch=5,
           max_epochs=max_epochs
