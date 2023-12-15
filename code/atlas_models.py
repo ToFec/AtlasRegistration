@@ -18,21 +18,35 @@ class conv_bn_rel(nn.Module):
     conv + bn (optional) + relu
 
     """
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, active_unit='relu', same_padding=False,
-                 bn=False, reverse=False, group=1, dilation=1):
+
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        active_unit="relu",
+        same_padding=False,
+        bn=False,
+        reverse=False,
+        group=1,
+        dilation=1,
+    ):
         super(conv_bn_rel, self).__init__()
         padding = int((kernel_size - 1) / 2) if same_padding else 0
         if not reverse:
             self.conv = Conv(in_channels, out_channels, kernel_size, stride, padding=padding, groups=1, dilation=1)
         else:
-            self.conv = ConvTranspose(in_channels, out_channels, kernel_size, stride, padding=padding, groups=1, dilation=1)
+            self.conv = ConvTranspose(
+                in_channels, out_channels, kernel_size, stride, padding=padding, groups=1, dilation=1
+            )
 
-        self.bn = BatchNorm(out_channels) if bn else None #, eps=0.0001, momentum=0, affine=True
-        if active_unit == 'relu':
+        self.bn = BatchNorm(out_channels) if bn else None  # , eps=0.0001, momentum=0, affine=True
+        if active_unit == "relu":
             self.active_unit = nn.ReLU(inplace=True)
-        elif active_unit == 'elu':
+        elif active_unit == "elu":
             self.active_unit = nn.ELU(inplace=True)
-        elif active_unit == 'leaky_relu':
+        elif active_unit == "leaky_relu":
             self.active_unit = nn.LeakyReLU(inplace=True)
         else:
             self.active_unit = None
@@ -50,12 +64,13 @@ class FcRel(nn.Module):
     """
     fc+ relu(option)
     """
-    def __init__(self, in_features, out_features, active_unit='relu'):
+
+    def __init__(self, in_features, out_features, active_unit="relu"):
         super(FcRel, self).__init__()
         self.fc = nn.Linear(in_features, out_features)
-        if active_unit == 'relu':
+        if active_unit == "relu":
             self.active_unit = nn.ReLU(inplace=True)
-        elif active_unit == 'elu':
+        elif active_unit == "elu":
             self.active_unit = nn.ELU(inplace=True)
         else:
             self.active_unit = None
@@ -66,20 +81,20 @@ class FcRel(nn.Module):
             x = self.active_unit(x)
         return x
 
+
 class Dummy(nn.Module):
-  def __init__(self):
-    super(Dummy, self).__init__()
-    self.x = torch.nn.Parameter(torch.randn([1]))
-    
-  def forward(self, x):
-    xShape = list(x.shape)
-    pos_flow = torch.zeros([xShape[0], 3] + xShape[2:],device=x.device)
-    neg_flow = torch.zeros([xShape[0], 3] + xShape[2:],device=x.device)
-    return pos_flow, neg_flow
+    def __init__(self):
+        super(Dummy, self).__init__()
+        self.x = torch.nn.Parameter(torch.randn([1]))
 
+    def forward(self, x):
+        xShape = list(x.shape)
+        pos_flow = torch.zeros([xShape[0], 3] + xShape[2:], device=x.device)
+        neg_flow = torch.zeros([xShape[0], 3] + xShape[2:], device=x.device)
+        return pos_flow, neg_flow
 
-  def getShapeForModel(self, shape):
-    return torch.tensor(shape)
+    def getShapeForModel(self, shape):
+        return torch.tensor(shape)
 
 
 class SVF_resid(nn.Module):
@@ -87,47 +102,53 @@ class SVF_resid(nn.Module):
         super(SVF_resid, self).__init__()
         self.imageSizeModuloVal = 16
         self.int_steps = 7
-        self.scale = 1.0 / (2 ** self.int_steps)
+        self.scale = 1.0 / (2**self.int_steps)
         self.bilinear = imageTransformation.Bilinear(zero_boundary=True)
-        self.down_path_1 = conv_bn_rel(2, 16, 3, stride=1, active_unit='relu', same_padding=True, bn=False, group=2)
-        self.down_path_2_1 = conv_bn_rel(16, 32, 3, stride=2, active_unit='relu', same_padding=True, bn=False, group=2)
-        self.down_path_2_2 = conv_bn_rel(32, 32, 3, stride=1, active_unit='relu', same_padding=True, bn=False, group=2)
-        self.down_path_2_3 = conv_bn_rel(32, 32, 3, stride=1, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_4_1 = conv_bn_rel(32, 64, 3, stride=2, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_4_2 = conv_bn_rel(64, 64, 3, stride=1, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_4_3 = conv_bn_rel(64, 64, 3, stride=1, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_8_1 = conv_bn_rel(64, 128, 3, stride=2, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_8_2 = conv_bn_rel(128, 128, 3, stride=1, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_8_3 = conv_bn_rel(128, 128, 3, stride=1, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_16_1 = conv_bn_rel(128, 256, 3, stride=2, active_unit='relu', same_padding=True, bn=bn)
-        self.down_path_16_2 = conv_bn_rel(256, 256, 3, stride=1, active_unit='relu', same_padding=True, bn=bn)
+        self.down_path_1 = conv_bn_rel(2, 16, 3, stride=1, active_unit="relu", same_padding=True, bn=False, group=2)
+        self.down_path_2_1 = conv_bn_rel(16, 32, 3, stride=2, active_unit="relu", same_padding=True, bn=False, group=2)
+        self.down_path_2_2 = conv_bn_rel(32, 32, 3, stride=1, active_unit="relu", same_padding=True, bn=False, group=2)
+        self.down_path_2_3 = conv_bn_rel(32, 32, 3, stride=1, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_4_1 = conv_bn_rel(32, 64, 3, stride=2, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_4_2 = conv_bn_rel(64, 64, 3, stride=1, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_4_3 = conv_bn_rel(64, 64, 3, stride=1, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_8_1 = conv_bn_rel(64, 128, 3, stride=2, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_8_2 = conv_bn_rel(128, 128, 3, stride=1, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_8_3 = conv_bn_rel(128, 128, 3, stride=1, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_16_1 = conv_bn_rel(128, 256, 3, stride=2, active_unit="relu", same_padding=True, bn=bn)
+        self.down_path_16_2 = conv_bn_rel(256, 256, 3, stride=1, active_unit="relu", same_padding=True, bn=bn)
 
         # output_size = strides * (input_size-1) + kernel_size - 2*padding
-        self.up_path_8_1 = conv_bn_rel(256, 128, 2, stride=2, active_unit='leaky_relu', same_padding=False, bn=bn, reverse=True)
-        self.up_path_8_2 = conv_bn_rel(128 + 128, 128, 3, stride=1, active_unit='leaky_relu', same_padding=True, bn=bn)
-        self.up_path_8_3 = conv_bn_rel(128, 128, 3, stride=1, active_unit='leaky_relu', same_padding=True, bn=bn)
-        self.up_path_4_1 = conv_bn_rel(128, 64, 2, stride=2, active_unit='leaky_relu', same_padding=False, bn=bn, reverse=True)
-        self.up_path_4_2 = conv_bn_rel(64 + 64, 32, 3, stride=1, active_unit='leaky_relu', same_padding=True, bn=bn)
-        self.up_path_4_3 = conv_bn_rel(32, 32, 3, stride=1, active_unit='leaky_relu', same_padding=True, bn=bn)
-        self.up_path_2_1 = conv_bn_rel(32, 32, 2, stride=2, active_unit='leaky_relu', same_padding=False, bn=bn, reverse=True)
+        self.up_path_8_1 = conv_bn_rel(
+            256, 128, 2, stride=2, active_unit="leaky_relu", same_padding=False, bn=bn, reverse=True
+        )
+        self.up_path_8_2 = conv_bn_rel(128 + 128, 128, 3, stride=1, active_unit="leaky_relu", same_padding=True, bn=bn)
+        self.up_path_8_3 = conv_bn_rel(128, 128, 3, stride=1, active_unit="leaky_relu", same_padding=True, bn=bn)
+        self.up_path_4_1 = conv_bn_rel(
+            128, 64, 2, stride=2, active_unit="leaky_relu", same_padding=False, bn=bn, reverse=True
+        )
+        self.up_path_4_2 = conv_bn_rel(64 + 64, 32, 3, stride=1, active_unit="leaky_relu", same_padding=True, bn=bn)
+        self.up_path_4_3 = conv_bn_rel(32, 32, 3, stride=1, active_unit="leaky_relu", same_padding=True, bn=bn)
+        self.up_path_2_1 = conv_bn_rel(
+            32, 32, 2, stride=2, active_unit="leaky_relu", same_padding=False, bn=bn, reverse=True
+        )
 
-        self.up_path_2_2 = conv_bn_rel(32 + 32, 16, 3, stride=1, active_unit='None', same_padding=True)
-        self.up_path_2_3 = conv_bn_rel(16, 16, 3, stride=1, active_unit='None', same_padding=True)
-        self.up_path_1_1 = conv_bn_rel(16, 16, 2, stride=2, active_unit='None', same_padding=False, bn=bn, reverse=True)
-        self.up_path_1_2 = conv_bn_rel(16, 3, 3, stride=1, active_unit='None', same_padding=True)
-        
+        self.up_path_2_2 = conv_bn_rel(32 + 32, 16, 3, stride=1, active_unit="None", same_padding=True)
+        self.up_path_2_3 = conv_bn_rel(16, 16, 3, stride=1, active_unit="None", same_padding=True)
+        self.up_path_1_1 = conv_bn_rel(16, 16, 2, stride=2, active_unit="None", same_padding=False, bn=bn, reverse=True)
+        self.up_path_1_2 = conv_bn_rel(16, 3, 3, stride=1, active_unit="None", same_padding=True)
+
         self.weights_init()
 
     def getShapeForModel(self, shape):
-      shape = torch.tensor(shape)
-      remainderVals = torch.remainder(shape,self.imageSizeModuloVal)
-      newShape = shape + ((self.imageSizeModuloVal - remainderVals) * ((remainderVals != 0.0)))
-      return newShape
-    
+        shape = torch.tensor(shape)
+        remainderVals = torch.remainder(shape, self.imageSizeModuloVal)
+        newShape = shape + ((self.imageSizeModuloVal - remainderVals) * ((remainderVals != 0.0)))
+        return newShape
+
     def weights_init(self):
         for m in self.modules():
             classname = m.__class__.__name__
-            if classname.find('Conv') != -1:
+            if classname.find("Conv") != -1:
                 if not m.weight is None:
                     nn.init.xavier_normal_(m.weight.data)
                 if not m.bias is None:
@@ -179,4 +200,3 @@ class SVF_resid(nn.Module):
             neg_flow = neg_flow_1 + neg_flow
 
         return pos_flow, neg_flow
-

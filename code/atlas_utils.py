@@ -8,80 +8,87 @@ import torch.backends.cudnn as cudnn
 import pytorch_lightning as pl
 from functools import partial
 
+
 def loadDefField(filename):
     defFieldITK = sitk.ReadImage(str(filename))
     defFieldSpacing = defFieldITK.GetSpacing()
     defFieldDirection = defFieldITK.GetDirection()
-    
+
     defField = sitk.GetArrayFromImage(defFieldITK)
-    defField[...,0] = (defField[...,0] / defFieldSpacing[0]) * defFieldDirection[0]#should be sign of direction or reorient to standard direction?
-    defField[...,1] = (defField[...,1] / defFieldSpacing[1]) * defFieldDirection[4]
-    defField[...,2] = (defField[...,2] / defFieldSpacing[2]) * defFieldDirection[8]
-    
-    defField[..., 0] = defField[...,0] / ((defField.shape[2]-1) / 2.0)
-    defField[..., 1] = defField[..., 1] / ((defField.shape[1]-1) / 2.0)
-    defField[..., 2] = defField[..., 2] / ((defField.shape[0]-1) / 2.0)
-    
+    defField[..., 0] = (defField[..., 0] / defFieldSpacing[0]) * defFieldDirection[
+        0
+    ]  # should be sign of direction or reorient to standard direction?
+    defField[..., 1] = (defField[..., 1] / defFieldSpacing[1]) * defFieldDirection[4]
+    defField[..., 2] = (defField[..., 2] / defFieldSpacing[2]) * defFieldDirection[8]
+
+    defField[..., 0] = defField[..., 0] / ((defField.shape[2] - 1) / 2.0)
+    defField[..., 1] = defField[..., 1] / ((defField.shape[1] - 1) / 2.0)
+    defField[..., 2] = defField[..., 2] / ((defField.shape[0] - 1) / 2.0)
+
     defField = np.expand_dims(defField, axis=0)
     defField = torch.from_numpy(defField)
-    defField = defField.permute([0,4,3,2,1])
-    
-    return defField
-  
-def saveDefField(filename, defField, origin, spacing, direction):
-  
-  defField = defField[0,...].detach()
-  defField = defField.permute([3,2,1,0])
-  
-  defField[..., 0] = defField[...,0] * ((defField.shape[2]-1) / 2.0)
-  defField[..., 1] = defField[..., 1] * ((defField.shape[1]-1) / 2.0)
-  defField[..., 2] = defField[..., 2] * ((defField.shape[0]-1) / 2.0)
-  
-  defField[...,0] = defField[...,0] * spacing[0]
-  defField[...,1] = defField[...,1] * spacing[1]
-  defField[...,2] = defField[...,2] * spacing[2]
-  
-  defDataToSave = sitk.GetImageFromArray(defField, isVector=True)      
-      
-  defDataToSave.SetSpacing( spacing )
-  defDataToSave.SetOrigin( origin)
-  defDataToSave.SetDirection( direction )
-      
-  sitk.WriteImage(defDataToSave, filename)      
-    
-  
-def saveImageTensor(imageData, imageName,origin, spacing, direction):
-  imageDataToSave = imageData.squeeze(0).squeeze(0).permute([2,1,0])
-  saveImage(imageDataToSave, imageName, origin, spacing, direction)  
-  
-def saveImage(imageData, imageName,origin, spacing, direction):
-  sitkImage = sitk.GetImageFromArray(imageData)
-  sitkImage.SetOrigin(origin)
-  sitkImage.SetDirection(direction)
-  sitkImage.SetSpacing(spacing)
-  sitk.WriteImage(sitkImage, imageName)
+    defField = defField.permute([0, 4, 3, 2, 1])
 
-def setSeeds(seed = 0):
-  torch.manual_seed(seed)
-  torch.cuda.manual_seed(seed)
-  np.random.seed(seed)
-  random.seed(seed)
-  cudnn.deterministic = True
-  pl.seed_everything(seed,workers=True)
+    return defField
+
+
+def saveDefField(filename, defField, origin, spacing, direction):
+    defField = defField[0, ...].detach()
+    defField = defField.permute([3, 2, 1, 0])
+
+    defField[..., 0] = defField[..., 0] * ((defField.shape[2] - 1) / 2.0)
+    defField[..., 1] = defField[..., 1] * ((defField.shape[1] - 1) / 2.0)
+    defField[..., 2] = defField[..., 2] * ((defField.shape[0] - 1) / 2.0)
+
+    defField[..., 0] = defField[..., 0] * spacing[0]
+    defField[..., 1] = defField[..., 1] * spacing[1]
+    defField[..., 2] = defField[..., 2] * spacing[2]
+
+    defDataToSave = sitk.GetImageFromArray(defField, isVector=True)
+
+    defDataToSave.SetSpacing(spacing)
+    defDataToSave.SetOrigin(origin)
+    defDataToSave.SetDirection(direction)
+
+    sitk.WriteImage(defDataToSave, filename)
+
+
+def saveImageTensor(imageData, imageName, origin, spacing, direction):
+    imageDataToSave = imageData.squeeze(0).squeeze(0).permute([2, 1, 0])
+    saveImage(imageDataToSave, imageName, origin, spacing, direction)
+
+
+def saveImage(imageData, imageName, origin, spacing, direction):
+    sitkImage = sitk.GetImageFromArray(imageData)
+    sitkImage.SetOrigin(origin)
+    sitkImage.SetDirection(direction)
+    sitkImage.SetSpacing(spacing)
+    sitk.WriteImage(sitkImage, imageName)
+
+
+def setSeeds(seed=0):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    cudnn.deterministic = True
+    pl.seed_everything(seed, workers=True)
+
 
 def getOptimizer(optimizerType):
-  if optimizerType == 'sgd':
-    return partial(torch.optim.SGD, momentum=0.9, nesterov=True)
-  return torch.optim.AdamW
+    if optimizerType == "sgd":
+        return partial(torch.optim.SGD, momentum=0.9, nesterov=True)
+    return torch.optim.AdamW
+
 
 def get_test_list():
-    with open('/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/test.txt', 'r') as f_test:
+    with open("/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/test.txt", "r") as f_test:
         test_list = list(f_test.read().splitlines())
 
-    final_test_list  = test_list[-100:]
+    final_test_list = test_list[-100:]
     final_test_pair_list = []
     for i in range(len(final_test_list)):
-        for j in range(i+1, len(final_test_list)):
+        for j in range(i + 1, len(final_test_list)):
             final_test_pair_list.append((final_test_list[i], final_test_list[j]))
 
     return final_test_list, final_test_pair_list
@@ -98,21 +105,21 @@ def identity_map(sz, dtype=np.float32):
     """
     dim = len(sz)
     if dim == 1:
-        id = np.mgrid[0: sz[0]]
+        id = np.mgrid[0 : sz[0]]
     elif dim == 2:
-        id = np.mgrid[0: sz[0], 0: sz[1]]
+        id = np.mgrid[0 : sz[0], 0 : sz[1]]
     elif dim == 3:
-        id = np.mgrid[0:sz[0], 0:sz[1], 0:sz[2]]
+        id = np.mgrid[0 : sz[0], 0 : sz[1], 0 : sz[2]]
     else:
-        raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+        raise ValueError("Only dimensions 1-3 are currently supported for the identity map")
     id = np.array(id.astype(dtype))
     if dim == 1:
         id = id.reshape(1, sz[0])  # add a dummy first index
-    spacing = 1./ (np.array(sz)-1)
+    spacing = 1.0 / (np.array(sz) - 1)
 
     for d in range(dim):
         id[d] *= spacing[d]
-        id[d] = id[d]*2 - 1
+        id[d] = id[d] * 2 - 1
 
     return torch.from_numpy(id.astype(np.float32))
 
@@ -128,18 +135,18 @@ def not_normalized_identity_map(sz):
     """
     dim = len(sz)
     if dim == 1:
-        id = np.mgrid[0: sz[0]]
+        id = np.mgrid[0 : sz[0]]
     elif dim == 2:
-        id = np.mgrid[0: sz[0], 0: sz[1]]
+        id = np.mgrid[0 : sz[0], 0 : sz[1]]
     elif dim == 3:
-        id = np.mgrid[0:sz[0], 0:sz[1], 0:sz[2]]
+        id = np.mgrid[0 : sz[0], 0 : sz[1], 0 : sz[2]]
     else:
-        raise ValueError('Only dimensions 1-3 are currently supported for the identity map')
+        raise ValueError("Only dimensions 1-3 are currently supported for the identity map")
     # id= id*2-1
     return torch.from_numpy(id.astype(np.float32))
 
 
-def gen_identity_map(img_sz, resize_factor=1.,normalized=True):
+def gen_identity_map(img_sz, resize_factor=1.0, normalized=True):
     """
     given displacement field,  add displacement on grid field  todo  now keep for reproduce  this function will be disabled in the next release, replaced by spacing version
     """
@@ -162,12 +169,11 @@ def gen_identity_ap():
     :return:
     """
     affine_identity = torch.zeros(12).cuda()
-    affine_identity[0] = 1.
-    affine_identity[4] = 1.
-    affine_identity[8] = 1.
+    affine_identity[0] = 1.0
+    affine_identity[4] = 1.0
+    affine_identity[8] = 1.0
 
     return affine_identity
-
 
 
 def get_sim_loss(warped, target, loss_name):
@@ -180,14 +186,14 @@ def get_sim_loss(warped, target, loss_name):
     :return: the similarity loss average on batch
     """
     # loss_fn = self.ncc if self.epoch < self.epoch_activate_extern_loss else loss_fn
-    if loss_name == 'LNCC':
+    if loss_name == "LNCC":
         sim_criterion = LNCCLoss()
-    elif loss_name == 'NCC':
+    elif loss_name == "NCC":
         sim_criterion = NCCLoss()
-    elif loss_name == 'SSD':
+    elif loss_name == "SSD":
         sim_criterion = nn.MSELoss(size_average=True)
     else:
-        raise ValueError('Undefined loss for similarity measure')
+        raise ValueError("Undefined loss for similarity measure")
     sim_loss = sim_criterion(warped, target)
 
     return sim_loss / warped.shape[0]
@@ -195,32 +201,31 @@ def get_sim_loss(warped, target, loss_name):
 
 def get_pair_sim_loss(warped_img, loss_name):
     batch_size = warped_img.shape[0]
-    if loss_name == 'LNCC':
+    if loss_name == "LNCC":
         pair_criterion = LNCCLoss()
-    elif loss_name == 'NCC':
+    elif loss_name == "NCC":
         pair_criterion = NCCLoss()
-    elif loss_name == 'SSD':
+    elif loss_name == "SSD":
         pair_criterion = nn.MSELoss(size_average=True)
     else:
-        raise ValueError('Undefined loss for similarity measure')
-    pair_loss = pair_criterion(warped_img[:int(batch_size/2)], warped_img[int(batch_size/2):])
+        raise ValueError("Undefined loss for similarity measure")
+    pair_loss = pair_criterion(warped_img[: int(batch_size / 2)], warped_img[int(batch_size / 2) :])
 
-    return pair_loss / (batch_size/2.)
+    return pair_loss / (batch_size / 2.0)
 
 
 def get_pair_sim_loss_image_space(warped_img1, warped_img2, loss_name):
-    if loss_name == 'LNCC':
+    if loss_name == "LNCC":
         pair_criterion = LNCCLoss()
-    elif loss_name == 'NCC':
+    elif loss_name == "NCC":
         pair_criterion = NCCLoss()
-    elif loss_name == 'SSD':
+    elif loss_name == "SSD":
         pair_criterion = nn.MSELoss(size_average=True)
     else:
-        raise ValueError('Undefined loss for similarity measure')
+        raise ValueError("Undefined loss for similarity measure")
     pair_loss = pair_criterion(warped_img1, warped_img2)
 
     return pair_loss / warped_img1.shape[0]
-
 
 
 def get_atlas_seg_loss(warped_segs, atlas_segs):
@@ -233,7 +238,7 @@ def get_atlas_seg_loss(warped_segs, atlas_segs):
     :return: the similarity loss average on batch
     """
     batch_size = warped_segs.shape[0]
-    seg_criterion = DiceLossMultiClass(n_class=5, weight_type='Uniform', no_bg=True)
+    seg_criterion = DiceLossMultiClass(n_class=5, weight_type="Uniform", no_bg=True)
     seg_loss = seg_criterion(warped_segs, atlas_segs)
 
     return seg_loss / batch_size
@@ -252,7 +257,7 @@ def get_sym_loss(rec_src_phi_warped, rec_tar_phi_warped, n_batch):
     tar_B_map = rec_tar_phi_warped[:n_batch]
     tar_A_map = rec_tar_phi_warped[n_batch:]
 
-    return torch.mean((src_A_map-tar_A_map)**2 + (src_B_map - tar_B_map)**2)
+    return torch.mean((src_A_map - tar_A_map) ** 2 + (src_B_map - tar_B_map) ** 2)
 
 
 def get_reg_loss(disp_flow):
@@ -261,11 +266,13 @@ def get_reg_loss(disp_flow):
 
     return reg_loss
 
+
 def get_first_order_reg_loss(disp_flow):
-    reg_criterion = GradLoss(penalty='l2')
+    reg_criterion = GradLoss(penalty="l2")
     reg_loss = reg_criterion(disp_flow)
 
     return reg_loss
+
 
 def jacobian_determinant(deform_field):
     """
@@ -282,11 +289,11 @@ def jacobian_determinant(deform_field):
     deform_map_np = deform_field.permute([0, 2, 3, 4, 1]).squeeze().detach().cpu().numpy()
     volshape = deform_map_np.shape[:-1]
     nb_dims = len(volshape)
-    assert len(volshape) in (2, 3), 'flow has to be 2D or 3D'
+    assert len(volshape) in (2, 3), "flow has to be 2D or 3D"
 
     # compute gradients
     # specify the voxel spacing!!!
-    J = np.gradient(deform_map_np, 2.0/79.0, 2.0/191.0, 2.0/191.0, 1.0)
+    J = np.gradient(deform_map_np, 2.0 / 79.0, 2.0 / 191.0, 2.0 / 191.0, 1.0)
 
     # 3D flow
     if nb_dims == 3:
@@ -302,12 +309,10 @@ def jacobian_determinant(deform_field):
         return Jdet0 - Jdet1 + Jdet2
 
     else:  # must be 2
-
         dfdx = J[0]
         dfdy = J[1]
 
         return dfdx[..., 0] * dfdy[..., 1] - dfdy[..., 0] * dfdx[..., 1]
-
 
 
 def save_updated_atlas(atlas_img, atlas_seg, save_atlas_img_name, save_atlas_est_name, save_atlas_prob_name):
@@ -315,11 +320,15 @@ def save_updated_atlas(atlas_img, atlas_seg, save_atlas_img_name, save_atlas_est
     atlas_img_np = atlas_img.detach().squeeze().cpu().numpy()
     atlas_seg_np = atlas_seg.detach().squeeze().cpu().numpy()
     atlas_est_np = torch.max(atlas_seg, 1)[1].detach().squeeze().cpu().numpy()
-    tmp_img = sitk.ReadImage('/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/Nifti_rescaled_2Left_downsample/9001104_image.nii.gz')
-    tmp_seg = sitk.ReadImage('/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/Nifti_rescaled_2Left_downsample/9001104_masks.nii.gz')
-    atlas_img_nii = sitk.GetImageFromArray(atlas_img_np.astype('float32'))
+    tmp_img = sitk.ReadImage(
+        "/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/Nifti_rescaled_2Left_downsample/9001104_image.nii.gz"
+    )
+    tmp_seg = sitk.ReadImage(
+        "/playpen-raid1/zpd/remote/MAS/Data/OAI-ZIB/Nifti_rescaled_2Left_downsample/9001104_masks.nii.gz"
+    )
+    atlas_img_nii = sitk.GetImageFromArray(atlas_img_np.astype("float32"))
     atlas_img_nii.CopyInformation(tmp_img)
     sitk.WriteImage(atlas_img_nii, save_atlas_img_name)
-    atlas_est_nii = sitk.GetImageFromArray(atlas_est_np.astype('float32'))
+    atlas_est_nii = sitk.GetImageFromArray(atlas_est_np.astype("float32"))
     atlas_est_nii.CopyInformation(tmp_seg)
     sitk.WriteImage(atlas_est_nii, save_atlas_est_name)
