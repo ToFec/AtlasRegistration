@@ -26,7 +26,7 @@ def loadDefField(filename):
     defField[..., 2] = defField[..., 2] / ((defField.shape[0] - 1) / 2.0)
 
     defField = np.expand_dims(defField, axis=0)
-    defField = torch.from_numpy(defField)
+    defField = torch.from_numpy(defField.astype(np.float32))
     defField = defField.permute([0, 4, 3, 2, 1])
 
     return defField

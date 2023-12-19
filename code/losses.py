@@ -8,6 +8,7 @@ import torch.nn.functional as F
 # Functions
 ###############################################################################
 
+
 class Loss(object):
     """
     implementation of loss function
@@ -17,52 +18,50 @@ class Loss(object):
     'ncc': normalize cross correlation
     'lncc': localized normalized lncc (here, we implement the multi-kernel localized normalized lncc)
     """
-    def __init__(self,opt):
-        super(Loss,self).__init__()
-        cont_loss_type = opt['tsk_set']['loss']['type']
-        class_num = opt['tsk_set']['seg']['class_num']
 
-        if cont_loss_type == 'l1':
+    def __init__(self, opt):
+        super(Loss, self).__init__()
+        cont_loss_type = opt["tsk_set"]["loss"]["type"]
+        class_num = opt["tsk_set"]["seg"]["class_num"]
+
+        if cont_loss_type == "l1":
             self.criterion = nn.L1Loss()
-        elif cont_loss_type == 'mse':
+        elif cont_loss_type == "mse":
             self.criterion = nn.MSELoss(size_average=True)
-        elif cont_loss_type =='ncc':
+        elif cont_loss_type == "ncc":
             self.criterion = NCCLoss()
-        elif cont_loss_type =='lncc':
-            lncc =  LNCCLoss()
+        elif cont_loss_type == "lncc":
+            lncc = LNCCLoss()
             lncc.initialize()
-            self.criterion =lncc
-        elif cont_loss_type =='empty':
+            self.criterion = lncc
+        elif cont_loss_type == "empty":
             self.criterion = None
-        elif cont_loss_type =='ce':
-            ce_opt = opt['tsk_set']['loss']['ce']
-            ce_opt['class_num'] = class_num
+        elif cont_loss_type == "ce":
+            ce_opt = opt["tsk_set"]["loss"]["ce"]
+            ce_opt["class_num"] = class_num
             self.criterion = CrossEntropyLoss(ce_opt)
-        elif cont_loss_type == 'focal_loss':
+        elif cont_loss_type == "focal_loss":
             focal_loss = FocalLoss()
             focal_loss.initialize(class_num, alpha=None, gamma=2, size_average=True)
             self.criterion = focal_loss
-        elif cont_loss_type == 'dice_loss':
-            dice_loss =  DiceLoss()
-            dice_loss.initialize(class_num,None)
-            self.criterion =dice_loss
-        elif cont_loss_type == 'gdice_loss':
-            dice_loss =  GeneralizedDiceLoss()
-            dice_loss.initialize(class_num,None)
-            self.criterion =dice_loss
-        elif cont_loss_type == 'tdice_loss':
-            dice_loss =  TverskyLoss()
-            dice_loss.initialize(class_num,None)
-            self.criterion =dice_loss
+        elif cont_loss_type == "dice_loss":
+            dice_loss = DiceLoss()
+            dice_loss.initialize(class_num, None)
+            self.criterion = dice_loss
+        elif cont_loss_type == "gdice_loss":
+            dice_loss = GeneralizedDiceLoss()
+            dice_loss.initialize(class_num, None)
+            self.criterion = dice_loss
+        elif cont_loss_type == "tdice_loss":
+            dice_loss = TverskyLoss()
+            dice_loss.initialize(class_num, None)
+            self.criterion = dice_loss
         else:
             raise ValueError("Model [%s] not recognized." % opt.model)
 
-
-
-    def get_loss(self,output, gt, inst_weights=None, train=False):
+    def get_loss(self, output, gt, inst_weights=None, train=False):
         if self.criterion is not None:
-            return self.criterion(output,gt)
-
+            return self.criterion(output, gt)
 
 
 class MSELoss(nn.MSELoss):
@@ -70,24 +69,26 @@ class MSELoss(nn.MSELoss):
         super().__init__(size_average=True)
 
     def forward(self, inputTensor, target):
-      mseLoss = super().forward(inputTensor, target)
-      return mseLoss / inputTensor.shape[0]
-      
+        mseLoss = super().forward(inputTensor, target)
+        return mseLoss / inputTensor.shape[0]
+
 
 class NCCLoss(nn.Module):
     """
     A implementation of the normalized cross correlation (NCC)
     """
-    def forward(self,input, target):
+
+    def forward(self, input, target):
         input = input.view(input.shape[0], -1)
         target = target.view(target.shape[0], -1)
-        input_minus_mean = input - torch.mean(input, 1).view(input.shape[0],1)
-        target_minus_mean = target - torch.mean(target, 1).view(input.shape[0],1)
+        input_minus_mean = input - torch.mean(input, 1).view(input.shape[0], 1)
+        target_minus_mean = target - torch.mean(target, 1).view(input.shape[0], 1)
         nccSqr = ((input_minus_mean * target_minus_mean).mean(1)) / torch.sqrt(
-                    ((input_minus_mean ** 2).mean(1)) * ((target_minus_mean ** 2).mean(1)))
-        nccSqr =  nccSqr.mean()
-        
-        return (1 - nccSqr) 
+            ((input_minus_mean**2).mean(1)) * ((target_minus_mean**2).mean(1))
+        )
+        nccSqr = nccSqr.mean()
+
+        return 1 - nccSqr
 
 
 class LNCCLoss(nn.Module):
@@ -148,57 +149,62 @@ class LNCCLoss(nn.Module):
     can large increase computation.   The dilation expand the reception field, set dilation as 2 would physically twice the window size.
     """
 
-    def initialize(self, kernel_sz = [9,9,9], voxel_weights = None):
+    def initialize(self, kernel_sz=[9, 9, 9], voxel_weights=None):
         pass
 
-
-    def __stepup(self,img_sz, use_multi_scale=True):
-        max_scale  = min(img_sz)
+    def __stepup(self, img_sz, use_multi_scale=True):
+        max_scale = min(img_sz)
         if use_multi_scale:
-            if max_scale>128:
-                self.scale = [int(max_scale/16), int(max_scale/8), int(max_scale/4)]
+            if max_scale > 128:
+                self.scale = [int(max_scale / 16), int(max_scale / 8), int(max_scale / 4)]
                 self.scale_weight = [0.1, 0.3, 0.6]
-                self.dilation = [2,2,2]
-            elif max_scale>64:
+                self.dilation = [2, 2, 2]
+            elif max_scale > 64:
                 self.scale = [int(max_scale / 4), int(max_scale / 2)]
-                self.scale_weight = [0.3,0.7]
-                self.dilation = [2,2]
-            else :
+                self.scale_weight = [0.3, 0.7]
+                self.dilation = [2, 2]
+            else:
                 self.scale = [int(max_scale / 2)]
                 self.scale_weight = [1.0]
                 self.dilation = [1]
         else:
-            self.scale_weight =  [int(max_scale/4)]
+            self.scale_weight = [int(max_scale / 4)]
             self.scale_weight = [1.0]
         self.num_scale = len(self.scale)
         self.kernel_sz = [[scale for _ in range(3)] for scale in self.scale]
-        self.step = [[max(int((ksz + 1) / 4),1) for ksz in self.kernel_sz[scale_id]] for scale_id in range(self.num_scale)]
+        self.step = [
+            [max(int((ksz + 1) / 4), 1) for ksz in self.kernel_sz[scale_id]] for scale_id in range(self.num_scale)
+        ]
         self.filter = [torch.ones([1, 1] + self.kernel_sz[scale_id]).cuda() for scale_id in range(self.num_scale)]
 
         self.conv = F.conv3d
 
-
     def forward(self, input, target):
         self.__stepup(img_sz=list(input.shape[2:]))
-        input_2 = input ** 2
-        target_2 = target ** 2
+        input_2 = input**2
+        target_2 = target**2
         input_target = input * target
-        lncc_total = 0.
+        lncc_total = 0.0
         for scale_id in range(self.num_scale):
-            input_local_sum = self.conv(input, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id],
-                                        stride=self.step[scale_id]).view(input.shape[0], -1)
-            target_local_sum = self.conv(target, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id],
-                                         stride=self.step[scale_id]).view(input.shape[0],
-                                                                          -1)
-            input_2_local_sum = self.conv(input_2, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id],
-                                          stride=self.step[scale_id]).view(input.shape[0],
-                                                                           -1)
-            target_2_local_sum = self.conv(target_2, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id],
-                                           stride=self.step[scale_id]).view(
-                input.shape[0], -1)
-            input_target_local_sum = self.conv(input_target, self.filter[scale_id], padding=0,
-                                               dilation=self.dilation[scale_id], stride=self.step[scale_id]).view(
-                input.shape[0], -1)
+            input_local_sum = self.conv(
+                input, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id], stride=self.step[scale_id]
+            ).view(input.shape[0], -1)
+            target_local_sum = self.conv(
+                target, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id], stride=self.step[scale_id]
+            ).view(input.shape[0], -1)
+            input_2_local_sum = self.conv(
+                input_2, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id], stride=self.step[scale_id]
+            ).view(input.shape[0], -1)
+            target_2_local_sum = self.conv(
+                target_2, self.filter[scale_id], padding=0, dilation=self.dilation[scale_id], stride=self.step[scale_id]
+            ).view(input.shape[0], -1)
+            input_target_local_sum = self.conv(
+                input_target,
+                self.filter[scale_id],
+                padding=0,
+                dilation=self.dilation[scale_id],
+                stride=self.step[scale_id],
+            ).view(input.shape[0], -1)
 
             input_local_sum = input_local_sum.contiguous()
             target_local_sum = target_local_sum.contiguous()
@@ -211,10 +217,16 @@ class LNCCLoss(nn.Module):
             input_local_mean = input_local_sum / numel
             target_local_mean = target_local_sum / numel
 
-            cross = input_target_local_sum - target_local_mean * input_local_sum - \
-                    input_local_mean * target_local_sum + target_local_mean * input_local_mean * numel
-            input_local_var = input_2_local_sum - 2 * input_local_mean * input_local_sum + input_local_mean ** 2 * numel
-            target_local_var = target_2_local_sum - 2 * target_local_mean * target_local_sum + target_local_mean ** 2 * numel
+            cross = (
+                input_target_local_sum
+                - target_local_mean * input_local_sum
+                - input_local_mean * target_local_sum
+                + target_local_mean * input_local_mean * numel
+            )
+            input_local_var = input_2_local_sum - 2 * input_local_mean * input_local_sum + input_local_mean**2 * numel
+            target_local_var = (
+                target_2_local_sum - 2 * target_local_mean * target_local_sum + target_local_mean**2 * numel
+            )
 
             lncc = cross * cross / (input_local_var * target_local_var + 1e-5)
             lncc = 1 - lncc.mean()
@@ -223,22 +235,21 @@ class LNCCLoss(nn.Module):
         return lncc_total
 
 
-
 class FocalLoss(nn.Module):
     """
-        This criterion is a implemenation of Focal Loss, which is proposed in
-        Focal Loss for Dense Object Detection.
+    This criterion is a implemenation of Focal Loss, which is proposed in
+    Focal Loss for Dense Object Detection.
 
-            Loss(x, class) = - \alpha (1-softmax(x)[class])^gamma \log(softmax(x)[class])
+        Loss(x, class) = - \alpha (1-softmax(x)[class])^gamma \log(softmax(x)[class])
 
-        The losses are averaged across observations for each minibatch.
-        Args:
-            alpha(1D Tensor, Variable) : the scalar factor for this criterion
-            gamma(float, double) : gamma > 0; reduces the relative loss for well-classiﬁed examples (p > .5),
-                                   putting more focus on hard, misclassiﬁed examples
-            size_average(bool): size_average(bool): By default, the losses are averaged over observations for each minibatch.
-                                However, if the field size_average is set to False, the losses are
-                                instead summed for each minibatch.
+    The losses are averaged across observations for each minibatch.
+    Args:
+        alpha(1D Tensor, Variable) : the scalar factor for this criterion
+        gamma(float, double) : gamma > 0; reduces the relative loss for well-classiﬁed examples (p > .5),
+                               putting more focus on hard, misclassiﬁed examples
+        size_average(bool): size_average(bool): By default, the losses are averaged over observations for each minibatch.
+                            However, if the field size_average is set to False, the losses are
+                            instead summed for each minibatch.
     """
 
     def initialize(self, class_num, alpha=None, gamma=2, size_average=True, verbose=True):
@@ -254,7 +265,7 @@ class FocalLoss(nn.Module):
         self.class_num = class_num
         self.size_average = size_average
 
-    def forward(self, inputs, targets, weight= None, inst_weights=None, train=None):
+    def forward(self, inputs, targets, weight=None, inst_weights=None, train=None):
         """
 
         :param inputs: Bxn_classxXxYxZ
@@ -264,17 +275,16 @@ class FocalLoss(nn.Module):
         inputs = inputs.permute(0, 2, 3, 4, 1).contiguous().view(-1, inputs.size(1))
         targets = targets.view(-1)
 
-        P = F.softmax(inputs,dim=1)
+        P = F.softmax(inputs, dim=1)
         ids = targets.view(-1)
-
 
         if inputs.is_cuda and not self.alpha.is_cuda:
             self.alpha = self.alpha.cuda()
 
         alpha = self.alpha[ids.data.view(-1)]
 
-        log_p = - F.cross_entropy(inputs, targets,reduce=False)
-        probs = F.nll_loss(P, targets,reduce=False)
+        log_p = -F.cross_entropy(inputs, targets, reduce=False)
+        probs = F.nll_loss(P, targets, reduce=False)
         # print(probs)
         # print(log_p)
         # print(torch.pow((1 - probs), self.gamma))
@@ -288,42 +298,41 @@ class FocalLoss(nn.Module):
         return loss
 
 
-
 class DiceLoss(nn.Module):
-    def initialize(self, class_num, weight = None):
+    def initialize(self, class_num, weight=None):
         self.class_num = class_num
         if weight is None:
-            self.weight =torch.ones(class_num, 1)/self.class_num
+            self.weight = torch.ones(class_num, 1) / self.class_num
         else:
             self.weight = weight
         self.weight = torch.squeeze(self.weight)
 
-    def forward(self,input, target, inst_weights=None,train=None):
+    def forward(self, input, target, inst_weights=None, train=None):
         """
         input is a torch variable of size BatchxnclassesxHxWxD representing log probabilities for each class
         target is a Bx....   range 0,1....N_label
         """
         in_sz = input.size()
         from functools import reduce
-        extra_dim = reduce(lambda x,y:x*y,in_sz[2:])
-        targ_one_hot = torch.zeros(in_sz[0],in_sz[1],extra_dim).cuda()
-        targ_one_hot.scatter_(1,target.view(in_sz[0],1,extra_dim),1.)
+
+        extra_dim = reduce(lambda x, y: x * y, in_sz[2:])
+        targ_one_hot = torch.zeros(in_sz[0], in_sz[1], extra_dim).cuda()
+        targ_one_hot.scatter_(1, target.view(in_sz[0], 1, extra_dim), 1.0)
         target = targ_one_hot.view(in_sz).contiguous()
-        probs = F.softmax(input,dim=1)
-        num = probs*target
-        num = num.view(num.shape[0],num.shape[1],-1)
+        probs = F.softmax(input, dim=1)
+        num = probs * target
+        num = num.view(num.shape[0], num.shape[1], -1)
         num = torch.sum(num, dim=2)
 
-        den1 = probs#*probs
+        den1 = probs  # *probs
         den1 = den1.view(den1.shape[0], den1.shape[1], -1)
         den1 = torch.sum(den1, dim=2)
 
-        den2 = target#*target
+        den2 = target  # *target
         den2 = den1.view(den2.shape[0], den2.shape[1], -1)
         den2 = torch.sum(den2, dim=2)
         # print("den1:{}".format(sum(sum(den1))))
         # print("den2:{}".format(sum(sum(den2/den1))))
-
 
         dice = 2 * (num / (den1 + den2))
         dice = self.weight.expand_as(dice) * dice
@@ -333,10 +342,109 @@ class DiceLoss(nn.Module):
         return dice_total
 
 
+class MultiClassDiceLoss(nn.Module):
+    def forward(self, source, target):
+        pass
+
+    # Generalised dice overlap as a deep learning loss function for highly unbalanced segmentations
+    def multiLabelDiceLoss(self, y_true, deformationField, multiScale=False, valueToIgnore=None):
+        smooth = 0.0000000001
+        uniqueVals = torch.unique(y_true, sorted=True)
+
+        denominator = torch.tensor(0.0, device=deformationField.device)
+        numerator = torch.tensor(0.0, device=deformationField.device)
+
+        if valueToIgnore is not None:
+            valsEuqalIgnoreVal = self.imgData == valueToIgnore
+            valsEuqalIgnoreVal = torch.sum(valsEuqalIgnoreVal, 1)
+            valsEuqalIgnoreVal = valsEuqalIgnoreVal.repeat(1, self.imgData.shape[1], 1, 1, 1)
+
+        idx = 0
+        for label in uniqueVals[1:]:
+            trueLabelVol = torch.zeros_like(y_true)
+            if valueToIgnore is not None:
+                boolArray0 = y_true == label
+                boolArray1 = valsEuqalIgnoreVal == 0
+                trueLabelVol[boolArray0 & boolArray1] = 1.0
+            else:
+                trueLabelVol[y_true == label] = 1.0
+            defLabelVol = Utils.deformWholeImage(trueLabelVol, deformationField, False, 1 + idx)
+
+            intersection = torch.sum(trueLabelVol * defLabelVol)
+
+            labelSum = torch.sum(defLabelVol) + torch.sum(trueLabelVol)
+            denominator = denominator + labelSum
+            numerator = numerator + intersection
+            idx = idx + 1
+
+        dice = 2.0 * numerator / (denominator + smooth)
+
+        loss = 1 - dice
+        if multiScale:
+            gaussKernelsApplied = 0
+            for gaussKernel in self.gaussSmothingKernels:
+                if (
+                    y_true.shape[2] < gaussKernel.weight.shape[2]
+                    or y_true.shape[3] < gaussKernel.weight.shape[3]
+                    or y_true.shape[4] < gaussKernel.weight.shape[4]
+                ):
+                    continue
+                else:
+                    gaussAdded = False
+                    denominator = 0.0
+                    numerator = 0.0
+                    for label in uniqueVals[1:]:
+                        if not gaussAdded:
+                            gaussKernelsApplied = gaussKernelsApplied + 1
+                            gaussAdded = True
+                        if self.diceKernelMapping.has_key(gaussKernel) and self.diceKernelMapping[gaussKernel].has_key(
+                            str(label)
+                        ):
+                            trueLabelVol = self.diceKernelMapping[gaussKernel][str(label)]
+                        else:
+                            trueLabelVol = torch.zeros_like(y_true)
+                            if valueToIgnore is not None:
+                                boolArray0 = y_true == label
+                                boolArray1 = valsEuqalIgnoreVal == 0
+                                trueLabelVol[boolArray0 & boolArray1] = 1.0
+                            else:
+                                trueLabelVol[y_true == label] = 1.0
+                            trueLabelVol = gaussKernel(trueLabelVol)
+                            if self.diceKernelMapping.has_key(gaussKernel):
+                                self.diceKernelMapping[gaussKernel][str(label)] = trueLabelVol
+                            else:
+                                self.diceKernelMapping[gaussKernel] = {str(label): trueLabelVol}
+
+                        defLabelVol = Utils.deformWholeImage(
+                            trueLabelVol,
+                            deformationField[
+                                ...,
+                                int((deformationField.shape[2] - trueLabelVol.shape[2]) / 2.0) : trueLabelVol.shape[2]
+                                + int((deformationField.shape[2] - trueLabelVol.shape[2]) / 2.0),
+                                int((deformationField.shape[3] - trueLabelVol.shape[3]) / 2.0) : trueLabelVol.shape[3]
+                                + int((deformationField.shape[3] - trueLabelVol.shape[3]) / 2.0),
+                                int((deformationField.shape[4] - trueLabelVol.shape[4]) / 2.0) : trueLabelVol.shape[4]
+                                + int((deformationField.shape[4] - trueLabelVol.shape[4]) / 2.0),
+                            ],
+                            False,
+                            1 + idx,
+                        )
+                        intersection = torch.sum(trueLabelVol * defLabelVol)
+                        labelSum = torch.sum(defLabelVol) + torch.sum(trueLabelVol)
+                        denominator = denominator + labelSum
+                        numerator = numerator + intersection
+                        idx = idx + 1
+                    dice = 2.0 * numerator / (denominator + smooth)
+                    loss = loss + (1 - dice)
+            return loss / (gaussKernelsApplied + 1.0)
+        else:
+            return loss
+
+
 class DiceLossMultiClass(nn.Module):
     """Dice loss from two inputs of segmentation (between a mask and a probability map)"""
 
-    def __init__(self, n_class=None, weight_type='Uniform', no_bg=False, softmax=False, eps=1e-7):
+    def __init__(self, n_class=None, weight_type="Uniform", no_bg=False, softmax=False, eps=1e-7):
         super(DiceLossMultiClass, self).__init__()
         self.weight_type = weight_type
         self.n_class = n_class
@@ -355,7 +463,7 @@ class DiceLossMultiClass(nn.Module):
         :return:
         """
         if source.shape[-3:] == target.squeeze().shape[-3:]:
-          a = 0
+            a = 0
         assert source.shape[0] == target.shape[0]
         assert source.shape[-3:] == target.squeeze().shape[-3:]
 
@@ -371,14 +479,23 @@ class DiceLossMultiClass(nn.Module):
         source_flat = source.view(shape[0], shape[1], -1)
 
         # flat the spatial dimensions and transform it into one-hot coding
-        if len(target.shape) == len(shape)-1:
+        if len(target.shape) == len(shape) - 1:
             target_flat = mask_to_one_hot(target.view(shape[0], 1, -1), self.n_class)
         elif target.shape[1] == shape[1]:
             target_flat = target.view(shape[0], shape[1], -1)
         else:
             target_flat = None
-            raise ValueError("Incorrect size of target tensor: {}, should be {} or []".format(target.shape, shape,
-                                                                                        shape[:1] + [1, ] + shape[2:]))
+            raise ValueError(
+                "Incorrect size of target tensor: {}, should be {} or []".format(
+                    target.shape,
+                    shape,
+                    shape[:1]
+                    + [
+                        1,
+                    ]
+                    + shape[2:],
+                )
+            )
 
         # does not consider background
         if self.no_bg:
@@ -389,19 +506,19 @@ class DiceLossMultiClass(nn.Module):
         source_volume = source_flat.sum(2)
         target_volume = target_flat.sum(2)
 
-        if self.weight_type == 'Simple':
+        if self.weight_type == "Simple":
             # weights = (target_volume.float().sqrt() + self.eps).reciprocal()
-            weights = (target_volume.float()**(1./3.) + self.eps).reciprocal()
+            weights = (target_volume.float() ** (1.0 / 3.0) + self.eps).reciprocal()
             # temp_weights = torch.where(torch.isinf(weights), torch.ones_like(weights), weights)
             # max_weights = temp_weights.max(dim=1, keepdim=True)[0]
             # weights = torch.where(torch.isinf(weights), torch.ones_like(weights)*max_weights, weights)
-        elif self.weight_type == 'Volume':
+        elif self.weight_type == "Volume":
             weights = (target_volume + self.eps).float().reciprocal()
             # weights = 1/(target_volume ** 2+self.eps)
             temp_weights = torch.where(torch.isinf(weights), torch.ones_like(weights), weights)
             max_weights = temp_weights.max(dim=1, keepdim=True)[0]
             weights = torch.where(torch.isinf(weights), torch.ones_like(weights) * max_weights, weights)
-        elif self.weight_type == 'Uniform':
+        elif self.weight_type == "Uniform":
             weights = torch.ones(shape[0], shape[1] - int(self.no_bg))
         else:
             raise ValueError("Class weighting type {} does not exists!".format(self.weight_type))
@@ -410,35 +527,38 @@ class DiceLossMultiClass(nn.Module):
         weights = weights.to(source.device)
 
         intersection = (source_flat * target_flat).sum(2)
-        scores = (2. * (intersection.float()) + self.eps) / (
-                (source_volume.float() + target_volume.float()) + 2 * self.eps)
+        scores = (2.0 * (intersection.float()) + self.eps) / (
+            (source_volume.float() + target_volume.float()) + 2 * self.eps
+        )
 
-        return 1 - (weights*scores).sum()/weights.sum()
+        return 1 - (weights * scores).sum() / weights.sum()
 
 
 class GeneralizedDiceLoss(nn.Module):
     def initialize(self, class_num, weight=None):
         self.class_num = class_num
         if weight is None:
-            self.weight =torch.ones(class_num, 1)
+            self.weight = torch.ones(class_num, 1)
         else:
             self.weight = weight
 
         self.weight = torch.squeeze(self.weight)
-    def forward(self,input, target,inst_weights=None,train=None):
+
+    def forward(self, input, target, inst_weights=None, train=None):
         """
         input is a torch variable of size BatchxnclassesxHxWxD representing log probabilities for each class
         target is a Bx....   range 0,1....N_label
         """
         in_sz = input.size()
         from functools import reduce
-        extra_dim = reduce(lambda x,y:x*y,in_sz[2:])
-        targ_one_hot = torch.zeros(in_sz[0],in_sz[1],extra_dim).cuda()
-        targ_one_hot.scatter_(1,target.view(in_sz[0],1,extra_dim),1.)
+
+        extra_dim = reduce(lambda x, y: x * y, in_sz[2:])
+        targ_one_hot = torch.zeros(in_sz[0], in_sz[1], extra_dim).cuda()
+        targ_one_hot.scatter_(1, target.view(in_sz[0], 1, extra_dim), 1.0)
         target = targ_one_hot.view(in_sz).contiguous()
-        probs = F.softmax(input,dim=1)
-        num = probs*target
-        num = num.view(num.shape[0],num.shape[1],-1)
+        probs = F.softmax(input, dim=1)
+        num = probs * target
+        num = num.view(num.shape[0], num.shape[1], -1)
         num = torch.sum(num, dim=2)  # batch x ch
 
         den1 = probs
@@ -452,7 +572,7 @@ class GeneralizedDiceLoss(nn.Module):
         # print("den2:{}".format(sum(sum(den2/den1))))
         weights = self.weight.expand_as(den1)
 
-        dice = 2 * (torch.sum(weights*num,dim=1) / torch.sum(weights*(den1 + den2),dim=1))
+        dice = 2 * (torch.sum(weights * num, dim=1) / torch.sum(weights * (den1 + den2), dim=1))
         dice_eso = dice
         # dice_eso = dice[:, 1:]  # we ignore bg dice val, and take the fg
         dice_total = -1 * torch.sum(dice_eso) / dice_eso.size(0)  # divide by batch_sz
@@ -464,7 +584,7 @@ class TverskyLoss(nn.Module):
     def initialize(self, class_num, weight=None, alpha=0.5, beta=0.5):
         self.class_num = class_num
         if weight is None:
-            self.weight = torch.ones(class_num, 1)/self.class_num
+            self.weight = torch.ones(class_num, 1) / self.class_num
         else:
             self.weight = weight
 
@@ -473,39 +593,38 @@ class TverskyLoss(nn.Module):
         self.beta = beta
         print("the weight of Tversky loss is  {}".format(weight))
 
-    def forward(self,input, target,inst_weights=None, train=None):
+    def forward(self, input, target, inst_weights=None, train=None):
         """
         input is a torch variable of size BatchxnclassesxHxWxD representing log probabilities for each class
         target is a Bx....   range 0,1....N_label
         """
         in_sz = input.size()
         from functools import reduce
-        extra_dim = reduce(lambda x,y:x*y,in_sz[2:])
-        targ_one_hot = torch.zeros(in_sz[0],in_sz[1],extra_dim).cuda()
-        targ_one_hot.scatter_(1,target.view(in_sz[0],1,extra_dim),1.)
+
+        extra_dim = reduce(lambda x, y: x * y, in_sz[2:])
+        targ_one_hot = torch.zeros(in_sz[0], in_sz[1], extra_dim).cuda()
+        targ_one_hot.scatter_(1, target.view(in_sz[0], 1, extra_dim), 1.0)
         target = targ_one_hot.view(in_sz).contiguous()
-        probs = F.softmax(input,dim=1)
-        num = probs*target
-        num = num.view(num.shape[0],num.shape[1],-1)
+        probs = F.softmax(input, dim=1)
+        num = probs * target
+        num = num.view(num.shape[0], num.shape[1], -1)
         num = torch.sum(num, dim=2)
 
-
-        den1 = probs*(1-target)
+        den1 = probs * (1 - target)
         den1 = den1.view(den1.shape[0], den1.shape[1], -1)
         den1 = torch.sum(den1, dim=2)
 
-        den2 = (1-probs)*target
+        den2 = (1 - probs) * target
         den2 = den1.view(den2.shape[0], den2.shape[1], -1)
         den2 = torch.sum(den2, dim=2)
         # print("den1:{}".format(sum(sum(den1))))
         # print("den2:{}".format(sum(sum(den2/den1))))
 
-
-        dice = 2 * (num / (num + self.alpha*den1 + self.beta*den2))
+        dice = 2 * (num / (num + self.alpha * den1 + self.beta * den2))
         dice = self.weight.expand_as(dice) * dice
 
         dice_eso = dice
-        #dice_eso = dice[:, 1:]  # we ignore bg dice val, and take the fg
+        # dice_eso = dice[:, 1:]  # we ignore bg dice val, and take the fg
 
         dice_total = -1 * torch.sum(dice_eso) / dice_eso.size(0)  # divide by batch_sz
 
@@ -515,29 +634,29 @@ class TverskyLoss(nn.Module):
 class CrossEntropyLoss(nn.Module):
     def __init__(self, opt, imd_weight=None):
         # To Do,  add dynamic weight
-        super(CrossEntropyLoss,self).__init__()
-        no_bg = opt[('no_bg',False,'exclude background')]
-        weighted = opt[('weighted',False,'  weighted the class')]
-        reduced = opt[('reduced',True,'  reduced the class')]
-        self.mask = None #opt[('mask',None, 'masked other label')]
-        class_num = opt['class_num']
+        super(CrossEntropyLoss, self).__init__()
+        no_bg = opt[("no_bg", False, "exclude background")]
+        weighted = opt[("weighted", False, "  weighted the class")]
+        reduced = opt[("reduced", True, "  reduced the class")]
+        self.mask = None  # opt[('mask',None, 'masked other label')]
+        class_num = opt["class_num"]
 
         if no_bg:
             self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
         if weighted:
-            class_weight = opt['class_weight']if imd_weight is None else imd_weight
-            if class_weight is not None and not (len(class_weight)< class_num):
-                self.loss_fn = nn.CrossEntropyLoss(weight=class_weight, reduce = reduced)
-                self.mask=None
+            class_weight = opt["class_weight"] if imd_weight is None else imd_weight
+            if class_weight is not None and not (len(class_weight) < class_num):
+                self.loss_fn = nn.CrossEntropyLoss(weight=class_weight, reduce=reduced)
+                self.mask = None
             else:  # this is the case for using random mask, the class weight here refers to the label need be masked
                 self.mask = class_weight
                 print("the current mask is {}".format(self.mask))
                 self.loss_fn = nn.CrossEntropyLoss()
         else:
-            self.loss_fn = nn.CrossEntropyLoss(reduce = reduced)
+            self.loss_fn = nn.CrossEntropyLoss(reduce=reduced)
         self.n_class = class_num
 
-    def forward(self, input, gt, inst_weights= None, train=False):
+    def forward(self, input, gt, inst_weights=None, train=False):
         """
         :param inputs: Bxn_classxXxYxZ
         :param targets: Bx.....  , range(0,n_class)
@@ -545,16 +664,16 @@ class CrossEntropyLoss(nn.Module):
         """
         if self.mask is not None and train:
             for m in self.mask:
-                gt[gt==m]=0
-        if len(input.shape)==5:
+                gt[gt == m] = 0
+        if len(input.shape) == 5:
             output_flat = input.permute(0, 2, 3, 4, 1).contiguous().view(-1, self.n_class)
         else:
             output_flat = input
         truths_flat = gt.view(-1)
         if inst_weights is None:
-            return self.loss_fn(output_flat,truths_flat)
+            return self.loss_fn(output_flat, truths_flat)
         else:
-            return torch.mean( inst_weights.view(-1)*self.loss_fn(output_flat,truths_flat))
+            return torch.mean(inst_weights.view(-1) * self.loss_fn(output_flat, truths_flat))
 
 
 class GradLoss(nn.Module):
@@ -562,7 +681,7 @@ class GradLoss(nn.Module):
     N-D gradient loss.
     """
 
-    def __init__(self, penalty='l1', loss_mult=None):
+    def __init__(self, penalty="l1", loss_mult=None):
         super(GradLoss, self).__init__()
         self.penalty = penalty
         self.loss_mult = loss_mult
@@ -572,7 +691,7 @@ class GradLoss(nn.Module):
         dx = torch.abs(y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :])
         dz = torch.abs(y_pred[:, :, :, :, 1:] - y_pred[:, :, :, :, :-1])
 
-        if self.penalty == 'l2':
+        if self.penalty == "l2":
             dy = dy * dy
             dx = dx * dx
             dz = dz * dz
@@ -596,12 +715,13 @@ class DummyLoss(nn.Module):
     def forward(self, *args):
         return 1.0
 
+
 class BendingEnergyLoss(nn.Module):
     """
     regularization loss of bending energy of a 3d deformation field
     """
 
-    def __init__(self, norm='L2', spacing=(1, 1, 1), normalize=True):
+    def __init__(self, norm="L2", spacing=(1, 1, 1), normalize=True):
         super(BendingEnergyLoss, self).__init__()
         self.norm = norm
         self.spacing = torch.tensor(spacing).float()
@@ -624,36 +744,49 @@ class BendingEnergyLoss(nn.Module):
         # f''(x) = [f(x+h) + f(x-h) - 2f(x)] / h^2
         # f_{x, y}(x, y) = [df(x+h, y+k) + df(x-h, y-k) - df(x+h, y-k) - df(x-h, y+k)] / 2hk
 
-        ddx = torch.abs(input[:, :, 2:, 1:-1, 1:-1] + input[:, :, :-2, 1:-1, 1:-1] - 2 * input[:, :, 1:-1, 1:-1, 1:-1])\
-                 .view(input.shape[0], input.shape[1], -1)
+        ddx = torch.abs(
+            input[:, :, 2:, 1:-1, 1:-1] + input[:, :, :-2, 1:-1, 1:-1] - 2 * input[:, :, 1:-1, 1:-1, 1:-1]
+        ).view(input.shape[0], input.shape[1], -1)
 
-        ddy = torch.abs(input[:, :, 1:-1, 2:, 1:-1] + input[:, :, 1:-1, :-2, 1:-1] - 2 * input[:, :, 1:-1, 1:-1, 1:-1]) \
-                 .view(input.shape[0], input.shape[1], -1)
+        ddy = torch.abs(
+            input[:, :, 1:-1, 2:, 1:-1] + input[:, :, 1:-1, :-2, 1:-1] - 2 * input[:, :, 1:-1, 1:-1, 1:-1]
+        ).view(input.shape[0], input.shape[1], -1)
 
-        ddz = torch.abs(input[:, :, 1:-1, 1:-1, 2:] + input[:, :, 1:-1, 1:-1, :-2] - 2 * input[:, :, 1:-1, 1:-1, 1:-1]) \
-                 .view(input.shape[0], input.shape[1], -1)
+        ddz = torch.abs(
+            input[:, :, 1:-1, 1:-1, 2:] + input[:, :, 1:-1, 1:-1, :-2] - 2 * input[:, :, 1:-1, 1:-1, 1:-1]
+        ).view(input.shape[0], input.shape[1], -1)
 
-        dxdy = torch.abs(input[:, :, 2:, 2:, 1:-1] + input[:, :, :-2, :-2, 1:-1] -
-                         input[:, :, 2:, :-2, 1:-1] - input[:, :, :-2, 2:, 1:-1]).view(input.shape[0], input.shape[1], -1)
+        dxdy = torch.abs(
+            input[:, :, 2:, 2:, 1:-1]
+            + input[:, :, :-2, :-2, 1:-1]
+            - input[:, :, 2:, :-2, 1:-1]
+            - input[:, :, :-2, 2:, 1:-1]
+        ).view(input.shape[0], input.shape[1], -1)
 
-        dydz = torch.abs(input[:, :, 1:-1, 2:, 2:] + input[:, :, 1:-1, :-2, :-2] -
-                         input[:, :, 1:-1, 2:, :-2] - input[:, :, 1:-1, :-2, 2:]).view(input.shape[0], input.shape[1], -1)
+        dydz = torch.abs(
+            input[:, :, 1:-1, 2:, 2:]
+            + input[:, :, 1:-1, :-2, :-2]
+            - input[:, :, 1:-1, 2:, :-2]
+            - input[:, :, 1:-1, :-2, 2:]
+        ).view(input.shape[0], input.shape[1], -1)
 
-        dxdz = torch.abs(input[:, :, 2:, 1:-1, 2:] + input[:, :, :-2, 1:-1, :-2] -
-                         input[:, :, 2:, 1:-1, :-2] - input[:, :, :-2, 1:-1, 2:]).view(input.shape[0], input.shape[1], -1)
+        dxdz = torch.abs(
+            input[:, :, 2:, 1:-1, 2:]
+            + input[:, :, :-2, 1:-1, :-2]
+            - input[:, :, 2:, 1:-1, :-2]
+            - input[:, :, :-2, 1:-1, 2:]
+        ).view(input.shape[0], input.shape[1], -1)
 
+        if self.norm == "L2":
+            ddx = (ddx**2).mean(2) * (spatial_dims * self.spacing / (self.spacing[0] ** 2)) ** 2
+            ddy = (ddy**2).mean(2) * (spatial_dims * self.spacing / (self.spacing[1] ** 2)) ** 2
+            ddz = (ddz**2).mean(2) * (spatial_dims * self.spacing / (self.spacing[2] ** 2)) ** 2
+            dxdy = (dxdy**2).mean(2) * (spatial_dims * self.spacing / (self.spacing[0] * self.spacing[1])) ** 2
+            dydz = (dydz**2).mean(2) * (spatial_dims * self.spacing / (self.spacing[1] * self.spacing[2])) ** 2
+            dxdz = (dxdz**2).mean(2) * (spatial_dims * self.spacing / (self.spacing[2] * self.spacing[0])) ** 2
 
-        if self.norm == 'L2':
-            ddx = (ddx ** 2).mean(2) * (spatial_dims * self.spacing / (self.spacing[0]**2)) ** 2
-            ddy = (ddy ** 2).mean(2) * (spatial_dims * self.spacing / (self.spacing[1]**2)) ** 2
-            ddz = (ddz ** 2).mean(2) * (spatial_dims * self.spacing / (self.spacing[2]**2)) ** 2
-            dxdy = (dxdy ** 2).mean(2) * (spatial_dims * self.spacing / (self.spacing[0] * self.spacing[1])) ** 2
-            dydz = (dydz ** 2).mean(2) * (spatial_dims * self.spacing / (self.spacing[1] * self.spacing[2])) ** 2
-            dxdz = (dxdz ** 2).mean(2) * (spatial_dims * self.spacing / (self.spacing[2] * self.spacing[0])) ** 2
-
-        d = (ddx.mean() + ddy.mean() + ddz.mean() + 2*dxdy.mean() + 2*dydz.mean() + 2*dxdz.mean()) / 9.0
+        d = (ddx.mean() + ddy.mean() + ddz.mean() + 2 * dxdy.mean() + 2 * dydz.mean() + 2 * dxdz.mean()) / 9.0
         return d
-
 
 
 class LaplaceOperator(nn.Module):
@@ -675,7 +808,7 @@ class LaplaceOperator(nn.Module):
         # f''(x) = [f(x+h) + f(x-h) - 2f(x)] / h^2
         # f_{x, y}(x, y) = [df(x+h, y+k) + df(x-h, y-k) - df(x+h, y-k) - df(x-h, y+k)] / 2hk
 
-        input = F.pad(input, (1, 1, 1, 1, 1, 1), mode='replicate')
+        input = F.pad(input, (1, 1, 1, 1, 1, 1), mode="replicate")
 
         ddx = input[:, :, 2:, 1:-1, 1:-1] + input[:, :, :-2, 1:-1, 1:-1] - 2 * input[:, :, 1:-1, 1:-1, 1:-1]
 
@@ -683,12 +816,18 @@ class LaplaceOperator(nn.Module):
 
         ddz = input[:, :, 1:-1, 1:-1, 2:] + input[:, :, 1:-1, 1:-1, :-2] - 2 * input[:, :, 1:-1, 1:-1, 1:-1]
 
-
         return ddx + ddy + ddz
-      
+
+
 class LossFactory(object):
-  lossMap = {'SSD': MSELoss, 'MSE': MSELoss, "NCC": NCCLoss, "LNCC": LNCCLoss, "BendingEnergy": BendingEnergyLoss, "GradLoss": GradLoss, "Dummy": DummyLoss, "DiceLossMultiClass": DiceLossMultiClass, "GeneralDice": GeneralizedDiceLoss}
-
-
-
-
+    lossMap = {
+        "SSD": MSELoss,
+        "MSE": MSELoss,
+        "NCC": NCCLoss,
+        "LNCC": LNCCLoss,
+        "BendingEnergy": BendingEnergyLoss,
+        "GradLoss": GradLoss,
+        "Dummy": DummyLoss,
+        "DiceLossMultiClass": DiceLossMultiClass,
+        "GeneralDice": GeneralizedDiceLoss,
+    }

@@ -16,7 +16,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         self.output_dir = config.getParam("outputPath")
         self.meshDir = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         self.meshSpacing = config.getParam("registrationGridSpacing")
-        self.transformer = Bilinear()
+        self.transformer = Bilinear(zero_boundary=True)
 
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes = pl_module.prepare_batch(batch)

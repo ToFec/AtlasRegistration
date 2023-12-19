@@ -19,36 +19,31 @@ class Test(unittest.TestCase):
     def testLoadDeformImageAndSaveDefField(self):
         config = Config()
 
-        config.setParam("trainingDataFile", "./resources/DataTestTrainingMethods.csv")
+        config.setParam("trainingDataFile", "./resources/TestDeformOnBrain/DataTestTrainingMethods.csv")
         config.setParam("numberOfWorkersDataLoader", 0)
-        config.setParam("registrationGridsize", [64, 56, 60])
+        config.setParam("registrationGridsize", [192, 192, 160])
         config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
         config.setParam("doRandomTrainValSetSplit", False)
 
-        defFieldITK = sitk.ReadImage("./resources/DummyDeformationFieldInv.nrrd")
-        defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
+        defFieldITK = sitk.ReadImage("./resources/TestDeformOnBrain/deformationFieldRes.nrrd")
+        defField = atlasUtils.loadDefField("./resources/TestDeformOnBrain/deformationFieldRes.nrrd")
 
         data = AtlasDataModule(config)
         data.prepare_data()
         data.setup(stage="fit")
-
-        tmp = data.val_set[0]["image"][tio.DATA]
-        data.atlasImage = tmp.unsqueeze(0).detach().clone().type(torch.FloatTensor)
-        data.atlasImage.requires_grad = True
-
-        atlasMesh = data.val_set[0]["samplingMesh"]
-        data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
-
+        originalImage = data.train_set[0]["image"][tio.DATA]
         atlasImage, atlasMesh, _ = data.getInitalAtlas()
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()
+        deformaiton = transformer.getDeformationField(defField)
+        # deformaiton = atlasMesh[0, None, :] + defField
 
-        deformaiton = atlasMesh[0, None, :] + defField
-        tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
+        # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
+        tmpDeformed = transformer(atlasImage, deformaiton)
 
         atlasUtils.saveDefField(
-            "./resources/DummyDeformationFieldInvSaved.nrrd",
+            "./resources/TestDeformOnBrain/DefFieldSaved.nrrd",
             defField,
             defFieldITK.GetOrigin(),
             defFieldITK.GetSpacing(),
@@ -56,8 +51,8 @@ class Test(unittest.TestCase):
         )
 
         atlasUtils.saveImageTensor(
-            atlasImage[0, None, ...].detach(),
-            "./resources/DummyOrigToBeDeformationFieldInv.nrrd",
+            originalImage[0, None, ...].detach(),
+            "./resources/TestDeformOnBrain/ImageOrig.nrrd",
             defFieldITK.GetOrigin(),
             defFieldITK.GetSpacing(),
             defFieldITK.GetDirection(),
@@ -65,7 +60,7 @@ class Test(unittest.TestCase):
 
         atlasUtils.saveImageTensor(
             tmpDeformed[0, None, ...],
-            "./resources/DummyDeformedByDeformationFieldInv.nrrd",
+            "./resources/TestDeformOnBrain/ImageDeformed.nrrd",
             defFieldITK.GetOrigin(),
             defFieldITK.GetSpacing(),
             defFieldITK.GetDirection(),

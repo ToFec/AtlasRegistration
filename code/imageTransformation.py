@@ -49,10 +49,12 @@ class Transformation(torch.nn.Module):
 
         return self.identityTransform + flowField
 
-    def sampleImage(self, images, meshes, alignCorners=True):
+    def sampleImage(self, images, meshes, alignCorners=True, paddMode="zeros"):
         meshes = torch.moveaxis(meshes, 1, -1)
         meshes = meshes.flip(-1)
-        sampledImage = torch.nn.functional.grid_sample(images, meshes, padding_mode="zeros", align_corners=alignCorners)
+        sampledImage = torch.nn.functional.grid_sample(
+            images, meshes, padding_mode=paddMode, align_corners=alignCorners
+        )
         return sampledImage
 
 
@@ -72,17 +74,6 @@ class Bilinear(Transformation):
         self.using_scale = using_scale
         """ scale [-1,1] image intensity into [0,1], this is due to the zero boundary condition we may use here """
 
-    def forward_stn(self, input1, input2):
-        input2_ordered = torch.zeros_like(input2)
-        input2_ordered[:, 0, ...] = input2[:, 2, ...]
-        input2_ordered[:, 1, ...] = input2[:, 1, ...]
-        input2_ordered[:, 2, ...] = input2[:, 0, ...]
-
-        output = torch.nn.functional.grid_sample(
-            input1, input2_ordered.permute([0, 2, 3, 4, 1]), padding_mode=self.zero_boundary, align_corners=True
-        )
-        return output
-
     def forward(self, input1, input2):
         """
         Perform the actual spatial transform
@@ -92,10 +83,10 @@ class Bilinear(Transformation):
         :return: spatially transformed image in BCXYZ format
         """
         if self.using_scale:
-            output = self.forward_stn((input1 + 1) / 2, input2)
+            output = self.sampleImage((input1 + 1) / 2, input2, True, self.zero_boundary)
             # print(STNVal(output, ini=-1).sum())
             return output * 2 - 1
         else:
-            output = self.forward_stn(input1, input2)
+            output = self.sampleImage(input1, input2, True, self.zero_boundary)
             # print(STNVal(output, ini=-1).sum())
             return output

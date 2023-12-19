@@ -31,7 +31,7 @@ class LossCalculator:
         else:
             self.smoothLoss = LossFactory.lossMap["Dummy"]
 
-        self.transformer = Bilinear()
+        self.transformer = Bilinear(zero_boundary=True)
 
     def _getDefomredImages(self, posDeformationField, neg_flow, images, meshes):
         sec_src_imgs = torch.flip(images, dims=[0])
