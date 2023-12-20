@@ -342,103 +342,39 @@ class DiceLoss(nn.Module):
         return dice_total
 
 
-class MultiClassDiceLoss(nn.Module):
-    def forward(self, source, target):
-        pass
-
-    # Generalised dice overlap as a deep learning loss function for highly unbalanced segmentations
-    def multiLabelDiceLoss(self, y_true, deformationField, multiScale=False, valueToIgnore=None):
+## to be used when the different labels are not in separater channel
+## not yet tested
+class MultiClassSingleChannelDiceCalculator(nn.Module):
+    def forward(self, reference, prediction, valueToIgnore: torch.tensor = None) -> torch.tensor:
         smooth = 0.0000000001
-        uniqueVals = torch.unique(y_true, sorted=True)
+        uniqueValsRef = torch.unique(reference, sorted=True)
+        uniqueValsPred = torch.unique(prediction, sorted=True)
+        uniqueVals = uniqueValsRef[(uniqueValsRef.view(1, -1) == uniqueValsPred.view(-1, 1)).any(dim=0)]
 
-        denominator = torch.tensor(0.0, device=deformationField.device)
-        numerator = torch.tensor(0.0, device=deformationField.device)
-
+        denominator = torch.tensor(0.0, device=prediction.device)
+        numerator = torch.tensor(0.0, device=prediction.device)
         if valueToIgnore is not None:
-            valsEuqalIgnoreVal = self.imgData == valueToIgnore
-            valsEuqalIgnoreVal = torch.sum(valsEuqalIgnoreVal, 1)
-            valsEuqalIgnoreVal = valsEuqalIgnoreVal.repeat(1, self.imgData.shape[1], 1, 1, 1)
+            uniqueVals = uniqueVals[
+                torch.tensor([(valueToIgnore == uniqueVal).any() for uniqueVal in uniqueVals]).bitwise_not()
+            ]
 
-        idx = 0
-        for label in uniqueVals[1:]:
-            trueLabelVol = torch.zeros_like(y_true)
-            if valueToIgnore is not None:
-                boolArray0 = y_true == label
-                boolArray1 = valsEuqalIgnoreVal == 0
-                trueLabelVol[boolArray0 & boolArray1] = 1.0
-            else:
-                trueLabelVol[y_true == label] = 1.0
-            defLabelVol = Utils.deformWholeImage(trueLabelVol, deformationField, False, 1 + idx)
+        for label in uniqueVals:
+            referenceLabelVol = torch.zeros_like(reference)
+            referenceLabelVol[reference == label] = (reference[reference == label] + 1.0) / (label + 1.0)
 
-            intersection = torch.sum(trueLabelVol * defLabelVol)
+            predictionLabelVol = torch.zeros_like(prediction)
+            predictionLabelVol[prediction == label] = (prediction[prediction == label] + 1.0) / (label + 1.0)
 
-            labelSum = torch.sum(defLabelVol) + torch.sum(trueLabelVol)
+            intersection = torch.sum(referenceLabelVol * predictionLabelVol)
+
+            labelSum = torch.sum(predictionLabelVol) + torch.sum(referenceLabelVol)
             denominator = denominator + labelSum
             numerator = numerator + intersection
-            idx = idx + 1
 
         dice = 2.0 * numerator / (denominator + smooth)
 
         loss = 1 - dice
-        if multiScale:
-            gaussKernelsApplied = 0
-            for gaussKernel in self.gaussSmothingKernels:
-                if (
-                    y_true.shape[2] < gaussKernel.weight.shape[2]
-                    or y_true.shape[3] < gaussKernel.weight.shape[3]
-                    or y_true.shape[4] < gaussKernel.weight.shape[4]
-                ):
-                    continue
-                else:
-                    gaussAdded = False
-                    denominator = 0.0
-                    numerator = 0.0
-                    for label in uniqueVals[1:]:
-                        if not gaussAdded:
-                            gaussKernelsApplied = gaussKernelsApplied + 1
-                            gaussAdded = True
-                        if self.diceKernelMapping.has_key(gaussKernel) and self.diceKernelMapping[gaussKernel].has_key(
-                            str(label)
-                        ):
-                            trueLabelVol = self.diceKernelMapping[gaussKernel][str(label)]
-                        else:
-                            trueLabelVol = torch.zeros_like(y_true)
-                            if valueToIgnore is not None:
-                                boolArray0 = y_true == label
-                                boolArray1 = valsEuqalIgnoreVal == 0
-                                trueLabelVol[boolArray0 & boolArray1] = 1.0
-                            else:
-                                trueLabelVol[y_true == label] = 1.0
-                            trueLabelVol = gaussKernel(trueLabelVol)
-                            if self.diceKernelMapping.has_key(gaussKernel):
-                                self.diceKernelMapping[gaussKernel][str(label)] = trueLabelVol
-                            else:
-                                self.diceKernelMapping[gaussKernel] = {str(label): trueLabelVol}
-
-                        defLabelVol = Utils.deformWholeImage(
-                            trueLabelVol,
-                            deformationField[
-                                ...,
-                                int((deformationField.shape[2] - trueLabelVol.shape[2]) / 2.0) : trueLabelVol.shape[2]
-                                + int((deformationField.shape[2] - trueLabelVol.shape[2]) / 2.0),
-                                int((deformationField.shape[3] - trueLabelVol.shape[3]) / 2.0) : trueLabelVol.shape[3]
-                                + int((deformationField.shape[3] - trueLabelVol.shape[3]) / 2.0),
-                                int((deformationField.shape[4] - trueLabelVol.shape[4]) / 2.0) : trueLabelVol.shape[4]
-                                + int((deformationField.shape[4] - trueLabelVol.shape[4]) / 2.0),
-                            ],
-                            False,
-                            1 + idx,
-                        )
-                        intersection = torch.sum(trueLabelVol * defLabelVol)
-                        labelSum = torch.sum(defLabelVol) + torch.sum(trueLabelVol)
-                        denominator = denominator + labelSum
-                        numerator = numerator + intersection
-                        idx = idx + 1
-                    dice = 2.0 * numerator / (denominator + smooth)
-                    loss = loss + (1 - dice)
-            return loss / (gaussKernelsApplied + 1.0)
-        else:
-            return loss
+        return loss
 
 
 class DiceLossMultiClass(nn.Module):
@@ -829,5 +765,6 @@ class LossFactory(object):
         "GradLoss": GradLoss,
         "Dummy": DummyLoss,
         "DiceLossMultiClass": DiceLossMultiClass,
+        "MultiClassSingleChannelDiceCalculator": MultiClassSingleChannelDiceCalculator,
         "GeneralDice": GeneralizedDiceLoss,
     }

@@ -25,8 +25,8 @@ class Test(unittest.TestCase):
         config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
         config.setParam("doRandomTrainValSetSplit", False)
 
-        defFieldITK = sitk.ReadImage("./resources/TestDeformOnBrain/deformationFieldRes.nrrd")
-        defField = atlasUtils.loadDefField("./resources/TestDeformOnBrain/deformationFieldRes.nrrd")
+        defFieldITK = sitk.ReadImage("./resources/TestDeformOnBrain/LargeTranslation.nrrd")
+        defField = atlasUtils.loadDefField("./resources/TestDeformOnBrain/LargeTranslation.nrrd")
 
         data = AtlasDataModule(config)
         data.prepare_data()

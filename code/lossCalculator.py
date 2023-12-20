@@ -13,7 +13,10 @@ class LossCalculator:
         similartiyLossName = config.getParam("similarityLoss")
         self.sim_factor = config.getParam("similarityFactor")
         self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
-        self.diceLoss = LossFactory.lossMap["DiceLossMultiClass"]()
+
+        self.diceLoss = config.getParam("labelLoss")
+        if self.diceLoss is None:
+            self.diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
 
         self.reg_factor = config.getParam("regularizationFactor")
         if self.reg_factor != 0.0:

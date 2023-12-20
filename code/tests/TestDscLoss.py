@@ -8,10 +8,11 @@ from config import Config
 from atlasDataModule import AtlasDataModule
 from losses import LossFactory
 import torchio as tio
+import torch
 
 
 class Test(unittest.TestCase):
-    def testDiceLoss(self):
+    def getConfig(self, batchSize) -> Config:
         config = Config()
         config.setParam("trainingDataFile", "./resources/DscLoss/Data.csv")
         config.setParam("numberOfWorkersDataLoader", 0)
@@ -19,18 +20,44 @@ class Test(unittest.TestCase):
         config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
         config.setParam("doRandomTrainValSetSplit", False)
         config.setParam("trainValRatio", 1.0)
-        batchSize = 2
         config.setParam("batchSize", batchSize)
+        return config
 
-        data = AtlasDataModule(config)
+    def testDiceLossAllClasses(self):
+        batchSize = 2
+        data = AtlasDataModule(self.getConfig(batchSize))
         data.prepare_data()
         data.setup(stage="fit")
 
-        diceLoss = LossFactory.lossMap["DiceLossMultiClass"]()
+        diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
         for batch in data.train_dataloader():
             labels = batch["label"][tio.DATA]
-            diceLoss = diceLoss(labels, labels)
-            # diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :])
+            diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :])
+            self.assertAlmostEqual(diceLoss.item(), 0.0648, 3)
+
+    def testDiceLossSomeClasses(self):
+        batchSize = 2
+        data = AtlasDataModule(self.getConfig(batchSize))
+        data.prepare_data()
+        data.setup(stage="fit")
+
+        diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
+        for batch in data.train_dataloader():
+            labels = batch["label"][tio.DATA]
+            diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :], torch.tensor(0))
+            self.assertAlmostEqual(diceLoss.item(), 0.6044, 3)
+
+    def testDiceLossSingleClass(self):
+        batchSize = 2
+        data = AtlasDataModule(self.getConfig(batchSize))
+        data.prepare_data()
+        data.setup(stage="fit")
+
+        diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
+        for batch in data.train_dataloader():
+            labels = batch["label"][tio.DATA]
+            diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :], torch.tensor([0, 1, 2, 3]))
+            self.assertAlmostEqual(diceLoss.item(), 0.8784, 3)
 
 
 if __name__ == "__main__":
