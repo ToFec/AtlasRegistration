@@ -17,6 +17,11 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         self.meshDir = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         self.meshSpacing = config.getParam("registrationGridSpacing")
         self.transformer = Bilinear(zero_boundary=True)
+        _fileType = config.getParam("fileTypeToWrite")
+        if _fileType is None:
+            self.fileType = ".mha"  ##would prefer nrrd, but had difficulties with vector orientation in Slicer
+        else:
+            self.fileType = _fileType
 
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes = pl_module.prepare_batch(batch)
@@ -39,7 +44,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
 
         atlas_utils.saveImageTensor(
             atlasImages[0, None, ...],
-            os.path.join(self.output_dir, "Atlas.nrrd"),
+            os.path.join(self.output_dir, "Atlas" + self.fileType),
             atlasOrigin,
             self.meshSpacing,
             self.meshDir,
@@ -48,10 +53,10 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         for i in range(0, warpedAtlas.shape[0]):
             fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
 
-            if os.path.exists(os.path.join(self.output_dir, fileBaseName + ".nrrd")):
+            if os.path.exists(os.path.join(self.output_dir, fileBaseName + self.fileType)):
                 fileIdx = 0
                 fileBaseNameBUP = fileBaseName + str(fileIdx)
-                while os.path.exists(os.path.join(self.output_dir, fileBaseNameBUP + ".nrrd")):
+                while os.path.exists(os.path.join(self.output_dir, fileBaseNameBUP + self.fileType)):
                     fileIdx = fileIdx + 1
                     fileBaseNameBUP = fileBaseName + str(fileIdx)
                 fileBaseName = fileBaseNameBUP
@@ -59,7 +64,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             ## save resampled original image
             atlas_utils.saveImageTensor(
                 sampledImages[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + ".nrrd"),
+                os.path.join(self.output_dir, fileBaseName + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
                 self.meshDir,
@@ -68,7 +73,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             ## save deformed images in atlas space
             atlas_utils.saveImageTensor(
                 warpedImages[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "Def.nrrd"),
+                os.path.join(self.output_dir, fileBaseName + "Def" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
                 self.meshDir,
@@ -76,7 +81,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
 
             ## save deformation fields: image space -> atlas space
             atlas_utils.saveDefField(
-                os.path.join(self.output_dir, fileBaseName + "DefField.nrrd"),
+                os.path.join(self.output_dir, fileBaseName + "DefField" + self.fileType),
                 neg_flow[i, None, ...],
                 atlasOrigin,
                 self.meshSpacing,
@@ -86,7 +91,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             ## save deformed atlas in image space
             atlas_utils.saveImageTensor(
                 warpedAtlas[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "AtlasDef.nrrd"),
+                os.path.join(self.output_dir, fileBaseName + "AtlasDef" + self.fileType),
                 atlasOrigin,  # meshOrigin[i].tolist(),
                 self.meshSpacing,
                 self.meshDir,
@@ -94,7 +99,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
 
             ## save deformation fields: atlas space -> image space
             atlas_utils.saveDefField(
-                os.path.join(self.output_dir, fileBaseName + "AtlasDefField.nrrd"),
+                os.path.join(self.output_dir, fileBaseName + "AtlasDefField" + self.fileType),
                 pos_flow[i, None, ...],
                 atlasOrigin,  # meshOrigin[i].tolist(),
                 self.meshSpacing,

@@ -63,7 +63,7 @@ class Bilinear(Transformation):
     Spatial transform function for 1D, 2D, and 3D. In BCXYZ format (this IS the format used in the current toolbox).
     """
 
-    def __init__(self, shape=None, zero_boundary=False, using_scale=False):
+    def __init__(self, shape=None, zero_boundary=True, using_scale=False):
         """
         Constructor
 

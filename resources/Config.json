@@ -19,6 +19,7 @@
 	"atlasLearningRate" : 1e-4,
 	"tuneLR" : false,
 	"similarityLoss" : "SSD",
+	"labelLoss": "MultiClassSingleChannelDiceCalculator",
 	"optimizer": "adam",
 	
 	"regularizationFactor" : 20000.0,

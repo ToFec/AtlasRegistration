@@ -40,9 +40,9 @@ def saveDefField(filename, defField, origin, spacing, direction):
     defField[..., 1] = defField[..., 1] * ((defField.shape[1] - 1) / 2.0)
     defField[..., 2] = defField[..., 2] * ((defField.shape[0] - 1) / 2.0)
 
-    defField[..., 0] = defField[..., 0] * spacing[0]
-    defField[..., 1] = defField[..., 1] * spacing[1]
-    defField[..., 2] = defField[..., 2] * spacing[2]
+    defField[..., 0] = (defField[..., 0] * spacing[0]) * direction[0]
+    defField[..., 1] = (defField[..., 1] * spacing[1]) * direction[4]
+    defField[..., 2] = (defField[..., 2] * spacing[2]) * direction[8]
 
     defDataToSave = sitk.GetImageFromArray(defField, isVector=True)
 
