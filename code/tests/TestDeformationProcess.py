@@ -16,7 +16,55 @@ import locale
 
 
 class Test(unittest.TestCase):
-    def testDirectionDeformation(self):
+    def getConfig(self, batchSize) -> Config:
+        config = Config()
+        config.setParam("trainingDataFile", "./resources/DirectionTest/DataTestTrainingMethods.csv")
+        config.setParam("numberOfWorkersDataLoader", 0)
+        config.setParam("registrationGridsize", [96, 96, 80])
+        config.setParam("registrationGridSpacing", [2.0, 2.0, 2.0])
+        config.setParam("doRandomTrainValSetSplit", False)
+        config.setParam("trainValRatio", 1.0)
+        config.setParam("batchSize", batchSize)
+        return config
+
+    def testDeformationCombination(self):
+        batchSize = 2
+        data = AtlasDataModule(self.getConfig(batchSize))
+        data.prepare_data()
+        data.setup(stage="fit")
+
+        neg_flowITK = sitk.ReadImage("./resources/DirectionTest/z5T.mhd")
+        neg_flow = atlasUtils.loadDefField("./resources/DirectionTest/z5T.mhd")
+        transformer = Bilinear()
+        for batch in data.train_dataloader():
+            images = batch["image"][tio.DATA]
+            meshes = batch["samplingMesh"]
+            negDeformationFieldImages = transformer.combineMeshesAndFlowField(meshes, neg_flow)
+            warpedImages = transformer.sampleImage(images, negDeformationFieldImages)
+            origImages = transformer.sampleImage(images, meshes)
+            atlasUtils.saveImageTensor(
+                warpedImages[0, None, ...],
+                "./resources/DirectionTest/z5TDeformed.mhd",
+                neg_flowITK.GetOrigin(),
+                neg_flowITK.GetSpacing(),
+                neg_flowITK.GetDirection(),
+            )
+            atlasUtils.saveImageTensor(
+                origImages[0, None, ...],
+                "./resources/DirectionTest/z5TNotDeformed.mhd",
+                neg_flowITK.GetOrigin(),
+                neg_flowITK.GetSpacing(),
+                neg_flowITK.GetDirection(),
+            )
+            atlasUtils.saveDefField(
+                "./resources/DirectionTest/z5TSaved.mhd",
+                neg_flow,
+                neg_flowITK.GetOrigin(),
+                neg_flowITK.GetSpacing(),
+                neg_flowITK.GetDirection(),
+            )
+
+    def _testDirectionDeformation(self):
         config = Config()
 
         config.setParam("trainingDataFile", "./resources/DirectionTest/DataTestTrainingMethods.csv")

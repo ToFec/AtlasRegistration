@@ -61,15 +61,28 @@ class Transformation(torch.nn.Module):
         normVec0 = torch.nn.functional.normalize(meshes[:, :, -1, 0, 0] - meshes[:, :, 0, 0, 0])
         normVec1 = torch.nn.functional.normalize(meshes[:, :, 0, -1, 0] - meshes[:, :, 0, 0, 0])
         normVec2 = torch.nn.functional.normalize(meshes[:, :, 0, 0, -1] - meshes[:, :, 0, 0, 0])
-        orientationMatrix = torch.cat((normVec0, normVec1, normVec2))
+        orientationMatrix = torch.inverse(torch.cat((normVec0, normVec1, normVec2)))
 
+        span0 = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, -1, 0, 0])
+        span1 = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, 0, -1, 0])
+        span2 = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, 0, 0, -1])
+        spanTensor = torch.abs(torch.as_tensor([span0 / 2.0, span1 / 2.0, span2 / 2.0]))
+        flowField[:, 0, ...] = flowField[:, 0, ...] * spanTensor[0]
+        flowField[:, 1, ...] = flowField[:, 1, ...] * spanTensor[1]
+        flowField[:, 2, ...] = flowField[:, 2, ...] * spanTensor[2]
         tmp = torch.moveaxis(flowField, 1, -1)
         a = tmp.reshape(-1, 3)
         c = torch.matmul(orientationMatrix, a.moveaxis(-1, 0))
+        # c = torch.matmul(a, orientationMatrix)
         c = c.moveaxis(0, -1)
         flowField = c.reshape(tmp.shape).moveaxis(-1, 1)
 
         tmpField = self.sampleImage(flowField, meshes, paddMode="border")
+        spanTensor = torch.abs(torch.as_tensor([span0 / 2.0, span1 / 2.0, span2 / 2.0]))
+        # spanTensor = torch.abs(torch.matmul(orientationMatrix, spanTensor))
+        # tmpField[:, 0, ...] = tmpField[:, 0, ...] * spanTensor[0]
+        # tmpField[:, 1, ...] = tmpField[:, 1, ...] * spanTensor[1]
+        # tmpField[:, 2, ...] = tmpField[:, 2, ...] * spanTensor[2]
         return meshes + tmpField
 
 
