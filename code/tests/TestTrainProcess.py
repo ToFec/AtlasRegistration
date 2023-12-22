@@ -182,7 +182,7 @@ class Test(unittest.TestCase):
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()
 
-        deformaiton = atlasMesh[0, None, :] + defField
+        deformaiton = transformer.combineMeshesAndFlowField(atlasMesh[0, None, :], defField)
         tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton)
 
         calculatedImageArray = tmpDeformed.detach().squeeze(0).squeeze(0).permute([2, 1, 0])
@@ -229,7 +229,7 @@ class Test(unittest.TestCase):
         for batch in data.train_dataloader():
             images, meshes = batch["image"][tio.DATA], batch["samplingMesh"]
 
-            deformaiton = meshes[0, None, :] + defField
+            deformaiton = transformer.combineMeshesAndFlowField(meshes[0, None, :], defField)
             tmpDeformed = transformer.sampleImage(images[0, None, :], deformaiton)
 
             # meshOrigin = data.train_set[0]['meshOrigin']
@@ -310,7 +310,7 @@ class Test(unittest.TestCase):
 
             # loss = model.criterion.getLoss(pos_flow, neg_flow, images, meshes, model.atlasImages, model.atlasMeshes)
 
-            deformaiton = meshes[0, None, :] + defField
+            deformaiton = model.transformer.combineMeshesAndFlowField(meshes[0, None, :], defField)
             tmpDeformed = model.transformer.sampleImage(images[0, None, :], deformaiton)
 
             # meshOrigin = data.train_set[0]['meshOrigin']

@@ -57,6 +57,21 @@ class Transformation(torch.nn.Module):
         )
         return sampledImage
 
+    def combineMeshesAndFlowField(self, meshes, flowField):
+        normVec0 = torch.nn.functional.normalize(meshes[:, :, -1, 0, 0] - meshes[:, :, 0, 0, 0])
+        normVec1 = torch.nn.functional.normalize(meshes[:, :, 0, -1, 0] - meshes[:, :, 0, 0, 0])
+        normVec2 = torch.nn.functional.normalize(meshes[:, :, 0, 0, -1] - meshes[:, :, 0, 0, 0])
+        orientationMatrix = torch.cat((normVec0, normVec1, normVec2))
+
+        tmp = torch.moveaxis(flowField, 1, -1)
+        a = tmp.reshape(-1, 3)
+        c = torch.matmul(orientationMatrix, a.moveaxis(-1, 0))
+        c = c.moveaxis(0, -1)
+        flowField = c.reshape(tmp.shape).moveaxis(-1, 1)
+
+        tmpField = self.sampleImage(flowField, meshes, paddMode="border")
+        return meshes + tmpField
+
 
 class Bilinear(Transformation):
     """

@@ -38,7 +38,7 @@ class LossCalculator:
 
     def _getDefomredImages(self, posDeformationField, neg_flow, images, meshes):
         sec_src_imgs = torch.flip(images, dims=[0])
-        negFlowAndMesh = neg_flow + meshes
+        negFlowAndMesh = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
         secNegFlowAndMesh = torch.flip(negFlowAndMesh, dims=[0])
         transforemdImageMeshToOtherImageSpace = self.transformer(secNegFlowAndMesh, posDeformationField)
         return self.transformer.sampleImage(sec_src_imgs, transforemdImageMeshToOtherImageSpace)
@@ -62,9 +62,11 @@ class LossCalculator:
         # deformedAtlasMeshes = self.transformer(atlasMeshes, posDeformationField)
         # deformedAtlas = self.transformer.sampleImage(atlasImages, deformedAtlasMeshes)
 
-        posDeformationFieldAtlas = atlasMeshes + pos_flow
+        posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
         posDeformationField = self.transformer.getDeformationField(pos_flow)
-        negDeformationFieldImages = meshes + neg_flow  # self.transformer.getDeformationField(neg_flow)
+        negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(
+            meshes, neg_flow
+        )  # self.transformer.getDeformationField(neg_flow)
 
         warpedAtlas = self.transformer(atlasImages, posDeformationFieldAtlas)
 
@@ -101,7 +103,7 @@ class LossCalculator:
         sampledLabels = self.transformer.sampleImage(labels, meshes)
 
         posDeformationField = self.transformer.getDeformationField(pos_flow)
-        negDeformationFieldImages = meshes + neg_flow
+        negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
 
         deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
         imgSpaceDiceloss = self._getDiceloss(deformedLabels, sampledLabels)

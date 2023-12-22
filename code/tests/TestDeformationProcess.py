@@ -37,7 +37,6 @@ class Test(unittest.TestCase):
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()
         deformaiton = transformer.getDeformationField(defField)
-        # deformaiton = atlasMesh[0, None, :] + defField
 
         # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
         tmpDeformed = transformer(atlasImage, deformaiton)
@@ -87,7 +86,6 @@ class Test(unittest.TestCase):
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()
         deformaiton = transformer.getDeformationField(defField)
-        # deformaiton = atlasMesh[0, None, :] + defField
 
         # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
         tmpDeformed = transformer(atlasImage, deformaiton)
@@ -137,7 +135,6 @@ class Test(unittest.TestCase):
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()
         deformaiton = transformer.getDeformationField(defField)
-        # deformaiton = atlasMesh[0, None, :] + defField
 
         # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
         tmpDeformed = transformer(atlasImage, deformaiton)
