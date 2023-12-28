@@ -39,33 +39,8 @@ class AtlasModule(pl.LightningModule):
         self.transformer = Transformation()
         self.save_hyperparameters(logger=False)
         self.atlasImage = torch.nn.Parameter(atlasImage)
-        # self.atlasImage.requires_grad = True
         self.register_buffer("atlasMesh", atlasMesh, True)
         self.register_buffer("atlasOrigin", atlasOrigin, True)
-        # self.atlasMesh = torch.nn.Parameter(atlasMesh)
-        # self.atlasMesh.requires_grad = False
-        # self.register_parameter("tmp", self.tmp)
-        # self.register_parameter("atlasMesh", atlasMesh)
-
-    # def on_save_checkpoint(self, checkpoint):
-    #   checkpoint['atlasImage'] = self.atlasImage
-    #   checkpoint['atlasMesh'] = self.atlasMesh
-
-    # def on_load_checkpoint(self, checkpoint):
-    #   self.atlasImage = checkpoint['atlasImage']
-    #   self.atlasMesh = checkpoint['atlasMesh']
-
-    # def setup(self,stage):
-    #   if stage == 'fit':
-    #     atlasImage, atlasMesh = self.trainer.datamodule.getInitalAtlas()
-    #     atlasImage.requires_grad = True
-    #     self.atlasMesh = atlasMesh.to(self.device)
-    #     self.atlasImage = atlasImage.to(self.device)
-    #
-    # def on_fit_start(self)->None:
-    #   pl.LightningModule.on_fit_start(self)
-    #   self.atlasMesh = self.atlasMesh.to(self.device)
-    #   self.atlasImage = self.atlasImage.to(self.device)
 
     def getInputAtlasMesh(self, batch_size):
         return self.atlasMesh.expand(batch_size, -1, -1, -1, -1)

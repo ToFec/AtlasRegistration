@@ -107,9 +107,20 @@ class AtlasDataModule(pl.LightningDataModule):
 
             subjectDict["samplingMesh"] = sampleMesh
             subjectDict["meshOrigin"] = sampleMeshOrigin
-
             subject = tio.Subject(subjectDict)
         return subject
+
+    def getStandardSpaceToSubjectTransformMatrix(self, mesh):
+        normVec0 = torch.nn.functional.normalize((mesh[:, -1, 0, 0] - mesh[:, 0, 0, 0])[None, ...])
+        normVec1 = torch.nn.functional.normalize((mesh[:, 0, -1, 0] - mesh[:, 0, 0, 0])[None, ...])
+        normVec2 = torch.nn.functional.normalize((mesh[:, 0, 0, -1] - mesh[:, 0, 0, 0])[None, ...])
+        orientationMatrix = torch.inverse(torch.cat((normVec0, normVec1, normVec2)))
+        scaling = torch.zeros_like(orientationMatrix)
+        scaling[0, 0] = torch.linalg.vector_norm((mesh[:, 0, 0, 0] - mesh[:, -1, 0, 0])[None, ...]) / 2.0
+        scaling[1, 1] = torch.linalg.vector_norm((mesh[:, 0, 0, 0] - mesh[:, 0, -1, 0])[None, ...]) / 2.0
+        scaling[2, 2] = torch.linalg.vector_norm((mesh[:, 0, 0, 0] - mesh[:, 0, 0, -1])[None, ...]) / 2.0
+        combinedMatrix = torch.matmul(orientationMatrix, scaling)
+        return combinedMatrix
 
     def _craeteLabelImageData(self, imageData, mesh):
         mesh = (mesh + 1.0) / 2.0

@@ -109,7 +109,7 @@ def runPrediction(config):
     trainer = pl.Trainer(callbacks=[pred_writer])
     start = dt.datetime.now()
     print("Training started at", start)
-    predictions = trainer.predict(model=model, dataloaders=data.predict_dataloader())
+    _ = trainer.predict(model=model, dataloaders=data.predict_dataloader())
     print("Training duration:", dt.datetime.now() - start)
 
 

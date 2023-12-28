@@ -32,37 +32,40 @@ class Test(unittest.TestCase):
         data = AtlasDataModule(self.getConfig(batchSize))
         data.prepare_data()
         data.setup(stage="fit")
+        defformation = "y30R"
+        neg_flowITK = sitk.ReadImage("./resources/DirectionTest/" + defformation + ".mhd")
+        neg_flow_orig = atlasUtils.loadDefField("./resources/DirectionTest/" + defformation + ".mhd")
 
-        neg_flowITK = sitk.ReadImage("./resources/DirectionTest/z5T.mhd")
-        neg_flow = atlasUtils.loadDefField("./resources/DirectionTest/z5T.mhd")
         transformer = Bilinear()
         for batch in data.train_dataloader():
             images = batch["image"][tio.DATA]
             meshes = batch["samplingMesh"]
+            neg_flow = neg_flow_orig.expand(images.shape[0], -1, -1, -1, -1)
             negDeformationFieldImages = transformer.combineMeshesAndFlowField(meshes, neg_flow)
             warpedImages = transformer.sampleImage(images, negDeformationFieldImages)
             origImages = transformer.sampleImage(images, meshes)
-            atlasUtils.saveImageTensor(
-                warpedImages[0, None, ...],
-                "./resources/DirectionTest/z5TDeformed.mhd",
-                neg_flowITK.GetOrigin(),
-                neg_flowITK.GetSpacing(),
-                neg_flowITK.GetDirection(),
-            )
-            atlasUtils.saveImageTensor(
-                origImages[0, None, ...],
-                "./resources/DirectionTest/z5TNotDeformed.mhd",
-                neg_flowITK.GetOrigin(),
-                neg_flowITK.GetSpacing(),
-                neg_flowITK.GetDirection(),
-            )
-            atlasUtils.saveDefField(
-                "./resources/DirectionTest/z5TSaved.mhd",
-                neg_flow,
-                neg_flowITK.GetOrigin(),
-                neg_flowITK.GetSpacing(),
-                neg_flowITK.GetDirection(),
-            )
+            for i in range(images.shape[0]):
+                atlasUtils.saveImageTensor(
+                    warpedImages[i, None, ...],
+                    "./resources/DirectionTest/" + defformation + str(i) + "Deformed.mhd",
+                    neg_flowITK.GetOrigin(),
+                    neg_flowITK.GetSpacing(),
+                    neg_flowITK.GetDirection(),
+                )
+                atlasUtils.saveImageTensor(
+                    origImages[i, None, ...],
+                    "./resources/DirectionTest/" + defformation + str(i) + "NotDeformed.mhd",
+                    neg_flowITK.GetOrigin(),
+                    neg_flowITK.GetSpacing(),
+                    neg_flowITK.GetDirection(),
+                )
+                atlasUtils.saveDefField(
+                    "./resources/DirectionTest/" + defformation + str(i) + "Saved.mhd",
+                    neg_flow[i, None, ...],
+                    neg_flowITK.GetOrigin(),
+                    neg_flowITK.GetSpacing(),
+                    neg_flowITK.GetDirection(),
+                )
 
     def _testDirectionDeformation(self):
         config = Config()
