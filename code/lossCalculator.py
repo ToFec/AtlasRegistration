@@ -15,8 +15,10 @@ class LossCalculator:
         self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
 
         self.diceLoss = config.getParam("labelLoss")
-        if self.diceLoss is None:
+        if self.diceLoss is not None:
             self.diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
+        else:
+            self.diceLoss = LossFactory.lossMap["Dummy"]()
 
         self.reg_factor = config.getParam("regularizationFactor")
         if self.reg_factor != 0.0:
