@@ -332,3 +332,7 @@ def save_updated_atlas(atlas_img, atlas_seg, save_atlas_img_name, save_atlas_est
     atlas_est_nii = sitk.GetImageFromArray(atlas_est_np.astype("float32"))
     atlas_est_nii.CopyInformation(tmp_seg)
     sitk.WriteImage(atlas_est_nii, save_atlas_est_name)
+
+
+def setMatmulPrecision(matMulPrecision):
+    torch.set_float32_matmul_precision(matMulPrecision)

@@ -8,8 +8,7 @@ import NetworkFactory
 sys.path.append(os.path.realpath(".."))
 import argparse
 
-import atlas_models as atlasUtils
-import atlas_utils
+import atlas_utils as atlasUtils
 
 from config import Config
 from lossCalculator import LossCalculator
@@ -71,6 +70,10 @@ def getModelAndData(config, stageType):
 
     if seed is not None:
         atlasUtils.setSeeds(seed)
+
+    matMulPrecision = config.getParam("matMulPrecision")
+    if matMulPrecision:
+        atlasUtils.setMatmulPrecision(matMulPrecision)
 
     stringForStoringVariables = getCheckPointString(config)
 
