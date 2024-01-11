@@ -8,7 +8,7 @@ import NetworkFactory
 sys.path.append(os.path.realpath(".."))
 import argparse
 
-import atlas_utils as atlasUtils
+import atlas_utils
 
 from config import Config
 from lossCalculator import LossCalculator
@@ -69,11 +69,11 @@ def getModelAndData(config, stageType):
     seed = config.getParam("seed")
 
     if seed is not None:
-        atlasUtils.setSeeds(seed)
+        atlas_utils.setSeeds(seed)
 
     matMulPrecision = config.getParam("matMulPrecision")
     if matMulPrecision:
-        atlasUtils.setMatmulPrecision(matMulPrecision)
+        atlas_utils.setMatmulPrecision(matMulPrecision)
 
     stringForStoringVariables = getCheckPointString(config)
 
@@ -181,7 +181,11 @@ def runTraining(config):
     seed = config.getParam("seed")
 
     if seed is not None:
-        atlasUtils.setSeeds(seed)
+        atlas_utils.setSeeds(seed)
+
+    matMulPrecision = config.getParam("matMulPrecision")
+    if matMulPrecision:
+        atlas_utils.setMatmulPrecision(matMulPrecision)
 
     max_epochs = config.getParam("epochs")
 
@@ -190,7 +194,7 @@ def runTraining(config):
     config.setParam("registrationGridsize", newShape.tolist())
 
     loss = LossCalculator(config)
-    optimizer = atlasUtils.getOptimizer(config.getParam("optimizer"))
+    optimizer = atlas_utils.getOptimizer(config.getParam("optimizer"))
 
     data = AtlasDataModule(config)
     data.prepare_data()
