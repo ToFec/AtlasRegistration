@@ -94,11 +94,17 @@ class AtlasDataModule(pl.LightningDataModule):
                 labelImage = tio.LabelMap.from_sitk(sitkLabel)
 
             meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
+            meshParamsMatch = False
             if os.path.exists(meshName):
-                sampleMesh, sampleMeshOrigin = torch.load(meshName)
-            else:
+                sampleMesh, sampleMeshOrigin, sampleMeshSpacing = torch.load(meshName)
+                if (
+                    list(sampleMesh.shape[1:]) == self.registrationGridsize
+                    and sampleMeshSpacing == self.registrationGridSpacing
+                ):
+                    meshParamsMatch = True
+            if not meshParamsMatch:
                 sampleMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, labelImage)
-                torch.save([sampleMesh, sampleMeshOrigin], meshName)
+                torch.save([sampleMesh, sampleMeshOrigin, self.registrationGridSpacing], meshName)
 
             if labelImage is None:
                 labelData = self._craeteLabelImage(scalarImage, sampleMesh)
