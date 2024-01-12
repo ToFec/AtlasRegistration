@@ -35,10 +35,12 @@ class conv_bn_rel(nn.Module):
         super(conv_bn_rel, self).__init__()
         padding = int((kernel_size - 1) / 2) if same_padding else 0
         if not reverse:
-            self.conv = Conv(in_channels, out_channels, kernel_size, stride, padding=padding, groups=1, dilation=1)
+            self.conv = Conv(
+                in_channels, out_channels, kernel_size, stride, padding=padding, groups=group, dilation=dilation
+            )
         else:
             self.conv = ConvTranspose(
-                in_channels, out_channels, kernel_size, stride, padding=padding, groups=1, dilation=1
+                in_channels, out_channels, kernel_size, stride, padding=padding, groups=group, dilation=dilation
             )
 
         self.bn = BatchNorm(out_channels) if bn else None  # , eps=0.0001, momentum=0, affine=True

@@ -24,7 +24,7 @@ def getCheckPointString(config):
     seed = config.getParam("seed")
 
     if seed is not None:
-        atlasUtils.setSeeds(seed)
+        atlas_utils.setSeeds(seed)
 
     max_epochs = config.getParam("epochs")
     batch_size = config.getParam("batchSize")
@@ -37,10 +37,19 @@ def getCheckPointString(config):
     pair_sim_factor = config.getParam("imagePairSimFactor")
     atlas_Pair_Sim_Factor = config.getParam("atlasPairSimFactor")
     smooth_factor = config.getParam("smoothingFactor")
+    gridSize = config.getParam("registrationGridsize")
+    gridSpacing = config.getParam("registrationGridSpacing")
+
+    gridSizeStr = "".join(map(str, gridSize))
+    gridSpacingStr = "".join(map(str, gridSpacing))
 
     stringForStoringVariables = (
         "atlasRegistration"
         + str(loss_name)
+        + "_gridSize_"
+        + gridSizeStr
+        + "_gridSpacing_"
+        + gridSpacingStr
         + "_seed_"
         + str(seed)
         + "_reg_"
