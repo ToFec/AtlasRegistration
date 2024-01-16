@@ -187,6 +187,7 @@ class AtlasDataModule(pl.LightningDataModule):
 
     def _setAtlasImage(self):
         if len(self.train_subjects) > 0:
+            atlasLabel = None
             if self.initializeAtlasWithAverageImg:
                 imgShape = list(self.train_subjects[0]["samplingMesh"].shape)
                 imgShape[0] = 1
@@ -213,6 +214,12 @@ class AtlasDataModule(pl.LightningDataModule):
                 self.atlasMesh = subject["samplingMesh"]
                 tmpImg = subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
                 sampledData = transformer.sampleImage(tmpImg, self.atlasMesh.unsqueeze(0))
+
+                labels = subject["label"][tio.DATA]
+                atlasLabel = transformer.sampleImage(
+                    labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
+                )[0]
+
                 self.atlasImage = sampledData[0]
                 self.atlasOrigin = subject["meshOrigin"]
             else:
@@ -223,15 +230,21 @@ class AtlasDataModule(pl.LightningDataModule):
                 imgShape = [1] + imgShape
                 transformer = Transformation(imgShape)
 
+                labels = subject["label"][tio.DATA].detach().clone()
+                atlasLabel = transformer.sampleImage(
+                    labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
+                )[0]
+
                 self.atlasMesh = subject["samplingMesh"].detach().clone()
                 sampledData = transformer.sampleImage(imgData.unsqueeze(0), self.atlasMesh)
                 self.atlasImage = sampledData[0]
                 self.atlasOrigin = subject["meshOrigin"].detach().clone()
 
             if self.doNormalisation:
-                labelData = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
+                if atlasLabel is None:
+                    atlasLabel = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
                 subject = tio.Subject(
-                    {"label": tio.LabelMap(tensor=labelData), "image": tio.ScalarImage(tensor=self.atlasImage)}
+                    {"label": tio.LabelMap(tensor=atlasLabel), "image": tio.ScalarImage(tensor=self.atlasImage)}
                 )
                 transform = tio.ZNormalization(masking_method="label")
                 normalizedAtlasSubject = transform(subject)
@@ -290,14 +303,13 @@ class AtlasDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         self._prepare_data()
         self._setAtlasImage()
-
+        transform = self._getAugmentationTransform()
         if stage == "fit" or stage is None:
             train_subjects, val_subjects = self._dataSplit()
             self.train_sampler = None
             self.validation_sampler = None
             self.shuffle = True
 
-            transform = self._getAugmentationTransform()
             self.train_set = tio.SubjectsDataset(train_subjects, transform=transform)
             if len(val_subjects) > 0:
                 self.val_set = tio.SubjectsDataset(val_subjects, transform=transform)
@@ -308,7 +320,7 @@ class AtlasDataModule(pl.LightningDataModule):
             print("size of validation set: ", len(self.val_set))
 
         if stage == "test" or stage is None:
-            self.test_set = tio.SubjectsDataset(self.test_subjects)
+            self.test_set = tio.SubjectsDataset(self.test_subjects, transform=transform)
 
     # pytorch lightning hook
     def train_dataloader(self):
