@@ -162,7 +162,7 @@ class SVF_resid(nn.Module):
         d2_2 = self.down_path_2_2(d2_1)
         d2_2 = d2_1 + d2_2
         d2_3 = self.down_path_2_3(d2_2)
-        d2_3 = d2_1 + d2_3
+        d2_3 = d2_2 + d2_3
         d4_1 = self.down_path_4_1(d2_3)
         d4_2 = self.down_path_4_2(d4_1)
         d4_2 = d4_1 + d4_2

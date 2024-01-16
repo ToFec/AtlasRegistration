@@ -8,6 +8,7 @@ import os
 
 from imageTransformation import Bilinear
 import atlas_utils
+import torchio as tio
 
 
 class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
@@ -25,7 +26,9 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
 
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes = pl_module.prepare_batch(batch)
+        labels = batch["label"][tio.DATA]
         sampledImages = self.transformer.sampleImage(images, meshes)
+        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
@@ -37,6 +40,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
 
         negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
         warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
+        warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
 
         imageNames = batch["imagePath"]
         meshOrigin = batch["meshOrigin"]
@@ -70,10 +74,28 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshDir,
             )
 
+            ## save resampled original label
+            atlas_utils.saveImageTensor(
+                sampledLabels[i, None, ...],
+                os.path.join(self.output_dir, fileBaseName + "Label" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
+
             ## save deformed images in atlas space
             atlas_utils.saveImageTensor(
                 warpedImages[i, None, ...],
                 os.path.join(self.output_dir, fileBaseName + "Def" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
+
+            ## save deformed labels in atlas space
+            atlas_utils.saveImageTensor(
+                warpedLabels[i, None, ...],
+                os.path.join(self.output_dir, fileBaseName + "LabelDef" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
                 self.meshDir,

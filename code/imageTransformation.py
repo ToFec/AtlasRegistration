@@ -49,11 +49,11 @@ class Transformation(torch.nn.Module):
 
         return self.identityTransform + flowField
 
-    def sampleImage(self, images, meshes, alignCorners=True, paddMode="zeros"):
+    def sampleImage(self, images, meshes, alignCorners=True, paddMode="zeros", interpolationType="bilinear"):
         meshes = torch.moveaxis(meshes, 1, -1)
         meshes = meshes.flip(-1)
         sampledImage = torch.nn.functional.grid_sample(
-            images, meshes, padding_mode=paddMode, align_corners=alignCorners
+            images, meshes, padding_mode=paddMode, align_corners=alignCorners, mode=interpolationType
         )
         return sampledImage
 

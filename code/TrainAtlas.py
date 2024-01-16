@@ -198,6 +198,8 @@ def runTraining(config):
 
     max_epochs = config.getParam("epochs")
 
+    stringForStoringVariables = getCheckPointString(config)
+
     network = NetworkFactory.getNetwork(config)
     newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
     config.setParam("registrationGridsize", newShape.tolist())
@@ -225,8 +227,6 @@ def runTraining(config):
     )
 
     callBackFunctions = []
-
-    stringForStoringVariables = getCheckPointString(config)
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=config.getParam("checkPointPath"),

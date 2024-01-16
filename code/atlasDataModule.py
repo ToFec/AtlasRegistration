@@ -38,6 +38,7 @@ class AtlasDataModule(pl.LightningDataModule):
         self.doNormalisation = config.getParam("doNormalisation")
         self.initializeAtlasWithAverageImg = config.getParam("initializeAtlasWithAverageImg")
         self.atlasDataToLoad = config.getParam("atlasImage")
+        self.atlasLabelToLoad = config.getParam("atlasLabel")
         self.loadImagesAsDataType = config.getParam("loadImagesAsDataType")
 
         self.registrationGridsize = config.getParam("registrationGridsize")
@@ -202,18 +203,30 @@ class AtlasDataModule(pl.LightningDataModule):
                 self.atlasOrigin = torch.zeros(3)  # [0.0, 0.0, 0.0]
                 self.atlasMesh = transformer.identityTransform
             elif self.atlasDataToLoad is not None and os.path.exists(self.atlasDataToLoad):
-                subject = self.getSubject(self.atlasDataToLoad, None)
-                self.atlasImage = subject["image"][tio.DATA]
+                subject = self.getSubject(self.atlasDataToLoad, self.atlasLabelToLoad)
+
+                imgShape = list(subject["samplingMesh"].shape)
+                imgShape[0] = 1
+                imgShape = [1] + imgShape
+                transformer = Transformation(imgShape)
+
                 self.atlasMesh = subject["samplingMesh"]
+                tmpImg = subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
+                sampledData = transformer.sampleImage(tmpImg, self.atlasMesh.unsqueeze(0))
+                self.atlasImage = sampledData[0]
                 self.atlasOrigin = subject["meshOrigin"]
             else:
-                tmp = self.train_subjects[0]["image"][tio.DATA]
-                self.atlasImage = tmp.detach().clone().type(torch.FloatTensor)
+                subject = self.train_subjects[0]
+                imgData = subject["image"][tio.DATA].detach().clone().type(torch.FloatTensor)
+                imgShape = list(subject["samplingMesh"].shape)
+                imgShape[0] = 1
+                imgShape = [1] + imgShape
+                transformer = Transformation(imgShape)
 
-                atlasMesh = self.train_subjects[0]["samplingMesh"]
-                atlasOrigin = self.train_subjects[0]["meshOrigin"]
-                self.atlasMesh = atlasMesh.detach().clone()
-                self.atlasOrigin = atlasOrigin.detach().clone()
+                self.atlasMesh = subject["samplingMesh"].detach().clone()
+                sampledData = transformer.sampleImage(imgData.unsqueeze(0), self.atlasMesh)
+                self.atlasImage = sampledData[0]
+                self.atlasOrigin = subject["meshOrigin"].detach().clone()
 
             if self.doNormalisation:
                 labelData = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
