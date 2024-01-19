@@ -145,20 +145,53 @@ class AtlasModule(pl.LightningModule):
         images, meshes = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
-        stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes)
 
-        self.log("val_loss", stepInfo["loss"])
-        self.log("val_sim_loss", stepInfo["sim_loss"])
-        self.log("val_reg_loss", stepInfo["reg_loss"])
-        self.log("val_pair_sim_loss", stepInfo["pair_sim_loss"])
-        self.log("val_atlas_pair_sim_loss", stepInfo["atlas_pair_sim_loss"])
+        sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLossesWithoutWeighting(
+            pos_flow,
+            neg_flow,
+            images,
+            meshes,
+            self.getInputAtlasImage(images.shape[0]),
+            self.getInputAtlasMesh(images.shape[0]),
+        )
+
+        self.log("val_loss_uw", sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss)
+        self.log("val_sim_loss_uw", sim_loss)
+        self.log("val_reg_loss_uw", reg_loss)
+        self.log("val_pair_sim_loss_uw", pair_sim_loss)
+        self.log("val_atlas_pair_sim_loss_uw", atlas_pair_sim_loss)
+
+        sim_factor, reg_factor, imagePairSimilarityFactor, atlasPairSimilarityFactor = self.criterion.getLossWeights()
+
+        sim_loss = sim_loss * sim_factor
+        reg_loss = reg_loss * reg_factor
+        pair_sim_loss = pair_sim_loss * imagePairSimilarityFactor
+        atlas_pair_sim_loss = atlas_pair_sim_loss * atlasPairSimilarityFactor
+        loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss
+
+        self.log("val_loss", loss)
+        self.log("val_sim_loss", sim_loss)
+        self.log("val_reg_loss", reg_loss)
+        self.log("val_pair_sim_loss", pair_sim_loss)
+        self.log("val_atlas_pair_sim_loss", atlas_pair_sim_loss)
 
         imgSpaceDsc, atlasSpacedsc = self.criterion.getDiceLosses(pos_flow, neg_flow, batch["label"][tio.DATA], meshes)
+
+        for logger in self.loggers:
+            if isinstance(logger, ImageLogger):
+                defFieldToSave = torch.Tensor.cpu(neg_flow[0, None, ...].detach())
+                logger.saveImage(defFieldToSave, "DeformationField0", self.current_epoch)
 
         self.log("val_img_space_dsc", 1 - imgSpaceDsc)
         self.log("val_atlas_space_dsc", 1 - atlasSpacedsc)
 
-        return stepInfo
+        return {
+            "loss": loss,
+            "sim_loss": sim_loss,
+            "reg_loss": reg_loss,
+            "pair_sim_loss": pair_sim_loss,
+            "atlas_pair_sim_loss": atlas_pair_sim_loss,
+        }
 
     def test_step(self, batch, batch_idx):
         images, meshes = self.prepare_batch(batch)
@@ -199,7 +232,6 @@ class AtlasModule(pl.LightningModule):
             self.current_epoch,
             dataformats="HW",
         )
-        self.log_dict({"test": 123})
         for logger in self.loggers:
             if isinstance(logger, ImageLogger):
                 logger.saveImage(networkAtlasInput, "AtlasImage", self.current_epoch)

@@ -46,10 +46,21 @@ class ImageLogger(Logger):
         pass
 
     def saveImage(self, imageData, imageName, epoch):
-        imageName = os.path.join(
-            self._save_dir, self._name, f"version_{self._version}", imageName + str(epoch) + ".nrrd"
-        )
-        atlas_utils.saveImageTensor(imageData, imageName, self._imageOrigin, self._imageSpacing, self._imageDirection)
+        currPath = os.path.join(self._save_dir, self._name)
+        if not os.path.exists(currPath):
+            os.mkdir(currPath)
+
+        pathAndVersion = os.path.join(currPath, f"version_{self._version}")
+        if not os.path.exists(pathAndVersion):
+            os.mkdir(pathAndVersion)
+
+        imageName = os.path.join(pathAndVersion, imageName + str(epoch) + ".nrrd")
+        if imageData.shape[1] > 1:
+            atlas_utils.saveDefField(imageName, imageData, self._imageOrigin, self._imageSpacing, self._imageDirection)
+        else:
+            atlas_utils.saveImageTensor(
+                imageData, imageName, self._imageOrigin, self._imageSpacing, self._imageDirection
+            )
 
     @rank_zero_only
     def finalize(self, status):

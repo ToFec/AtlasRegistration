@@ -36,7 +36,10 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         neg_flow = prediction[1]
 
         posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
-        warpedAtlas = self.transformer.sampleImage(atlasImages, posDeformationFieldAtlas)
+        warpedAtlas = self.transformer.sampleImage(
+            atlasImages,
+            posDeformationFieldAtlas,
+        )
 
         negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
         warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)

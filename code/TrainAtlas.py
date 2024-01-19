@@ -117,7 +117,7 @@ def runTests(config):
 
 def runPrediction(config):
     model, data = getModelAndData(config, "test")
-    pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch_and_epoch")
+    pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch")
     trainer = pl.Trainer(callbacks=[pred_writer])
     start = dt.datetime.now()
     print("Training started at", start)
@@ -262,7 +262,6 @@ def runTraining(config):
         accelerator=config.getParam("accelerator"),
         devices="auto",
         # strategy="auto",
-        overfit_batches=2,
         precision=32,
         callbacks=callBackFunctions,
         auto_lr_find=config.getParam("tuneLR"),

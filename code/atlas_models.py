@@ -155,6 +155,9 @@ class SVF_resid(nn.Module):
                     nn.init.xavier_normal_(m.weight.data)
                 if not m.bias is None:
                     m.bias.data.zero_()
+            # elif classname.find("BatchNorm") != -1:
+            #     nn.init.constant_(m.weight, 1)
+            #     nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
         d1 = self.down_path_1(x)

@@ -212,18 +212,18 @@ class AtlasDataModule(pl.LightningDataModule):
                 imgShape = [1] + imgShape
                 transformer = Transformation(imgShape)
 
-                self.atlasMesh = subject["samplingMesh"]
                 tmpImg = subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
-                sampledData = transformer.sampleImage(tmpImg, self.atlasMesh.unsqueeze(0))
+                sampledData = transformer.sampleImage(tmpImg, subject["samplingMesh"].unsqueeze(0))
 
                 if self.atlasLabelToLoad is not None:
                     labels = subject["label"][tio.DATA]
                     atlasLabel = transformer.sampleImage(
-                        labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
+                        labels.unsqueeze(0), subject["samplingMesh"].unsqueeze(0), interpolationType="nearest"
                     )[0]
 
                 self.atlasImage = sampledData[0]
                 self.atlasOrigin = subject["meshOrigin"]
+                self.atlasMesh = transformer.identityTransform
             else:
                 subject = self.train_subjects[0]
                 imgData = subject["image"][tio.DATA].detach().clone().type(torch.FloatTensor)
