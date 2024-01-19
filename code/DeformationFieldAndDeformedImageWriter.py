@@ -28,7 +28,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         images, meshes = pl_module.prepare_batch(batch)
         labels = batch["label"][tio.DATA]
         sampledImages = self.transformer.sampleImage(images, meshes)
-        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
+        sampledLabels = self.transformer.sampleImage(labels, meshes, paddMode="zeros", interpolationType="nearest")
 
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
@@ -40,7 +40,9 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
 
         negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
         warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
-        warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
+        warpedLabels = self.transformer.sampleImage(
+            labels, negDeformationFieldImages, paddMode="zeros", interpolationType="nearest"
+        )
 
         imageNames = batch["imagePath"]
         meshOrigin = batch["meshOrigin"]

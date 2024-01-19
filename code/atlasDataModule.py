@@ -129,6 +129,7 @@ class AtlasDataModule(pl.LightningDataModule):
         combinedMatrix = torch.matmul(orientationMatrix, scaling)
         return combinedMatrix
 
+    ##this method gives only reliable results when mesh spacing is close to voxelsize
     def _craeteLabelImageData(self, imageData, mesh):
         mesh = (mesh + 1.0) / 2.0
         tmp = (mesh >= 0.0).all(axis=0)
@@ -215,10 +216,11 @@ class AtlasDataModule(pl.LightningDataModule):
                 tmpImg = subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
                 sampledData = transformer.sampleImage(tmpImg, self.atlasMesh.unsqueeze(0))
 
-                labels = subject["label"][tio.DATA]
-                atlasLabel = transformer.sampleImage(
-                    labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
-                )[0]
+                if self.atlasLabelToLoad is not None:
+                    labels = subject["label"][tio.DATA]
+                    atlasLabel = transformer.sampleImage(
+                        labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
+                    )[0]
 
                 self.atlasImage = sampledData[0]
                 self.atlasOrigin = subject["meshOrigin"]
