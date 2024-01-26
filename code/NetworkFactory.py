@@ -19,5 +19,5 @@ def getNetwork(config):
     params = {}
     if doBatchNormalisation is not None:
         params["bn"] = doBatchNormalisation
-    networkInstance = networkClass(params)
+    networkInstance = networkClass(**params)
     return networkInstance

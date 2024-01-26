@@ -617,7 +617,7 @@ class GradLoss(nn.Module):
     N-D gradient loss.
     """
 
-    def __init__(self, penalty="l1", loss_mult=None):
+    def __init__(self, penalty="l2", loss_mult=None):
         super(GradLoss, self).__init__()
         self.penalty = penalty
         self.loss_mult = loss_mult

@@ -8,6 +8,9 @@ from ImageLogger import ImageLogger
 
 import torchio as tio
 import torch
+
+torch.cuda.empty_cache()
+
 import pytorch_lightning as pl
 import pl_bolts
 from imageTransformation import Transformation
@@ -122,15 +125,17 @@ class AtlasModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         optNetwork, _ = self.optimizers(use_pl_optimizer=True)
-
+        optNetwork.zero_grad()
         images, meshes = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
+
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
 
         stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes)
         loss = stepInfo["loss"]
-        optNetwork.zero_grad()
+
         self.manual_backward(loss)
+
         optNetwork.step()
 
         return stepInfo
@@ -145,7 +150,6 @@ class AtlasModule(pl.LightningModule):
         images, meshes = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
-
         sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLossesWithoutWeighting(
             pos_flow,
             neg_flow,

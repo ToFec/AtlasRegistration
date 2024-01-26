@@ -22,7 +22,10 @@ class LossCalculator:
 
         self.reg_factor = config.getParam("regularizationFactor")
         if self.reg_factor != 0.0:
-            self.regularizationLoss = LossFactory.lossMap["BendingEnergy"]()
+            regularizationLossName = config.getParam("regularizationLoss")
+            if regularizationLossName is None:
+                regularizationLossName = "BendingEnergy"
+            self.regularizationLoss = LossFactory.lossMap[regularizationLossName]()
         else:
             self.regularizationLoss = LossFactory.lossMap["Dummy"]()
 
@@ -38,12 +41,16 @@ class LossCalculator:
 
         self.transformer = Bilinear(zero_boundary=True)
 
-    def _getDefomredImages(self, posDeformationField, neg_flow, images, meshes):
+    def _getDefomredImages(
+        self, posDeformationField, neg_flow, images, meshes, paddMode="border", interpolationType="bilinear"
+    ):
         sec_src_imgs = torch.flip(images, dims=[0])
         negFlowAndMesh = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
         secNegFlowAndMesh = torch.flip(negFlowAndMesh, dims=[0])
-        transforemdImageMeshToOtherImageSpace = self.transformer(secNegFlowAndMesh, posDeformationField)
-        return self.transformer.sampleImage(sec_src_imgs, transforemdImageMeshToOtherImageSpace)
+        transforemdImageMeshToOtherImageSpace = self.transformer.sampleImage(secNegFlowAndMesh, posDeformationField)
+        return self.transformer.sampleImage(
+            sec_src_imgs, transforemdImageMeshToOtherImageSpace, paddMode=paddMode, interpolationType=interpolationType
+        )
 
     def _getDiceloss(self, label0, label1):
         dscLoss = self.diceLoss(label0, label1)
@@ -73,7 +80,7 @@ class LossCalculator:
             meshes, neg_flow
         )  # self.transformer.getDeformationField(neg_flow)
 
-        warpedAtlas = self.transformer(atlasImages, posDeformationFieldAtlas)
+        warpedAtlas = self.transformer.sampleImage(atlasImages, posDeformationFieldAtlas)
 
         sampledImages = self.transformer.sampleImage(images, meshes)
 
@@ -91,7 +98,7 @@ class LossCalculator:
         if (
             self.atlasPairSimilarityFactor != 0.0
         ):  ##TODO: vergleicht nicht alle bild kombinationen, ausreichend oder umprogrammiren?
-            warpedImages = self.transformer(images, negDeformationFieldImages)
+            warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
             batch_size = images.shape[0]
             atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(
                 warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
@@ -114,15 +121,17 @@ class LossCalculator:
         return sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss
 
     def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):
-        sampledLabels = self.transformer.sampleImage(labels, meshes)
+        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
         posDeformationField = self.transformer.getDeformationField(pos_flow)
         negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
 
-        deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
+        deformedLabels = self._getDefomredImages(
+            posDeformationField, neg_flow, labels, meshes, interpolationType="nearest"
+        )
         imgSpaceDiceloss = self._getDiceloss(deformedLabels, sampledLabels)
 
-        warpedLabels = self.transformer(labels, negDeformationFieldImages)
+        warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
         batch_size = labels.shape[0]
         atlasSpaceDiceLoss = self._getDiceloss(warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :])
 

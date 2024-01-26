@@ -23,14 +23,12 @@ from DeformationFieldAndDeformedImageWriter import DeformationFieldAndDeformedIm
 def getCheckPointString(config):
     seed = config.getParam("seed")
 
-    if seed is not None:
-        atlas_utils.setSeeds(seed)
-
     max_epochs = config.getParam("epochs")
     batch_size = config.getParam("batchSize")
     lr = config.getParam("learningRate")
     atlas_lr = config.getParam("atlasLearningRate")
     loss_name = config.getParam("similarityLoss")
+    reg_loss_name = config.getParam("regularizationLoss")
 
     reg_factor = config.getParam("regularizationFactor")
     sim_factor = config.getParam("similarityFactor")
@@ -46,6 +44,8 @@ def getCheckPointString(config):
     stringForStoringVariables = (
         "atlasRegistration"
         + str(loss_name)
+        + "_"
+        + str(reg_loss_name)
         + "_gridSize_"
         + gridSizeStr
         + "_gridSpacing_"
@@ -106,8 +106,7 @@ def runTests(config):
     model, data = getModelAndData(config, "test")
 
     logger = TensorBoardLogger("tb_logs", name="test_" + getCheckPointString(config))
-    trainer = pl.Trainer(logger=logger)
-
+    trainer = pl.Trainer(accelerator=config.getParam("accelerator"), devices="auto", precision=32, logger=logger)
     start = dt.datetime.now()
 
     print("Training started at", start)
@@ -118,7 +117,10 @@ def runTests(config):
 def runPrediction(config):
     model, data = getModelAndData(config, "test")
     pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch")
-    trainer = pl.Trainer(callbacks=[pred_writer])
+    trainer = pl.Trainer(
+        accelerator=config.getParam("accelerator"), devices="auto", precision=32, callbacks=[pred_writer]
+    )
+
     start = dt.datetime.now()
     print("Training started at", start)
     _ = trainer.predict(model=model, dataloaders=data.predict_dataloader())
@@ -201,6 +203,7 @@ def runTraining(config):
     stringForStoringVariables = getCheckPointString(config)
 
     network = NetworkFactory.getNetwork(config)
+
     newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
     config.setParam("registrationGridsize", newShape.tolist())
 

@@ -65,8 +65,10 @@ class AtlasDataModule(pl.LightningDataModule):
         return self.atlasImage, self.atlasMesh, self.atlasOrigin
 
     def _prepare_data(self):
-        self.iterateFile(self.datasetTrainingFile, self.train_subjects)
-        self.iterateFile(self.datasetTestFile, self.test_subjects)
+        if len(self.train_subjects) == 0:
+            self.iterateFile(self.datasetTrainingFile, self.train_subjects)
+        if len(self.test_subjects) == 0:
+            self.iterateFile(self.datasetTestFile, self.test_subjects)
 
     def iterateFile(self, inputFile, container):
         with open(inputFile) as csvDataFile:
@@ -139,9 +141,11 @@ class AtlasDataModule(pl.LightningDataModule):
         for dim in range(mesh.shape[0]):
             mesh[dim] = mesh[dim] * (imageData.shape[-3 + dim] - 1.0)
 
-        meshFloor = torch.round(mesh).type(torch.int32)
+        meshFloor = torch.floor(mesh).type(torch.int32)
+        meshCeil = torch.ceil(mesh).type(torch.int32)
         labelData = torch.zeros_like(imageData)
         labelData[:, meshFloor[0, :], meshFloor[1, :], meshFloor[2, :]] = 1.0
+        labelData[:, meshCeil[0, :], meshCeil[1, :], meshCeil[2, :]] = 1.0
         labelData = labelData.unsqueeze(0)
         labelData = torch.nn.functional.conv3d(
             labelData, weight=torch.ones([1, 1, 3, 3, 3], dtype=labelData.dtype), stride=1, padding=1
