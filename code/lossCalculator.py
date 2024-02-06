@@ -30,8 +30,10 @@ class LossCalculator:
             self.regularizationLoss = LossFactory.lossMap["Dummy"]()
 
         self.imagePairSimilarityFactor = config.getParam("imagePairSimFactor")
+        self.imageSpaceLabelSimFactor = config.getParam("imageSpaceLabelSimFactor")
 
         self.atlasPairSimilarityFactor = config.getParam("atlasPairSimFactor")
+        self.atlasSpaceLabelSimFactor = config.getParam("atlasSpaceLabelSimFactor")
 
         self.smooth_factor = config.getParam("smoothingFactor")
         if self.smooth_factor != 0.0:
@@ -60,16 +62,23 @@ class LossCalculator:
         imgSpaceSimLoss = self.similarityLoss(imgs0, imgs1)
         return imgSpaceSimLoss / imgs0.shape[0]
 
-    def getLoss(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes):
-        sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.getLosses(
-            pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes
+    def getLoss(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes, labels):
+        sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss, imgSpaceLabelLoss, atlasSpaceLabelLoss = self.getLosses(
+            pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes, labels
         )
-        return sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss
+        return sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss + imgSpaceLabelLoss + atlasSpaceLabelLoss
 
     def getLossWeights(self):
-        return self.sim_factor, self.reg_factor, self.imagePairSimilarityFactor, self.atlasPairSimilarityFactor
+        return (
+            self.sim_factor,
+            self.reg_factor,
+            self.imagePairSimilarityFactor,
+            self.atlasPairSimilarityFactor,
+            self.imageSpaceLabelSimFactor,
+            self.atlasSpaceLabelSimFactor,
+        )
 
-    def getLossesWithoutWeighting(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes):
+    def getLossesWithoutWeighting(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes, labels):
         # posDeformationField = self.transformer.getDeformationField(pos_flow)
         # deformedAtlasMeshes = self.transformer(atlasMeshes, posDeformationField)
         # deformedAtlas = self.transformer.sampleImage(atlasImages, deformedAtlasMeshes)
@@ -89,27 +98,45 @@ class LossCalculator:
         reg_loss = self.regularizationLoss(pos_flow)
 
         pair_sim_loss = 0.0
-        atlas_pair_sim_loss = 0.0
-
         if self.imagePairSimilarityFactor != 0.0:
             deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
             pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, sampledImages)
 
-        if (
-            self.atlasPairSimilarityFactor != 0.0
-        ):  ##TODO: vergleicht nicht alle bild kombinationen, ausreichend oder umprogrammiren?
+        imgSpaceLabelLoss = 0.0
+        if self.imageSpaceLabelSimFactor != 0.0:
+            deformedLabels = self._getDefomredImages(
+                posDeformationField, neg_flow, labels, meshes, interpolationType="nearest"
+            )
+            sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
+            imgSpaceLabelLoss = self._getDiceloss(deformedLabels, sampledLabels)
+
+        atlas_pair_sim_loss = 0.0
+        if self.atlasPairSimilarityFactor != 0.0:
             warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
             batch_size = images.shape[0]
             atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(
                 warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
             )
 
-        return sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss
+        atlasSpaceLabelLoss = 0.0
+        if self.atlasSpaceLabelSimFactor != 0.0:
+            warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
+            batch_size = labels.shape[0]
+            atlasSpaceLabelLoss = self._getDiceloss(
+                warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
+            )
 
-    def getLosses(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes):
-        sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.getLossesWithoutWeighting(
-            pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes
-        )
+        return sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss, imgSpaceLabelLoss, atlasSpaceLabelLoss
+
+    def getLosses(self, pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes, labels):
+        (
+            sim_loss,
+            reg_loss,
+            pair_sim_loss,
+            atlas_pair_sim_loss,
+            imgSpaceLabelLoss,
+            atlasSpaceLabelLoss,
+        ) = self.getLossesWithoutWeighting(pos_flow, neg_flow, images, meshes, atlasImages, atlasMeshes, labels)
 
         sim_loss = sim_loss * self.sim_factor
 
@@ -118,7 +145,10 @@ class LossCalculator:
         pair_sim_loss = pair_sim_loss * self.imagePairSimilarityFactor
         atlas_pair_sim_loss = atlas_pair_sim_loss * self.atlasPairSimilarityFactor
 
-        return sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss
+        imgSpaceLabelLoss = imgSpaceLabelLoss * self.imageSpaceLabelSimFactor
+        atlasSpaceLabelLoss = atlasSpaceLabelLoss * self.atlasSpaceLabelSimFactor
+
+        return sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss, imgSpaceLabelLoss, atlasSpaceLabelLoss
 
     def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")

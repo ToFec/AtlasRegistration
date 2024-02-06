@@ -33,6 +33,8 @@ def getCheckPointString(config):
     reg_factor = config.getParam("regularizationFactor")
     sim_factor = config.getParam("similarityFactor")
     pair_sim_factor = config.getParam("imagePairSimFactor")
+    imgSpaceLabelSimFactor = config.getParam("imageSpaceLabelSimFactor")
+    atlasSpaceLabelSimFactor = config.getParam("atlasSpaceLabelSimFactor")
     atlas_Pair_Sim_Factor = config.getParam("atlasPairSimFactor")
     smooth_factor = config.getParam("smoothingFactor")
     gridSize = config.getParam("registrationGridsize")
@@ -50,25 +52,29 @@ def getCheckPointString(config):
         + gridSizeStr
         + "_gridSpacing_"
         + gridSpacingStr
-        + "_seed_"
+        + "_s_"
         + str(seed)
-        + "_reg_"
+        + "_r_"
         + str(reg_factor)
-        + "_atlas_sim_"
+        + "_sim_"
         + str(sim_factor)
-        + "_image_pair_sim_"
+        + "_Isim_"
         + str(pair_sim_factor)
-        + "_atlas_pair_sim_factor"
+        + "_IlabelSim"
+        + str(imgSpaceLabelSimFactor)
+        + "_Asim"
         + str(atlas_Pair_Sim_Factor)
+        + "_AlabelSim"
+        + str(atlasSpaceLabelSimFactor)
         + "_smooth_"
         + str(smooth_factor)
-        + "_epoch_"
+        + "_e_"
         + str(max_epochs)
-        + "_batchsize_"
+        + "_b_"
         + str(batch_size)
-        + "_network_lr_"
+        + "_n_lr_"
         + str(lr)
-        + "_atlas_lr_"
+        + "_a_lr_"
         + str(atlas_lr)
     )
     return stringForStoringVariables
@@ -169,7 +175,7 @@ def runTestImgSampling(config, nuOfFilesToWrite):
 
     filesWritten = 0
     for batch in data.train_dataloader():
-        images, meshes = model.prepare_batch(batch)
+        images, meshes, _ = model.prepare_batch(batch)
         imageNames = batch["imagePath"]
         meshOrigin = batch["meshOrigin"]
         networkImageToRegInput = transformer.sampleImage(images, meshes)
@@ -227,6 +233,7 @@ def runTraining(config):
         networkOptimizer_class=optimizer,
         atlasOptimizer_class=optimizer,
         useLrScheduler=config.getParam("lrScheduler"),
+        logTemporaryDeformationFields=config.getParam("logTemporaryDeformationFields"),
     )
 
     callBackFunctions = []

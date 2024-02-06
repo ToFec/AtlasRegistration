@@ -347,8 +347,8 @@ class DiceLoss(nn.Module):
 class MultiClassSingleChannelDiceCalculator(nn.Module):
     def forward(self, reference, prediction, valueToIgnore: torch.tensor = None) -> torch.tensor:
         smooth = 0.0000000001
-        uniqueValsRef = torch.unique(reference, sorted=True)
-        uniqueValsPred = torch.unique(prediction, sorted=True)
+        uniqueValsRef = torch.unique(reference.detach(), sorted=True)
+        uniqueValsPred = torch.unique(prediction.detach(), sorted=True)
         uniqueVals = uniqueValsRef[(uniqueValsRef.view(1, -1) == uniqueValsPred.view(-1, 1)).any(dim=0)]
 
         denominator = torch.tensor(0.0, device=prediction.device)

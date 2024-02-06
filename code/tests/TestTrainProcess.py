@@ -69,7 +69,7 @@ class Test(unittest.TestCase):
         locale.setlocale(locale.LC_NUMERIC, "en_US")
 
         for batch in data.train_dataloader():
-            images, meshes = batch["image"][tio.DATA], batch["samplingMesh"]
+            images, meshes, labels = batch["image"][tio.DATA], batch["samplingMesh"], batch["label"][tio.DATA]
 
             lossValue = lossCalculator.getLoss(
                 pos_flow,
@@ -78,6 +78,7 @@ class Test(unittest.TestCase):
                 meshes,
                 atlasImages.expand(images.shape[0], -1, -1, -1, -1),
                 atlasMeshes.expand(images.shape[0], -1, -1, -1, -1),
+                labels,
             )
             self.assertAlmostEqual(lossValue.detach().numpy(), 0.0014, delta=0.00005)
 
@@ -302,7 +303,7 @@ class Test(unittest.TestCase):
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         for batch in data.train_dataloader():
-            images, meshes = model.prepare_batch(batch)
+            images, meshes, _ = model.prepare_batch(batch)
 
             # networkInputImages = model.transformer.sampleImage(images,meshes)
             # netWorkInputAtlasImages = model.transformer.sampleImage(model.atlasImages, model.atlasMeshes)

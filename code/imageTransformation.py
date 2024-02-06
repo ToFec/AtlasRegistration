@@ -45,8 +45,7 @@ class Transformation(torch.nn.Module):
     def getDeformationField(self, flowField):
         if self.identityTransform is None:
             self.setIdentityTransform(flowField.shape)
-            self.identityTransform = self.identityTransform.to(flowField)
-
+        self.identityTransform = self.identityTransform.to(flowField)
         return self.identityTransform + flowField
 
     def sampleImage(self, images, meshes, alignCorners=True, paddMode="border", interpolationType="bilinear"):

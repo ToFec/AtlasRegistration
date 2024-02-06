@@ -29,6 +29,7 @@ class AtlasModule(pl.LightningModule):
         networkOptimizer_class,
         atlasOptimizer_class,
         useLrScheduler,
+        logTemporaryDeformationFields=False,
     ):
         super().__init__()
         self.automatic_optimization = False
@@ -44,6 +45,7 @@ class AtlasModule(pl.LightningModule):
         self.atlasImage = torch.nn.Parameter(atlasImage)
         self.register_buffer("atlasMesh", atlasMesh, True)
         self.register_buffer("atlasOrigin", atlasOrigin, True)
+        self.logTemporaryDeformationFields = logTemporaryDeformationFields
 
     def getInputAtlasMesh(self, batch_size):
         return self.atlasMesh.expand(batch_size, -1, -1, -1, -1)
@@ -98,40 +100,51 @@ class AtlasModule(pl.LightningModule):
     def prepare_batch(self, batch):
         images = batch["image"][tio.DATA]
         meshes = batch["samplingMesh"]
-        return images, meshes
+        labels = batch["label"][tio.DATA]
+        return images, meshes, labels
 
     def infer_batch(self, images, atlasImages):
         atlasAndImages = torch.cat((atlasImages, images), 1)
         pos_flow, neg_flow = self.net(atlasAndImages)
         return pos_flow, neg_flow
 
-    def gatherInfoOfTrainingValidationStep(self, pos_flow, neg_flow, images, meshes):
-        sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLosses(
+    def gatherInfoOfTrainingValidationStep(self, pos_flow, neg_flow, images, meshes, labels):
+        (
+            sim_loss,
+            reg_loss,
+            pair_sim_loss,
+            atlas_pair_sim_loss,
+            imgSpaceLabelLoss,
+            atlasSpaceLabelLoss,
+        ) = self.criterion.getLosses(
             pos_flow,
             neg_flow,
             images,
             meshes,
             self.getInputAtlasImage(images.shape[0]),
             self.getInputAtlasMesh(images.shape[0]),
+            labels,
         )
-        loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss
+        loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss + imgSpaceLabelLoss + atlasSpaceLabelLoss
         return {
             "loss": loss,
             "sim_loss": sim_loss,
             "reg_loss": reg_loss,
             "pair_sim_loss": pair_sim_loss,
             "atlas_pair_sim_loss": atlas_pair_sim_loss,
+            "image_space_label_loss": imgSpaceLabelLoss,
+            "atlas_space_label_loss": atlasSpaceLabelLoss,
         }
 
     def training_step(self, batch, batch_idx):
         optNetwork, _ = self.optimizers(use_pl_optimizer=True)
         optNetwork.zero_grad()
-        images, meshes = self.prepare_batch(batch)
+        images, meshes, labels = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
 
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
 
-        stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes)
+        stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes, labels)
         loss = stepInfo["loss"]
 
         self.manual_backward(loss)
@@ -141,67 +154,83 @@ class AtlasModule(pl.LightningModule):
         return stepInfo
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        images, meshes = self.prepare_batch(batch)
+        images, meshes, _ = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
         return pos_flow, neg_flow
 
     def validation_step(self, batch, batch_idx):
-        images, meshes = self.prepare_batch(batch)
+        images, meshes, labels = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
-        sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss = self.criterion.getLossesWithoutWeighting(
+        (
+            sim_loss,
+            reg_loss,
+            pair_sim_loss,
+            atlas_pair_sim_loss,
+            imgSpaceLabelLoss,
+            atlasSpaceLabelLoss,
+        ) = self.criterion.getLossesWithoutWeighting(
             pos_flow,
             neg_flow,
             images,
             meshes,
             self.getInputAtlasImage(images.shape[0]),
             self.getInputAtlasMesh(images.shape[0]),
+            labels,
         )
 
-        self.log("val_loss_uw", sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss)
+        self.log(
+            "val_loss_uw",
+            sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss + imgSpaceLabelLoss + atlasSpaceLabelLoss,
+        )
         self.log("val_sim_loss_uw", sim_loss)
         self.log("val_reg_loss_uw", reg_loss)
         self.log("val_pair_sim_loss_uw", pair_sim_loss)
         self.log("val_atlas_pair_sim_loss_uw", atlas_pair_sim_loss)
+        self.log("val_image_space_label_loss_uw", 1 - imgSpaceLabelLoss)
+        self.log("val_atlas_space_label_loss_uw", 1 - atlasSpaceLabelLoss)
 
-        sim_factor, reg_factor, imagePairSimilarityFactor, atlasPairSimilarityFactor = self.criterion.getLossWeights()
+        (
+            sim_factor,
+            reg_factor,
+            imagePairSimilarityFactor,
+            atlasPairSimilarityFactor,
+            imageSpaceLabelSimFactor,
+            atlasSpaceLabelSimFactor,
+        ) = self.criterion.getLossWeights()
 
         sim_loss = sim_loss * sim_factor
         reg_loss = reg_loss * reg_factor
         pair_sim_loss = pair_sim_loss * imagePairSimilarityFactor
         atlas_pair_sim_loss = atlas_pair_sim_loss * atlasPairSimilarityFactor
-        loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss
+        imgSpaceLabelLoss = imgSpaceLabelLoss * imageSpaceLabelSimFactor
+        atlasSpaceLabelLoss = atlasSpaceLabelLoss * atlasSpaceLabelSimFactor
+        loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss + imgSpaceLabelLoss + atlasSpaceLabelLoss
 
         self.log("val_loss", loss)
         self.log("val_sim_loss", sim_loss)
         self.log("val_reg_loss", reg_loss)
         self.log("val_pair_sim_loss", pair_sim_loss)
         self.log("val_atlas_pair_sim_loss", atlas_pair_sim_loss)
+        self.log("val_image_space_label_loss", 1 - imgSpaceLabelLoss)
+        self.log("val_atlas_space_label_loss", 1 - atlasSpaceLabelLoss)
 
-        imgSpaceDsc, atlasSpacedsc = self.criterion.getDiceLosses(pos_flow, neg_flow, batch["label"][tio.DATA], meshes)
-
-        for logger in self.loggers:
-            if isinstance(logger, ImageLogger):
-                defFieldToSave = torch.Tensor.cpu(neg_flow[0, None, ...].detach())
-                logger.saveImage(defFieldToSave, "DeformationField0", self.current_epoch)
-
-        self.log("val_img_space_dsc", 1 - imgSpaceDsc)
-        self.log("val_atlas_space_dsc", 1 - atlasSpacedsc)
+        if self.logTemporaryDeformationFields:
+            for logger in self.loggers:
+                if isinstance(logger, ImageLogger):
+                    defFieldToSave = torch.Tensor.cpu(neg_flow[0, None, ...].detach())
+                    logger.saveImage(defFieldToSave, "DeformationField0", self.current_epoch)
 
         return {
             "loss": loss,
-            "sim_loss": sim_loss,
-            "reg_loss": reg_loss,
-            "pair_sim_loss": pair_sim_loss,
-            "atlas_pair_sim_loss": atlas_pair_sim_loss,
         }
 
     def test_step(self, batch, batch_idx):
-        images, meshes = self.prepare_batch(batch)
+        images, meshes, labels = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
-        stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes)
+        stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes, labels)
 
         loss = stepInfo["loss"]
         self.log("test_loss", loss)
@@ -209,11 +238,8 @@ class AtlasModule(pl.LightningModule):
         self.log("test_reg_loss", stepInfo["reg_loss"])
         self.log("test_pair_sim_loss", stepInfo["pair_sim_loss"])
         self.log("test_atlas_pair_sim_loss", stepInfo["atlas_pair_sim_loss"])
-
-        imgSpaceDsc, atlasSpacedsc = self.criterion.getDiceLosses(pos_flow, neg_flow, batch["label"][tio.DATA], meshes)
-
-        self.log("test_img_space_dsc", 1 - imgSpaceDsc)
-        self.log("test_atlas_space_dsc", 1 - atlasSpacedsc)
+        self.log("test_image_space_label_loss", 1 - stepInfo["image_space_label_loss"])
+        self.log("test_atlas_space_label_loss", 1 - stepInfo["atlas_space_label_loss"])
 
         return stepInfo
 
@@ -236,9 +262,10 @@ class AtlasModule(pl.LightningModule):
             self.current_epoch,
             dataformats="HW",
         )
-        for logger in self.loggers:
-            if isinstance(logger, ImageLogger):
-                logger.saveImage(networkAtlasInput, "AtlasImage", self.current_epoch)
+        if self.atlasLearning_rate > 0.0:
+            for logger in self.loggers:
+                if isinstance(logger, ImageLogger):
+                    logger.saveImage(networkAtlasInput, "AtlasImage", self.current_epoch)
 
     def training_epoch_end(self, outputs):
         ###

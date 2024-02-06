@@ -25,8 +25,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             self.fileType = _fileType
 
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
-        images, meshes = pl_module.prepare_batch(batch)
-        labels = batch["label"][tio.DATA]
+        images, meshes, labels = pl_module.prepare_batch(batch)
         sampledImages = self.transformer.sampleImage(images, meshes)
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
