@@ -147,11 +147,12 @@ def runTestImgSampling(config, nuOfFilesToWrite):
     data = AtlasDataModule(config)
     data.setup(stage="fit")
 
-    atlasImage, atlasMesh, atlasOrigin = data.getInitalAtlas()
+    atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
     model = AtlasModule(
         network,
         atlasImage,
+        atlasLabel,
         atlasMesh,
         atlasOrigin,
         None,
@@ -220,11 +221,12 @@ def runTraining(config):
     data.prepare_data()
     data.setup(stage="fit")
 
-    atlasImage, atlasMesh, atlasOrigin = data.getInitalAtlas()
+    atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
     model = AtlasModule(
         network,
         atlasImage,
+        atlasLabel,
         atlasMesh,
         atlasOrigin,
         loss,

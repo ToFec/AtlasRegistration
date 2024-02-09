@@ -21,6 +21,7 @@ class AtlasModule(pl.LightningModule):
         self,
         net,
         atlasImage,
+        atlasLabel,
         atlasMesh,
         atlasOrigin,
         loss,
@@ -43,12 +44,16 @@ class AtlasModule(pl.LightningModule):
         self.transformer = Transformation()
         self.save_hyperparameters(logger=False)
         self.atlasImage = torch.nn.Parameter(atlasImage)
+        self.register_buffer("atlasLabel", atlasLabel, True)
         self.register_buffer("atlasMesh", atlasMesh, True)
         self.register_buffer("atlasOrigin", atlasOrigin, True)
         self.logTemporaryDeformationFields = logTemporaryDeformationFields
 
     def getInputAtlasMesh(self, batch_size):
         return self.atlasMesh.expand(batch_size, -1, -1, -1, -1)
+
+    def getInputAtlasLabel(self, batch_size):
+        return self.atlasLabel.expand(batch_size, -1, -1, -1, -1)
 
     def getInputAtlasImage(self, batch_size, detached=False):
         if detached:
@@ -109,6 +114,16 @@ class AtlasModule(pl.LightningModule):
         return pos_flow, neg_flow
 
     def gatherInfoOfTrainingValidationStep(self, pos_flow, neg_flow, images, meshes, labels):
+        self.criterion.calculateLoss(
+            pos_flow,
+            neg_flow,
+            images,
+            meshes,
+            self.getInputAtlasImage(images.shape[0]),
+            self.getInputAtlasMesh(images.shape[0]),
+            self.getInputAtlasLabel(images.shape[0]),
+            labels,
+        )
         (
             sim_loss,
             reg_loss,
@@ -116,15 +131,7 @@ class AtlasModule(pl.LightningModule):
             atlas_pair_sim_loss,
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
-        ) = self.criterion.getLosses(
-            pos_flow,
-            neg_flow,
-            images,
-            meshes,
-            self.getInputAtlasImage(images.shape[0]),
-            self.getInputAtlasMesh(images.shape[0]),
-            labels,
-        )
+        ) = self.criterion.getLosses()
         loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss + imgSpaceLabelLoss + atlasSpaceLabelLoss
         return {
             "loss": loss,
@@ -163,6 +170,16 @@ class AtlasModule(pl.LightningModule):
         images, meshes, labels = self.prepare_batch(batch)
         networkImageToRegInput, networkAtlasInput = self._createNetworkInput(images, meshes)
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
+        self.criterion.calculateLoss(
+            pos_flow,
+            neg_flow,
+            images,
+            meshes,
+            self.getInputAtlasImage(images.shape[0]),
+            self.getInputAtlasMesh(images.shape[0]),
+            self.getInputAtlasLabel(images.shape[0]),
+            labels,
+        )
         (
             sim_loss,
             reg_loss,
@@ -170,15 +187,7 @@ class AtlasModule(pl.LightningModule):
             atlas_pair_sim_loss,
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
-        ) = self.criterion.getLossesWithoutWeighting(
-            pos_flow,
-            neg_flow,
-            images,
-            meshes,
-            self.getInputAtlasImage(images.shape[0]),
-            self.getInputAtlasMesh(images.shape[0]),
-            labels,
-        )
+        ) = self.criterion.getLossesWithoutWeighting()
 
         self.log(
             "val_loss_uw",
@@ -192,20 +201,14 @@ class AtlasModule(pl.LightningModule):
         self.log("val_atlas_space_label_loss_uw", 1 - atlasSpaceLabelLoss)
 
         (
-            sim_factor,
-            reg_factor,
-            imagePairSimilarityFactor,
-            atlasPairSimilarityFactor,
-            imageSpaceLabelSimFactor,
-            atlasSpaceLabelSimFactor,
-        ) = self.criterion.getLossWeights()
+            sim_loss,
+            reg_loss,
+            pair_sim_loss,
+            atlas_pair_sim_loss,
+            imgSpaceLabelLoss,
+            atlasSpaceLabelLoss,
+        ) = self.criterion.getLosses()
 
-        sim_loss = sim_loss * sim_factor
-        reg_loss = reg_loss * reg_factor
-        pair_sim_loss = pair_sim_loss * imagePairSimilarityFactor
-        atlas_pair_sim_loss = atlas_pair_sim_loss * atlasPairSimilarityFactor
-        imgSpaceLabelLoss = imgSpaceLabelLoss * imageSpaceLabelSimFactor
-        atlasSpaceLabelLoss = atlasSpaceLabelLoss * atlasSpaceLabelSimFactor
         loss = sim_loss + reg_loss + pair_sim_loss + atlas_pair_sim_loss + imgSpaceLabelLoss + atlasSpaceLabelLoss
 
         self.log("val_loss", loss)

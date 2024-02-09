@@ -115,7 +115,7 @@ class Test(unittest.TestCase):
         sitkReferenceImg = sitk.ReadImage("./resources/AverageAtlasImgTest.nrrd")
         sitkReferenceArray = sitk.GetArrayFromImage(sitkReferenceImg)
 
-        atlasImg, atlasMesh, _ = data.getInitalAtlas()
+        atlasImg, atlasMesh, _, _ = data.getInitalAtlas()
         transformer = imageTransformation.Transformation()
         atlasSampledImg = transformer.sampleImage(atlasImg, atlasMesh)
         for i in range(atlasSampledImg.shape[0]):

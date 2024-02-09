@@ -83,7 +83,7 @@ class Test(unittest.TestCase):
         data.prepare_data()
         data.setup(stage="fit")
         originalImage = data.train_set[0]["image"][tio.DATA]
-        atlasImage, atlasMesh, _ = data.getInitalAtlas()
+        atlasImage, atlasMesh, _, _ = data.getInitalAtlas()
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()
@@ -132,7 +132,7 @@ class Test(unittest.TestCase):
         data.prepare_data()
         data.setup(stage="fit")
         originalImage = data.train_set[0]["image"][tio.DATA]
-        atlasImage, atlasMesh, _ = data.getInitalAtlas()
+        atlasImage, atlasMesh, _, _ = data.getInitalAtlas()
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()
@@ -181,7 +181,7 @@ class Test(unittest.TestCase):
         data.prepare_data()
         data.setup(stage="fit")
         originalImage = data.train_set[0]["image"][tio.DATA]
-        atlasImage, atlasMesh, _ = data.getInitalAtlas()
+        atlasImage, atlasMesh, _, _ = data.getInitalAtlas()
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
         transformer = Bilinear()

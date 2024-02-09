@@ -49,6 +49,7 @@ class AtlasDataModule(pl.LightningDataModule):
         else:
             self.delimiter = ";"
         self.atlasImage = None
+        self.atlasLabel = None
         self.atlasOrigin = None
         self.atlasMesh = None
         self.train_sampler = None
@@ -62,7 +63,7 @@ class AtlasDataModule(pl.LightningDataModule):
         pass
 
     def getInitalAtlas(self):
-        return self.atlasImage, self.atlasMesh, self.atlasOrigin
+        return self.atlasImage, self.atlasMesh, self.atlasOrigin, self.atlasLabel
 
     def _prepare_data(self):
         if len(self.train_subjects) == 0:
@@ -246,9 +247,9 @@ class AtlasDataModule(pl.LightningDataModule):
                 self.atlasImage = sampledData[0]
                 self.atlasOrigin = subject["meshOrigin"].detach().clone()
 
+            if atlasLabel is None:
+                atlasLabel = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
             if self.doNormalisation:
-                if atlasLabel is None:
-                    atlasLabel = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
                 subject = tio.Subject(
                     {"label": tio.LabelMap(tensor=atlasLabel), "image": tio.ScalarImage(tensor=self.atlasImage)}
                 )
@@ -256,10 +257,12 @@ class AtlasDataModule(pl.LightningDataModule):
                 normalizedAtlasSubject = transform(subject)
                 self.atlasImage = normalizedAtlasSubject["image"][tio.DATA]
 
+            self.atlasLabel = atlasLabel.unsqueeze(0)
             self.atlasImage = self.atlasImage.unsqueeze(0)
             self.atlasMesh = self.atlasMesh.unsqueeze(0)
         else:
             self.atlasImage = None
+            self.atlasLabel = None
             self.atlasMesh = None
             self.atlasOrigin = None
 

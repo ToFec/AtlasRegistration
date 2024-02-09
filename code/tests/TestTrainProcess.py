@@ -58,7 +58,7 @@ class Test(unittest.TestCase):
 
         lossCalculator = LossCalculator(config)
 
-        atlasImages, atlasMeshes, _ = data.getInitalAtlas()
+        atlasImages, atlasMeshes, _, atlasLabels = data.getInitalAtlas()
 
         neg_flow = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
         neg_flow = torch.cat((neg_flow, neg_flow))
@@ -71,15 +71,17 @@ class Test(unittest.TestCase):
         for batch in data.train_dataloader():
             images, meshes, labels = batch["image"][tio.DATA], batch["samplingMesh"], batch["label"][tio.DATA]
 
-            lossValue = lossCalculator.getLoss(
+            lossCalculator.calculateLoss(
                 pos_flow,
                 neg_flow,
                 images,
                 meshes,
                 atlasImages.expand(images.shape[0], -1, -1, -1, -1),
                 atlasMeshes.expand(images.shape[0], -1, -1, -1, -1),
+                atlasLabels.expand(images.shape[0], -1, -1, -1, -1),
                 labels,
             )
+            lossValue = lossCalculator.getLoss()
             self.assertAlmostEqual(lossValue.detach().numpy(), 0.0014, delta=0.00005)
 
         if os.path.exists("./resources/DummyDeformedMesh.pt"):
@@ -176,7 +178,7 @@ class Test(unittest.TestCase):
         atlasMesh = data.val_set[0]["samplingMesh"]
         data.atlasMesh = atlasMesh.unsqueeze(0).detach().clone()
 
-        atlasImage, atlasMesh, _ = data.getInitalAtlas()
+        atlasImage, atlasMesh, _, _ = data.getInitalAtlas()
 
         defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
 
@@ -279,11 +281,12 @@ class Test(unittest.TestCase):
         networkOptim = atlasUtils.getOptimizer(config.getParam("optimizer"))
         atlasOptim = atlasUtils.getOptimizer(config.getParam("optimizer"))
 
-        atlasImage, atlasMesh, atlasOrigin = data.getInitalAtlas()
+        atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
         model = AtlasModule(
             network,
             atlasImage,
+            atlasLabel,
             atlasMesh,
             atlasOrigin,
             loss,
@@ -296,7 +299,7 @@ class Test(unittest.TestCase):
 
         model.setup("fit")
         model.configure_optimizers()
-        model.atlasImages, model.atlasMeshes, _ = data.getInitalAtlas()
+        model.atlasImages, model.atlasMeshes, _, _ = data.getInitalAtlas()
 
         defField = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
         # defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
