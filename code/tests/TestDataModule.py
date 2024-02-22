@@ -12,6 +12,7 @@ import torch
 import os
 import imageTransformation
 import SimpleITK as sitk
+import atlas_utils as au
 
 
 class Test(unittest.TestCase):
@@ -233,6 +234,10 @@ class Test(unittest.TestCase):
 
         if os.path.exists("./resources/DummyRotatedMesh.pt"):
             os.remove("./resources/DummyRotatedMesh.pt")
+
+    def testSignedDistanceMapGeneration(self):
+        sitkLabel = sitk.ReadImage("./resources/DscLoss/Label1.nii.gz", sitk.sitkFloat32)
+        sigendDistanceMapTensor = au.createSignedDistanceMap(sitkLabel)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,18 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 
+def createSignedDistanceMap(sitkLabel):
+    array = sitk.GetArrayViewFromImage(sitkLabel)
+    uniqueValues = np.unique(array)
+    distanceMaps = []
+    for uniqueVal in uniqueValues:
+        tmpImage = sitkLabel == uniqueVal
+        distanceMaps.append(sitk.SignedDanielssonDistanceMap(tmpImage, useImageSpacing=True))
+    distanceMap4D = sitk.JoinSeries(distanceMaps)
+    distanceMapTensor = sitk.GetArrayViewFromImage(distanceMap4D)
+    return distanceMapTensor
+
+
 def loadDefField(filename):
     defFieldITK = sitk.ReadImage(str(filename))
     defFieldSpacing = defFieldITK.GetSpacing()

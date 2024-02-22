@@ -11,7 +11,7 @@ import atlas_utils as atlasUtils
 from lossCalculator import LossCalculator
 from atlasModule import AtlasModule
 from atlas_models import SVF_resid
-from imageTransformation import Bilinear
+from imageTransformation import Transformation
 import numpy as np
 import torchio as tio
 import torch
@@ -122,7 +122,7 @@ class Test(unittest.TestCase):
         pos_flow = torch.cat((pos_flow, pos_flow))
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
-        transformer = Bilinear()
+        transformer = Transformation()
         lossCalculator = LossCalculator(config)
 
         sitkReferenceImg = sitk.ReadImage("./resources/Dummy.nrrd")
@@ -183,7 +183,7 @@ class Test(unittest.TestCase):
         defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
-        transformer = Bilinear()
+        transformer = Transformation()
 
         deformaiton = transformer.combineMeshesAndFlowField(atlasMesh[0, None, :], defField)
         tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton)
@@ -228,7 +228,7 @@ class Test(unittest.TestCase):
         defField = atlasUtils.loadDefField("./resources/DummyDeformationField.nrrd")
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
-        transformer = Bilinear()
+        transformer = Transformation()
         for batch in data.train_dataloader():
             images, meshes = batch["image"][tio.DATA], batch["samplingMesh"]
 

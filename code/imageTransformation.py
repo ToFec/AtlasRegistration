@@ -77,37 +77,3 @@ class Transformation(torch.nn.Module):
         newField = c.reshape(tmp.shape).moveaxis(-1, 1)
 
         return meshes + newField
-
-
-class Bilinear(Transformation):
-    """
-    Spatial transform function for 1D, 2D, and 3D. In BCXYZ format (this IS the format used in the current toolbox).
-    """
-
-    def __init__(self, shape=None, zero_boundary=True, using_scale=False):
-        """
-        Constructor
-
-        :param ndim: (int) spatial transformation of the transform
-        """
-        super(Bilinear, self).__init__(shape)
-        self.zero_boundary = "zeros" if zero_boundary else "border"
-        self.using_scale = using_scale
-        """ scale [-1,1] image intensity into [0,1], this is due to the zero boundary condition we may use here """
-
-    def forward(self, input1, input2):
-        """
-        Perform the actual spatial transform
-
-        :param input1: image in BCXYZ format
-        :param input2: spatial transform in BdimXYZ format
-        :return: spatially transformed image in BCXYZ format
-        """
-        if self.using_scale:
-            output = self.sampleImage((input1 + 1) / 2, input2, True, self.zero_boundary)
-            # print(STNVal(output, ini=-1).sum())
-            return output * 2 - 1
-        else:
-            output = self.sampleImage(input1, input2, True, self.zero_boundary)
-            # print(STNVal(output, ini=-1).sum())
-            return output

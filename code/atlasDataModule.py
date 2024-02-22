@@ -13,6 +13,7 @@ from typing import Optional
 import numpy as np
 import SimpleITK as sitk
 import torch
+import atlas_utils as atlasUtils
 
 from config import Config
 from imageTransformation import Transformation
@@ -40,6 +41,11 @@ class AtlasDataModule(pl.LightningDataModule):
         self.atlasDataToLoad = config.getParam("atlasImage")
         self.atlasLabelToLoad = config.getParam("atlasLabel")
         self.loadImagesAsDataType = config.getParam("loadImagesAsDataType")
+
+        if config.getParam("labelLoss") == "NCC":
+            self.createDistanceMapFromlabel = True
+        else:
+            self.createDistanceMapFromlabel = False
 
         self.registrationGridsize = config.getParam("registrationGridsize")
         self.registrationGridSpacing = config.getParam("registrationGridSpacing")
@@ -96,6 +102,10 @@ class AtlasDataModule(pl.LightningDataModule):
             if labelFileName and os.path.exists(labelFileName):
                 sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkFloat32)
                 labelImage = tio.LabelMap.from_sitk(sitkLabel)
+
+                if self.createDistanceMapFromlabel:
+                    distnaceMapTensor = atlasUtils.createSignedDistanceMap(sitkLabel)
+                    distanceMapImage = tio.ScalarImage(tensor=distnaceMapTensor, affine=scalarImage["affine"])
 
             meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
             meshParamsMatch = False

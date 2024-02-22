@@ -6,7 +6,7 @@ Created on Jul 10, 2023
 from pytorch_lightning.callbacks import BasePredictionWriter
 import os
 
-from imageTransformation import Bilinear
+from imageTransformation import Transformation
 import atlas_utils
 import torchio as tio
 
@@ -17,7 +17,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         self.output_dir = config.getParam("outputPath")
         self.meshDir = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         self.meshSpacing = config.getParam("registrationGridSpacing")
-        self.transformer = Bilinear(zero_boundary=True)
+        self.transformer = Transformation()
         _fileType = config.getParam("fileTypeToWrite")
         if _fileType is None:
             self.fileType = ".mha"  ##would prefer nrrd, but had difficulties with vector orientation in Slicer
@@ -31,6 +31,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
 
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
+        atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
         pos_flow = prediction[0]
         neg_flow = prediction[1]
 
@@ -38,6 +39,9 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         warpedAtlas = self.transformer.sampleImage(
             atlasImages,
             posDeformationFieldAtlas,
+        )
+        warpedAtlasLabels = self.transformer.sampleImage(
+            atlasLabels, posDeformationFieldAtlas, interpolationType="nearest"
         )
 
         negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
@@ -49,17 +53,27 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         atlasOrigin = pl_module.atlasOrigin.tolist()
 
         atlasImages = atlasImages.cpu()
+        atlasLabels = atlasLabels.cpu()
         sampledImages = sampledImages.cpu()
         sampledLabels = sampledLabels.cpu()
         warpedImages = warpedImages.cpu()
         warpedLabels = warpedLabels.cpu()
         warpedAtlas = warpedAtlas.cpu()
+        warpedAtlasLabels = warpedAtlasLabels.cpu()
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
 
         atlas_utils.saveImageTensor(
             atlasImages[0, None, ...],
             os.path.join(self.output_dir, "Atlas" + self.fileType),
+            atlasOrigin,
+            self.meshSpacing,
+            self.meshDir,
+        )
+
+        atlas_utils.saveImageTensor(
+            atlasLabels[0, None, ...],
+            os.path.join(self.output_dir, "AtlasLabel" + self.fileType),
             atlasOrigin,
             self.meshSpacing,
             self.meshDir,
@@ -125,6 +139,15 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             atlas_utils.saveImageTensor(
                 warpedAtlas[i, None, ...],
                 os.path.join(self.output_dir, fileBaseName + "AtlasDef" + self.fileType),
+                atlasOrigin,  # meshOrigin[i].tolist(),
+                self.meshSpacing,
+                self.meshDir,
+            )
+
+            ## save deformed atlas labels in image space
+            atlas_utils.saveImageTensor(
+                warpedAtlasLabels[i, None, ...],
+                os.path.join(self.output_dir, fileBaseName + "AtlasLabelDef" + self.fileType),
                 atlasOrigin,  # meshOrigin[i].tolist(),
                 self.meshSpacing,
                 self.meshDir,

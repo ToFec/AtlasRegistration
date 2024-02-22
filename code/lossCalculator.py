@@ -4,7 +4,7 @@ Created on Apr 28, 2023
 @author: fechter
 """
 from losses import LossFactory
-from imageTransformation import Bilinear
+from imageTransformation import Transformation
 import torch
 from LossWrapper import LossWrapper
 
@@ -52,7 +52,7 @@ class LossCalculator:
             self.smooth_factor = 0.0
             self.smoothLoss = LossFactory.lossMap["Dummy"]
 
-        self.transformer = Bilinear(zero_boundary=True)
+        self.transformer = Transformation()
 
     def _getDefomredImages(
         self, posDeformationField, neg_flow, images, meshes, paddMode="border", interpolationType="bilinear"
@@ -101,7 +101,7 @@ class LossCalculator:
             warpedAtlasLabels = self.transformer.sampleImage(
                 atlasLabels, posDeformationFieldAtlas, interpolationType="nearest"
             )
-            self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(warpedAtlasLabels, sampledLabels)
+            self.lossWrapper.labelSimilarityLoss = self._getDiceloss(warpedAtlasLabels, sampledLabels)
 
         if self.imagePairSimilarityFactor != 0.0:
             deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
@@ -135,6 +135,7 @@ class LossCalculator:
             self.lossWrapper.atlas_pair_sim_loss,
             self.lossWrapper.imgSpaceLabelLoss,
             self.lossWrapper.atlasSpaceLabelLoss,
+            self.lossWrapper.labelSimilarityLoss,
         )
 
     def getLosses(self):
@@ -145,6 +146,7 @@ class LossCalculator:
             atlas_pair_sim_loss,
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
+            labelSimilarityLoss,
         ) = self.getLossesWithoutWeighting()
 
         sim_loss = sim_loss * self.sim_factor
@@ -157,7 +159,17 @@ class LossCalculator:
         imgSpaceLabelLoss = imgSpaceLabelLoss * self.imageSpaceLabelSimFactor
         atlasSpaceLabelLoss = atlasSpaceLabelLoss * self.atlasSpaceLabelSimFactor
 
-        return sim_loss, reg_loss, pair_sim_loss, atlas_pair_sim_loss, imgSpaceLabelLoss, atlasSpaceLabelLoss
+        labelSimilarityLoss = labelSimilarityLoss * self.labelSimilarityFactor
+
+        return (
+            sim_loss,
+            reg_loss,
+            pair_sim_loss,
+            atlas_pair_sim_loss,
+            imgSpaceLabelLoss,
+            atlasSpaceLabelLoss,
+            labelSimilarityLoss,
+        )
 
     def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")

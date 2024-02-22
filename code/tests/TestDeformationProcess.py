@@ -8,7 +8,7 @@ import unittest
 from config import Config
 from atlasDataModule import AtlasDataModule
 import atlas_utils as atlasUtils
-from imageTransformation import Bilinear
+from imageTransformation import Transformation
 import torchio as tio
 import torch
 import SimpleITK as sitk
@@ -36,7 +36,7 @@ class Test(unittest.TestCase):
         neg_flowITK = sitk.ReadImage("./resources/DirectionTest/" + defformation + ".mhd")
         neg_flow_orig = atlasUtils.loadDefField("./resources/DirectionTest/" + defformation + ".mhd")
 
-        transformer = Bilinear()
+        transformer = Transformation()
         for batch in data.train_dataloader():
             images = batch["image"][tio.DATA]
             meshes = batch["samplingMesh"]
@@ -86,11 +86,11 @@ class Test(unittest.TestCase):
         atlasImage, atlasMesh, _, _ = data.getInitalAtlas()
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
-        transformer = Bilinear()
+        transformer = Transformation()
         deformaiton = transformer.getDeformationField(defField)
 
         # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
-        tmpDeformed = transformer(atlasImage, deformaiton)
+        tmpDeformed = transformer.sampleImage(atlasImage, deformaiton)
 
         atlasUtils.saveDefField(
             "./resources/DirectionTest/DefFieldSaved.mhd",
@@ -135,11 +135,10 @@ class Test(unittest.TestCase):
         atlasImage, atlasMesh, _, _ = data.getInitalAtlas()
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
-        transformer = Bilinear()
+        transformer = Transformation()
         deformaiton = transformer.getDeformationField(defField)
 
-        # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
-        tmpDeformed = transformer(atlasImage, deformaiton)
+        tmpDeformed = transformer.sampleImage(atlasImage, deformaiton)
 
         atlasUtils.saveDefField(
             "./resources/AnisotropicDefTest/DefFieldSaved.mhd",
@@ -184,11 +183,10 @@ class Test(unittest.TestCase):
         atlasImage, atlasMesh, _, _ = data.getInitalAtlas()
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
-        transformer = Bilinear()
+        transformer = Transformation()
         deformaiton = transformer.getDeformationField(defField)
 
-        # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
-        tmpDeformed = transformer(atlasImage, deformaiton)
+        tmpDeformed = transformer.sampleImage(atlasImage, deformaiton)
 
         atlasUtils.saveDefField(
             "./resources/TestDeformOnBrain/DefFieldSaved.nrrd",
