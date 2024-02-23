@@ -9,6 +9,7 @@ import os
 from imageTransformation import Transformation
 import atlas_utils
 import torchio as tio
+import torch
 
 
 class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
@@ -53,13 +54,13 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         atlasOrigin = pl_module.atlasOrigin.tolist()
 
         atlasImages = atlasImages.cpu()
-        atlasLabels = atlasLabels.cpu()
+        atlasLabels = torch.argmax(atlasLabels, dim=1, keepdim=True).cpu()
         sampledImages = sampledImages.cpu()
-        sampledLabels = sampledLabels.cpu()
+        sampledLabels = torch.argmax(sampledLabels, dim=1, keepdim=True).cpu()
         warpedImages = warpedImages.cpu()
-        warpedLabels = warpedLabels.cpu()
+        warpedLabels = torch.argmax(warpedLabels, dim=1, keepdim=True).cpu()
         warpedAtlas = warpedAtlas.cpu()
-        warpedAtlasLabels = warpedAtlasLabels.cpu()
+        warpedAtlasLabels = torch.argmax(warpedAtlasLabels, dim=1, keepdim=True).cpu()
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
 
