@@ -20,9 +20,9 @@ class LossCalculator:
 
         self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
 
-        self.diceLoss = config.getParam("labelLoss")
-        if self.diceLoss is not None:
-            self.diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
+        diceLoss = config.getParam("labelLoss")
+        if diceLoss is not None and diceLoss in LossFactory.lossMap:
+            self.diceLoss = LossFactory.lossMap[diceLoss]()
         else:
             self.diceLoss = LossFactory.lossMap["Dummy"]()
 
@@ -98,20 +98,17 @@ class LossCalculator:
         self.lossWrapper.reg_loss = self.regularizationLoss(pos_flow)
 
         if self.labelSimilarityFactor != 0.0:
-            warpedAtlasLabels = self.transformer.sampleImage(
-                atlasLabels, posDeformationFieldAtlas, interpolationType="nearest"
-            )
-            self.lossWrapper.labelSimilarityLoss = self._getDiceloss(warpedAtlasLabels, sampledLabels)
+            warpedAtlasLabels = self.transformer.sampleImage(atlasLabels, posDeformationFieldAtlas)
+            # self.lossWrapper.labelSimilarityLoss = self._getImageSpaceSimilarityLoss(warpedAtlasLabels, sampledLabels)
+            self.lossWrapper.labelSimilarityLoss = self._getDiceloss(sampledLabels, warpedAtlasLabels)
 
         if self.imagePairSimilarityFactor != 0.0:
             deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
             self.lossWrapper.pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, sampledImages)
 
         if self.imageSpaceLabelSimFactor != 0.0:
-            deformedLabels = self._getDefomredImages(
-                posDeformationField, neg_flow, labels, meshes, interpolationType="nearest"
-            )
-            self.lossWrapper.imgSpaceLabelLoss = self._getDiceloss(deformedLabels, sampledLabels)
+            deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
+            self.lossWrapper.imgSpaceLabelLoss = self._getDiceloss(sampledLabels, deformedLabels)
 
         if self.atlasPairSimilarityFactor != 0.0:
             warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
@@ -121,7 +118,7 @@ class LossCalculator:
             )
 
         if self.atlasSpaceLabelSimFactor != 0.0:
-            warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
+            warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
             batch_size = labels.shape[0]
             self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
                 warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
@@ -177,12 +174,10 @@ class LossCalculator:
         posDeformationField = self.transformer.getDeformationField(pos_flow)
         negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
 
-        deformedLabels = self._getDefomredImages(
-            posDeformationField, neg_flow, labels, meshes, interpolationType="nearest"
-        )
+        deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
         imgSpaceDiceloss = self._getDiceloss(deformedLabels, sampledLabels)
 
-        warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
+        warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
         batch_size = labels.shape[0]
         atlasSpaceDiceLoss = self._getDiceloss(warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :])
 

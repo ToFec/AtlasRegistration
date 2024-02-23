@@ -100,7 +100,7 @@ class AtlasDataModule(pl.LightningDataModule):
 
             labelImage = None
             if labelFileName and os.path.exists(labelFileName):
-                sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkFloat32)
+                sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
                 labelImage = tio.LabelMap.from_sitk(sitkLabel)
 
                 if self.createDistanceMapFromlabel:
@@ -123,6 +123,10 @@ class AtlasDataModule(pl.LightningDataModule):
             if labelImage is None:
                 labelData = self._craeteLabelImage(scalarImage, sampleMesh)
                 labelImage = tio.LabelMap(tensor=labelData, affine=scalarImage["affine"])
+
+            newData = torch.nn.functional.one_hot(labelImage.data.squeeze()).movedim(-1, 0)
+            labelImage.data = newData.to(torch.float32)
+
             subjectDict["label"] = labelImage
 
             subjectDict["samplingMesh"] = sampleMesh
@@ -164,7 +168,7 @@ class AtlasDataModule(pl.LightningDataModule):
         labelData = labelData.squeeze(0)
         labelData[labelData < 14] = 0
         labelData[labelData >= 14] = 1
-        labelData = labelData.type(torch.float32)
+        labelData = labelData.type(torch.long)
 
         return labelData
 
@@ -248,12 +252,13 @@ class AtlasDataModule(pl.LightningDataModule):
                 transformer = Transformation(imgShape)
 
                 labels = subject["label"][tio.DATA].detach().clone()
+
+                self.atlasMesh = subject["samplingMesh"].detach().clone()
                 atlasLabel = transformer.sampleImage(
                     labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
                 )[0]
 
-                self.atlasMesh = subject["samplingMesh"].detach().clone()
-                sampledData = transformer.sampleImage(imgData.unsqueeze(0), self.atlasMesh)
+                sampledData = transformer.sampleImage(imgData.unsqueeze(0), self.atlasMesh.unsqueeze(0))
                 self.atlasImage = sampledData[0]
                 self.atlasOrigin = subject["meshOrigin"].detach().clone()
 

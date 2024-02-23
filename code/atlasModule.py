@@ -43,7 +43,10 @@ class AtlasModule(pl.LightningModule):
         self.lrScheduler = useLrScheduler
         self.transformer = Transformation()
         self.save_hyperparameters(logger=False)
-        self.atlasImage = torch.nn.Parameter(atlasImage)
+        if self.alr > 0.0:
+            self.atlasImage = torch.nn.Parameter(atlasImage)
+        else:
+            self.register_buffer("atlasImage", atlasImage, True)
         self.register_buffer("atlasLabel", atlasLabel, True)
         self.register_buffer("atlasMesh", atlasMesh, True)
         self.register_buffer("atlasOrigin", atlasOrigin, True)

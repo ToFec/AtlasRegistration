@@ -342,8 +342,28 @@ class DiceLoss(nn.Module):
         return dice_total
 
 
+class MultiClassMultiChannelDiceCalculator(nn.Module):
+    # only for 2 labels
+    def dice_coeff(self, y_true, y_pred):
+        smooth = 0.0000000001
+        # Flatten
+
+        y_true = y_true.view(y_true.shape[0], y_true.shape[1], -1)
+        y_pred = y_pred.view(y_pred.shape[0], y_pred.shape[1], -1)
+
+        intersection = torch.sum(y_true * y_pred, dim=2)
+
+        score = 2.0 * intersection / (torch.sum(y_true, dim=2) + torch.sum(y_pred, dim=2) + smooth)
+
+        return score.mean()
+
+    def forward(self, reference, prediction, valueToIgnore: torch.tensor = None) -> torch.tensor:
+        dice = self.dice_coeff(reference, prediction)
+        loss = 1 - dice
+        return loss
+
+
 ## to be used when the different labels are not in separater channel
-## not yet tested
 class MultiClassSingleChannelDiceCalculator(nn.Module):
     def forward(self, reference, prediction, valueToIgnore: torch.tensor = None) -> torch.tensor:
         smooth = 0.0000000001
@@ -766,5 +786,6 @@ class LossFactory(object):
         "Dummy": DummyLoss,
         "DiceLossMultiClass": DiceLossMultiClass,
         "MultiClassSingleChannelDiceCalculator": MultiClassSingleChannelDiceCalculator,
+        "MultiClassMultiChannelDiceCalculator": MultiClassMultiChannelDiceCalculator,
         "GeneralDice": GeneralizedDiceLoss,
     }

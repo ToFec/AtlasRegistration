@@ -23,7 +23,7 @@ class Test(unittest.TestCase):
         config.setParam("batchSize", batchSize)
         return config
 
-    def testDiceLossAllClasses(self):
+    def _testDiceLossAllClasses(self):
         batchSize = 2
         data = AtlasDataModule(self.getConfig(batchSize))
         data.prepare_data()
@@ -34,6 +34,18 @@ class Test(unittest.TestCase):
             labels = batch["label"][tio.DATA]
             diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :])
             self.assertAlmostEqual(diceLoss.item(), 0.0648, 3)
+
+    def testDiceLossAllClasses2(self):
+        batchSize = 2
+        data = AtlasDataModule(self.getConfig(batchSize))
+        data.prepare_data()
+        data.setup(stage="fit")
+
+        diceLoss = LossFactory.lossMap["MultiClassMultiChannelDiceCalculator"]()
+        for batch in data.train_dataloader():
+            labels = batch["label"][tio.DATA]
+            diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :])
+            self.assertAlmostEqual(diceLoss.item(), 0.5501, 3)
 
     def testDiceLossSomeClasses(self):
         batchSize = 2
