@@ -111,18 +111,20 @@ class LossCalculator:
             self.lossWrapper.imgSpaceLabelLoss = self._getDiceloss(sampledLabels, deformedLabels)
 
         if self.atlasPairSimilarityFactor != 0.0:
-            warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
             batch_size = images.shape[0]
-            self.lossWrapper.atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(
-                warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
-            )
+            if (batch_size % 2) == 0:
+                warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
+                self.lossWrapper.atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(
+                    warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
+                )
 
         if self.atlasSpaceLabelSimFactor != 0.0:
-            warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
             batch_size = labels.shape[0]
-            self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
-                warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
-            )
+            if (batch_size % 2) == 0:
+                warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
+                self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
+                    warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
+                )
 
     def getLossesWithoutWeighting(self):
         return (
