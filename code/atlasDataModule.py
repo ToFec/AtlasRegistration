@@ -190,7 +190,7 @@ class AtlasDataModule(pl.LightningDataModule):
             augmentations.append(augment)
 
         if self.doNormalisation:
-            transform = tio.ZNormalization(masking_method="label")
+            transform = tio.ZNormalization()  # (masking_method="label")
             augmentations.append(transform)
         return tio.Compose(augmentations)
 
@@ -270,7 +270,7 @@ class AtlasDataModule(pl.LightningDataModule):
                 subject = tio.Subject(
                     {"label": tio.LabelMap(tensor=atlasLabel), "image": tio.ScalarImage(tensor=self.atlasImage)}
                 )
-                transform = tio.ZNormalization(masking_method="label")
+                transform = tio.ZNormalization()  # (masking_method="label")
                 normalizedAtlasSubject = transform(subject)
                 self.atlasImage = normalizedAtlasSubject["image"][tio.DATA]
 
