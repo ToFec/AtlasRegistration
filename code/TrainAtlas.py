@@ -16,6 +16,7 @@ from imageTransformation import Transformation
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
+import torch
 from ImageLogger import ImageLogger
 from DeformationFieldAndDeformedImageWriter import DeformationFieldAndDeformedImageWriter
 
@@ -269,7 +270,9 @@ def runTraining(config):
     )
 
     profiler = pl.profilers.AdvancedProfiler(dirpath=".", filename="perf_logs")
-
+    # profiler = pl.profilers.PyTorchProfiler(
+    #     on_trace_ready=torch.profiler.tensorboard_trace_handler("./tb_logs/profile0")
+    # )
     trainer = pl.Trainer(
         accelerator=config.getParam("accelerator"),
         devices="auto",
@@ -278,7 +281,7 @@ def runTraining(config):
         callbacks=callBackFunctions,
         auto_lr_find=config.getParam("tuneLR"),
         logger=[logger, imageLogger],
-        profiler=profiler,
+        profiler=profiler,  # "pytorch"
         deterministic="warn",
         check_val_every_n_epoch=5,
         max_epochs=max_epochs,

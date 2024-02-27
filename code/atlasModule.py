@@ -203,16 +203,6 @@ class AtlasModule(pl.LightningModule):
             labelSimilarityLoss,
         ) = self.criterion.getLossesWithoutWeighting()
 
-        self.log(
-            "val_loss_uw",
-            sim_loss
-            + reg_loss
-            + pair_sim_loss
-            + atlas_pair_sim_loss
-            + imgSpaceLabelLoss
-            + atlasSpaceLabelLoss
-            + labelSimilarityLoss,
-        )
         self.log("val_sim_loss_uw", sim_loss)
         self.log("val_reg_loss_uw", reg_loss)
         self.log("val_pair_sim_loss_uw", pair_sim_loss)
@@ -241,7 +231,6 @@ class AtlasModule(pl.LightningModule):
             + labelSimilarityLoss
         )
 
-        self.log("val_loss", loss)
         self.log("val_sim_loss", sim_loss)
         self.log("val_reg_loss", reg_loss)
         self.log("val_pair_sim_loss", pair_sim_loss)

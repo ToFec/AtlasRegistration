@@ -31,6 +31,8 @@ class AtlasDataModule(pl.LightningDataModule):
         self.batchSize = config.getParam("batchSize")
         self.train_val_ratio = config.getParam("trainValRatio")
         self.num_workers = config.getParam("numberOfWorkersDataLoader")
+        self.persistentWorkers = config.getParam("numberOfWorkersDataLoader")
+        self.pinMemory = config.getParam("pinMemory")
         self.shuffle = False
         self.imgFileNameColIdx = config.getParam("imageColIdxInTrainFile")
         self.labelFileNameColIdx = config.getParam("labelColIdxInTrainFile")
@@ -354,15 +356,36 @@ class AtlasDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             shuffle=self.shuffle,
             sampler=self.train_sampler,
+            persistent_workers=self.persistentWorkers,
+            pin_memory=self.pinMemory,
         )
 
     # pytorch lightning hook
     def val_dataloader(self):
-        return DataLoader(self.val_set, self.batchSize, num_workers=self.num_workers, sampler=self.validation_sampler)
+        return DataLoader(
+            self.val_set,
+            self.batchSize,
+            num_workers=self.num_workers,
+            sampler=self.validation_sampler,
+            persistent_workers=self.persistentWorkers,
+            pin_memory=self.pinMemory,
+        )
 
     # pytorch lightning hook
     def test_dataloader(self):
-        return DataLoader(self.test_set, self.batchSize, num_workers=self.num_workers)
+        return DataLoader(
+            self.test_set,
+            self.batchSize,
+            num_workers=self.num_workers,
+            persistent_workers=self.persistentWorkers,
+            pin_memory=self.pinMemory,
+        )
 
     def predict_dataloader(self):
-        return DataLoader(self.test_set, self.batchSize, num_workers=self.num_workers)
+        return DataLoader(
+            self.test_set,
+            self.batchSize,
+            num_workers=self.num_workers,
+            persistent_workers=self.persistentWorkers,
+            pin_memory=self.pinMemory,
+        )
