@@ -288,16 +288,16 @@ class AtlasModule(pl.LightningModule):
 
         self.logger.experiment.add_scalar("Loss/" + trainValString, avg_loss, self.current_epoch)
 
-        networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(1), self.getInputAtlasMesh(1))
-
-        networkAtlasInput = torch.Tensor.cpu(networkAtlasInput.detach())
-        self.logger.experiment.add_image(
-            "AtlasCenterSlice",
-            networkAtlasInput[0, 0, int(networkAtlasInput.shape[2] / 2), ...],
-            self.current_epoch,
-            dataformats="HW",
-        )
         if self.alr > 0.0:
+            networkAtlasInput = self.transformer.sampleImage(self.getInputAtlasImage(1), self.getInputAtlasMesh(1))
+
+            networkAtlasInput = torch.Tensor.cpu(networkAtlasInput.detach())
+            self.logger.experiment.add_image(
+                "AtlasCenterSlice",
+                networkAtlasInput[0, 0, int(networkAtlasInput.shape[2] / 2), ...],
+                self.current_epoch,
+                dataformats="HW",
+            )
             for logger in self.loggers:
                 if isinstance(logger, ImageLogger):
                     logger.saveImage(networkAtlasInput, "AtlasImage", self.current_epoch)
