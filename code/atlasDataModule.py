@@ -105,10 +105,6 @@ class AtlasDataModule(pl.LightningDataModule):
                 sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
                 labelImage = tio.LabelMap.from_sitk(sitkLabel)
 
-                if self.createDistanceMapFromlabel:
-                    distnaceMapTensor = atlasUtils.createSignedDistanceMap(sitkLabel)
-                    distanceMapImage = tio.ScalarImage(tensor=distnaceMapTensor, affine=scalarImage["affine"])
-
             meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
             meshParamsMatch = False
             if os.path.exists(meshName):
@@ -126,8 +122,14 @@ class AtlasDataModule(pl.LightningDataModule):
                 labelData = self._craeteLabelImage(scalarImage, sampleMesh)
                 labelImage = tio.LabelMap(tensor=labelData, affine=scalarImage["affine"])
 
-            newData = torch.nn.functional.one_hot(labelImage.data.squeeze()).movedim(-1, 0)
-            labelImage.data = newData.to(torch.float32)
+            if self.createDistanceMapFromlabel:
+                sitkLabel = sitk.GetImageFromArray(labelImage.data.squeeze())
+                sitkLabel.CopyInformation(sitkImage)
+                distnaceMapTensor = torch.from_numpy(atlasUtils.createSignedDistanceMap(sitkLabel))
+                labelImage.data = distnaceMapTensor.to(torch.float32)
+            else:
+                newData = torch.nn.functional.one_hot(labelImage.data.squeeze()).movedim(-1, 0)
+                labelImage.data = newData.to(torch.float32)
 
             subjectDict["label"] = labelImage
 
