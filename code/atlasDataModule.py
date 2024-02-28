@@ -123,9 +123,9 @@ class AtlasDataModule(pl.LightningDataModule):
                 labelImage = tio.LabelMap(tensor=labelData, affine=scalarImage["affine"])
 
             if self.createDistanceMapFromlabel:
-                sitkLabel = sitk.GetImageFromArray(labelImage.data.squeeze())
+                sitkLabel = sitk.GetImageFromArray(labelImage.data.squeeze().swapaxes(0, -1))
                 sitkLabel.CopyInformation(sitkImage)
-                distnaceMapTensor = torch.from_numpy(atlasUtils.createSignedDistanceMap(sitkLabel))
+                distnaceMapTensor = torch.from_numpy(atlasUtils.createSignedDistanceMap(sitkLabel).swapaxes(1, -1))
                 labelImage.data = distnaceMapTensor.to(torch.float32)
             else:
                 newData = torch.nn.functional.one_hot(labelImage.data.squeeze()).movedim(-1, 0)
