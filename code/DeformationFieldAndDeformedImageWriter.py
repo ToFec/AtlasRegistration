@@ -18,6 +18,13 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         self.output_dir = config.getParam("outputPath")
         self.meshDir = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         self.meshSpacing = config.getParam("registrationGridSpacing")
+
+        labelLoss = config.getParam("labelLoss")
+        if labelLoss == "NCC":
+            self.transformDistanceMaps = True
+        else:
+            self.transformDistanceMaps = False
+
         self.transformer = Transformation()
         _fileType = config.getParam("fileTypeToWrite")
         if _fileType is None:
@@ -25,14 +32,28 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         else:
             self.fileType = _fileType
 
+    def convertDistanceMapToLabelMap(self, distanceMap):
+        labelMap = torch.zeros_like(distanceMap)
+        for channel in range(0, distanceMap.shape[1]):
+            labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel
+        return labelMap
+
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes, labels = pl_module.prepare_batch(batch)
+
+        if self.transformDistanceMaps:
+            labels = self.convertDistanceMapToLabelMap(labels)
+
         sampledImages = self.transformer.sampleImage(images, meshes)
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
+
+        if self.transformDistanceMaps:
+            atlasLabels = self.convertDistanceMapToLabelMap(atlasLabels)
+
         pos_flow = prediction[0]
         neg_flow = prediction[1]
 

@@ -217,9 +217,9 @@ class AtlasModule(pl.LightningModule):
         self.log("val_reg_loss_uw", reg_loss)
         self.log("val_pair_sim_loss_uw", pair_sim_loss)
         self.log("val_atlas_pair_sim_loss_uw", atlas_pair_sim_loss)
-        self.log("val_image_space_label_loss_uw", 1 - imgSpaceLabelLoss)
-        self.log("val_atlas_space_label_loss_uw", 1 - atlasSpaceLabelLoss)
-        self.log("val_label_sim_loss_uw", 1 - labelSimilarityLoss)
+        self.log("val_image_space_label_loss_uw", imgSpaceLabelLoss)
+        self.log("val_atlas_space_label_loss_uw", atlasSpaceLabelLoss)
+        self.log("val_label_sim_loss_uw", labelSimilarityLoss)
 
         (
             sim_loss,
@@ -246,9 +246,9 @@ class AtlasModule(pl.LightningModule):
         self.log("val_reg_loss", reg_loss)
         self.log("val_pair_sim_loss", pair_sim_loss)
         self.log("val_atlas_pair_sim_loss", atlas_pair_sim_loss)
-        self.log("val_image_space_label_loss", 1 - imgSpaceLabelLoss)
-        self.log("val_atlas_space_label_loss", 1 - atlasSpaceLabelLoss)
-        self.log("val_label_sim_loss", 1 - labelSimilarityLoss)
+        self.log("val_image_space_label_loss", imgSpaceLabelLoss)
+        self.log("val_atlas_space_label_loss", atlasSpaceLabelLoss)
+        self.log("val_label_sim_loss", labelSimilarityLoss)
 
         if self.logTemporaryDeformationFields:
             for logger in self.loggers:
@@ -272,9 +272,9 @@ class AtlasModule(pl.LightningModule):
         self.log("test_reg_loss", stepInfo["reg_loss"])
         self.log("test_pair_sim_loss", stepInfo["pair_sim_loss"])
         self.log("test_atlas_pair_sim_loss", stepInfo["atlas_pair_sim_loss"])
-        self.log("test_image_space_label_loss", 1 - stepInfo["image_space_label_loss"])
-        self.log("test_atlas_space_label_loss", 1 - stepInfo["atlas_space_label_loss"])
-        self.log("test_label_sim_loss", 1 - stepInfo["label_sim_loss"])
+        self.log("test_image_space_label_loss", stepInfo["image_space_label_loss"])
+        self.log("test_atlas_space_label_loss", stepInfo["atlas_space_label_loss"])
+        self.log("test_label_sim_loss", stepInfo["label_sim_loss"])
 
         return stepInfo
 

@@ -30,6 +30,7 @@ def getCheckPointString(config):
     atlas_lr = config.getParam("atlasLearningRate")
     loss_name = config.getParam("similarityLoss")
     reg_loss_name = config.getParam("regularizationLoss")
+    labelLoss = config.getParam("labelLoss")
 
     reg_factor = config.getParam("regularizationFactor")
     sim_factor = config.getParam("similarityFactor")
@@ -48,10 +49,12 @@ def getCheckPointString(config):
         "atlasRegistration"
         + str(loss_name)
         + "_"
+        + str(labelLoss)
+        + "_"
         + str(reg_loss_name)
-        + "_gridSize_"
+        + "_"
         + gridSizeStr
-        + "_gridSpacing_"
+        + "_"
         + gridSpacingStr
         + "_s_"
         + str(seed)
@@ -73,9 +76,9 @@ def getCheckPointString(config):
         + str(max_epochs)
         + "_b_"
         + str(batch_size)
-        + "_n_lr_"
+        + "_nlr_"
         + str(lr)
-        + "_a_lr_"
+        + "_alr_"
         + str(atlas_lr)
     )
     return stringForStoringVariables
