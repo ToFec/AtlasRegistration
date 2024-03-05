@@ -32,17 +32,11 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         else:
             self.fileType = _fileType
 
-    def convertDistanceMapToLabelMap(self, distanceMap):
-        labelMap = torch.zeros_like(distanceMap)
-        for channel in range(0, distanceMap.shape[1]):
-            labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel
-        return labelMap
-
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes, labels = pl_module.prepare_batch(batch)
 
         if self.transformDistanceMaps:
-            labels = self.convertDistanceMapToLabelMap(labels)
+            labels = atlas_utils.convertDistanceMapToLabelMap(labels)
 
         sampledImages = self.transformer.sampleImage(images, meshes)
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
@@ -52,7 +46,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
 
         if self.transformDistanceMaps:
-            atlasLabels = self.convertDistanceMapToLabelMap(atlasLabels)
+            atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)
 
         pos_flow = prediction[0]
         neg_flow = prediction[1]

@@ -10,6 +10,26 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 
+def convertDistanceMapToLabelMap(distanceMap):
+    labelMap = torch.zeros_like(distanceMap)
+    for channel in range(0, distanceMap.shape[1]):
+        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel
+    return labelMap
+
+
+def resampleSitkImage(image, transform, nn=False, reference=None):
+    if reference is not None:
+        reference_image = reference
+    else:
+        reference_image = image
+    if nn:
+        interpolator = sitk.sitkNearestNeighbor
+    else:
+        interpolator = sitk.sitkCosineWindowedSinc
+    default_value = 0.0
+    return sitk.Resample(image, reference_image, transform, interpolator, default_value)
+
+
 def createSignedDistanceMap(sitkLabel):
     array = sitk.GetArrayViewFromImage(sitkLabel)
     uniqueValues = np.unique(array)
@@ -44,6 +64,14 @@ def loadDefField(filename):
     defField = defField.permute([0, 4, 3, 2, 1])
 
     return defField
+
+
+def getMeshSpacing(mesh):
+    spacing0 = torch.sqrt(torch.sum(torch.pow((mesh[:, 0, 0, 0] - mesh[:, 1, 0, 0]), 2)))
+    spacing1 = torch.sqrt(torch.sum(torch.pow((mesh[:, 0, 0, 0] - mesh[:, 0, 1, 0]), 2)))
+    spacing2 = torch.sqrt(torch.sum(torch.pow((mesh[:, 0, 0, 0] - mesh[:, 0, 0, 1]), 2)))
+
+    return torch.tensor((spacing0, spacing1, spacing2))
 
 
 def saveDefField(filename, defField, origin, spacing, direction):
@@ -294,7 +322,7 @@ def get_first_order_reg_loss(disp_flow):
     return reg_loss
 
 
-def jacobian_determinant(deform_field):
+def jacobian_determinant(deform_field, spacing):
     """
     jacobian determinant of a displacement field.
     NB: to compute the spatial gradients, we use np.gradient.
@@ -313,7 +341,7 @@ def jacobian_determinant(deform_field):
 
     # compute gradients
     # specify the voxel spacing!!!
-    J = np.gradient(deform_map_np, 2.0 / 79.0, 2.0 / 191.0, 2.0 / 191.0, 1.0)
+    J = np.gradient(deform_map_np, *[*spacing, 1.0])
 
     # 3D flow
     if nb_dims == 3:

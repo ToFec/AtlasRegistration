@@ -36,6 +36,7 @@ class AtlasDataModule(pl.LightningDataModule):
         self.shuffle = False
         self.imgFileNameColIdx = config.getParam("imageColIdxInTrainFile")
         self.labelFileNameColIdx = config.getParam("labelColIdxInTrainFile")
+        self.initalTransformationIdx = config.getParam("initialTransformationIdx")
         self.randomSplit = config.getParam("doRandomTrainValSetSplit")
         self.doAugmentation = config.getParam("doDataAugmentation")
         self.doNormalisation = config.getParam("doNormalisation")
@@ -85,17 +86,30 @@ class AtlasDataModule(pl.LightningDataModule):
             for row in csvReader:
                 imageFileName = row[self.imgFileNameColIdx]
 
+                transformationFileName = None
+                if (
+                    self.initalTransformationIdx is not None
+                    and self.initalTransformationIdx > -1
+                    and len(row) > self.initalTransformationIdx
+                ):
+                    transformationFileName = row[self.initalTransformationIdx]
+
                 if os.path.exists(imageFileName):
                     labelFileName = None
                     if self.labelFileNameColIdx > -1 and len(row) > self.labelFileNameColIdx:
                         labelFileName = row[self.labelFileNameColIdx]
-                    subject = self.getSubject(imageFileName, labelFileName)
+                    subject = self.getSubject(imageFileName, labelFileName, transformationFileName)
                     container.append(subject)
 
-    def getSubject(self, imageFileName, labelFileName):
+    def getSubject(self, imageFileName, labelFileName, transformationFileName=None):
         subject = None
         if os.path.exists(imageFileName):
             sitkImage = sitk.ReadImage(imageFileName, sitk.GetPixelIDValueFromString(self.loadImagesAsDataType))
+
+            if transformationFileName is not None:
+                transform = sitk.ReadTransform(transformationFileName)
+                sitkImage = atlasUtils.resampleSitkImage(sitkImage, transform)
+
             scalarImage = tio.ScalarImage.from_sitk(sitkImage)
             subjectDict = {"image": scalarImage}
             subjectDict["imagePath"] = imageFileName

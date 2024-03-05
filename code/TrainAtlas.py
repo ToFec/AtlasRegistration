@@ -4,6 +4,7 @@ import sys
 from atlasDataModule import AtlasDataModule
 from atlasModule import AtlasModule
 import NetworkFactory
+from PredictionEvaluationWriter import PredictionEvaluationWriter
 
 sys.path.append(os.path.realpath(".."))
 import argparse
@@ -127,8 +128,12 @@ def runTests(config):
 def runPrediction(config):
     model, data = getModelAndData(config, "test")
     pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch")
+    evaluationWriter = PredictionEvaluationWriter(config, write_interval="batch_and_epoch")
     trainer = pl.Trainer(
-        accelerator=config.getParam("accelerator"), devices="auto", precision=32, callbacks=[pred_writer]
+        accelerator=config.getParam("accelerator"),
+        devices="auto",
+        precision=32,
+        callbacks=[evaluationWriter],
     )
 
     start = dt.datetime.now()

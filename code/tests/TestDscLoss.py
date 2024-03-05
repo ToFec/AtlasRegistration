@@ -56,8 +56,9 @@ class Test(unittest.TestCase):
         diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
         for batch in data.train_dataloader():
             labels = batch["label"][tio.DATA]
+            labels = torch.argmax(labels, dim=1, keepdim=True)
             diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :], torch.tensor(0))
-            self.assertAlmostEqual(diceLoss.item(), 0.6044, 3)
+            self.assertAlmostEqual(diceLoss.item(), 0.6825, 3)
 
     def testDiceLossSingleClass(self):
         batchSize = 2
@@ -68,6 +69,7 @@ class Test(unittest.TestCase):
         diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
         for batch in data.train_dataloader():
             labels = batch["label"][tio.DATA]
+            labels = torch.argmax(labels, dim=1, keepdim=True)
             diceLoss = diceLoss(labels[: int(batchSize / 2)], labels[int(batchSize / 2) :], torch.tensor([0, 1, 2, 3]))
             self.assertAlmostEqual(diceLoss.item(), 0.8784, 3)
 

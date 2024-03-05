@@ -363,37 +363,40 @@ class MultiClassMultiChannelDiceCalculator(nn.Module):
         return loss
 
 
-## to be used when the different labels are not in separater channel
+## to be used when the different labels are not in separate channel
 class MultiClassSingleChannelDiceCalculator(nn.Module):
-    def forward(self, reference, prediction, valueToIgnore: torch.tensor = None) -> torch.tensor:
+    def getDscValues(self, reference, prediction, valueToIgnore: torch.tensor = None):
         smooth = 0.0000000001
         uniqueValsRef = torch.unique(reference.detach(), sorted=True)
         uniqueValsPred = torch.unique(prediction.detach(), sorted=True)
         uniqueVals = uniqueValsRef[(uniqueValsRef.view(1, -1) == uniqueValsPred.view(-1, 1)).any(dim=0)]
 
-        denominator = torch.tensor(0.0, device=prediction.device)
-        numerator = torch.tensor(0.0, device=prediction.device)
         if valueToIgnore is not None:
             uniqueVals = uniqueVals[
                 torch.tensor([(valueToIgnore == uniqueVal).any() for uniqueVal in uniqueVals]).bitwise_not()
             ]
 
-        for label in uniqueVals:
-            referenceLabelVol = torch.zeros_like(reference)
+        dscValues = torch.zeros(uniqueVals.shape)
+        for labelIdx, label in enumerate(uniqueVals):
+            referenceLabelVol = torch.zeros_like(reference, dtype=torch.float)
             referenceLabelVol[reference == label] = (reference[reference == label] + 1.0) / (label + 1.0)
 
-            predictionLabelVol = torch.zeros_like(prediction)
+            predictionLabelVol = torch.zeros_like(prediction, dtype=torch.float)
             predictionLabelVol[prediction == label] = (prediction[prediction == label] + 1.0) / (label + 1.0)
 
             intersection = torch.sum(referenceLabelVol * predictionLabelVol)
 
             labelSum = torch.sum(predictionLabelVol) + torch.sum(referenceLabelVol)
-            denominator = denominator + labelSum
-            numerator = numerator + intersection
 
-        dice = 2.0 * numerator / (denominator + smooth)
+            dice = 2.0 * intersection / (labelSum + smooth)
+            dscValues[labelIdx] = dice
 
-        loss = 1 - dice
+        return dscValues
+
+    def forward(self, reference, prediction, valueToIgnore: torch.tensor = None) -> torch.tensor:
+        dscValues = self.getDscValues(reference, prediction, valueToIgnore)
+        loss = 1 - dscValues.mean()
+
         return loss
 
 
