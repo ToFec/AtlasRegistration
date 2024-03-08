@@ -51,17 +51,15 @@ class PredictionEvaluationWriter(BasePredictionWriter):
 
         meshSpacing = atlas_utils.getMeshSpacing(meshes[0, ...])
 
-        if self.transformDistanceMaps:
-            labels = atlas_utils.convertDistanceMapToLabelMap(labels)
-
-        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
-
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
 
         if self.transformDistanceMaps:
+            labels = atlas_utils.convertDistanceMapToLabelMap(labels)
             atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)
+
+        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
         pos_flow = prediction[0]
         neg_flow = prediction[1]

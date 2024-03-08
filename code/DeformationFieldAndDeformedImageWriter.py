@@ -35,18 +35,16 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes, labels = pl_module.prepare_batch(batch)
 
-        if self.transformDistanceMaps:
-            labels = atlas_utils.convertDistanceMapToLabelMap(labels)
-
-        sampledImages = self.transformer.sampleImage(images, meshes)
-        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
-
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
 
         if self.transformDistanceMaps:
+            labels = atlas_utils.convertDistanceMapToLabelMap(labels)
             atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)
+
+        sampledImages = self.transformer.sampleImage(images, meshes)
+        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
         pos_flow = prediction[0]
         neg_flow = prediction[1]

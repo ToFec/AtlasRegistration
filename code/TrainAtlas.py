@@ -5,6 +5,7 @@ from atlasDataModule import AtlasDataModule
 from atlasModule import AtlasModule
 import NetworkFactory
 from PredictionEvaluationWriter import PredictionEvaluationWriter
+import logging
 
 sys.path.append(os.path.realpath(".."))
 import argparse
@@ -133,7 +134,7 @@ def runPrediction(config):
         accelerator=config.getParam("accelerator"),
         devices="auto",
         precision=32,
-        callbacks=[evaluationWriter],
+        callbacks=[pred_writer, evaluationWriter],
     )
 
     start = dt.datetime.now()
@@ -318,6 +319,28 @@ parser.add_argument("-p", "--predict", dest="predict", action="store_true")
 parser.add_argument("-s", "--testSampling", dest="testSampling", default=0, type=int)
 
 
+def valiateConfigFile(configuration: Config):
+    useAtlasSpaceAsReferenceForMeshCreation = configuration.getParam("useAtlasSpaceAsReferenceForMeshCreation")
+    atlasImage = configuration.getParam("atlasImage")
+    initializeAtlasWithAverageImg = configuration.getParam("initializeAtlasWithAverageImg")
+
+    retVal = True
+
+    if useAtlasSpaceAsReferenceForMeshCreation:
+        if initializeAtlasWithAverageImg:
+            retVal = False
+            logging.warn(
+                "Configuration mistake: initializeAtlasWithAverageImg and useAtlasSpaceAsReferenceForMeshCreation must not both be true"
+            )
+        if atlasImage is None or not os.path.exists(atlasImage):
+            retVal = False
+            logging.warn(
+                "Configuration mistake: when useAtlasSpaceAsReferenceForMeshCreation is true, atlasImage has to be set to a valid value"
+            )
+
+    return retVal
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -326,11 +349,13 @@ if __name__ == "__main__":
         config = Config(configFile)
     else:
         config = Config()
-    if args.runTests:
-        runTests(config)
-    elif args.predict:
-        runPrediction(config)
-    elif args.testSampling > 0:
-        runTestImgSampling(config, args.testSampling)
-    else:
-        runTraining(config)
+
+    if valiateConfigFile(config):
+        if args.runTests:
+            runTests(config)
+        elif args.predict:
+            runPrediction(config)
+        elif args.testSampling > 0:
+            runTestImgSampling(config, args.testSampling)
+        else:
+            runTraining(config)

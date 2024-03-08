@@ -44,6 +44,10 @@ class AtlasDataModule(pl.LightningDataModule):
         self.atlasDataToLoad = config.getParam("atlasImage")
         self.atlasLabelToLoad = config.getParam("atlasLabel")
         self.loadImagesAsDataType = config.getParam("loadImagesAsDataType")
+        self.useAtlasSpaceAsReferenceForMeshCreation = config.getParam("useAtlasSpaceAsReferenceForMeshCreation")
+
+        if self.useAtlasSpaceAsReferenceForMeshCreation is None:
+            self.useAtlasSpaceAsReferenceForMeshCreation = False
 
         if config.getParam("labelLoss") == "NCC":
             self.createDistanceMapFromlabel = True
@@ -128,6 +132,11 @@ class AtlasDataModule(pl.LightningDataModule):
                     and sampleMeshSpacing == self.registrationGridSpacing
                 ):
                     meshParamsMatch = True
+
+                if self.useAtlasSpaceAsReferenceForMeshCreation and self.atlasOrigin is not None:
+                    if (self.atlasOrigin != sampleMeshOrigin).all():
+                        meshParamsMatch = False
+
             if not meshParamsMatch:
                 sampleMesh, sampleMeshOrigin = self.getSampleMesh(scalarImage, labelImage)
                 torch.save([sampleMesh, sampleMeshOrigin, self.registrationGridSpacing], meshName)
@@ -229,95 +238,91 @@ class AtlasDataModule(pl.LightningDataModule):
         return train_subjects, val_subjects
 
     def _setAtlasImage(self):
-        if len(self.train_subjects) > 0:
-            atlasLabel = None
-            if self.initializeAtlasWithAverageImg:
-                imgShape = list(self.train_subjects[0]["samplingMesh"].shape)
-                imgShape[0] = 1
-                imgShape = [1] + imgShape
-                transformer = Transformation(imgShape)
-                avgImg = torch.zeros(imgShape)
-                for train_subject in self.train_subjects:
-                    tmpImg = train_subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
-                    tmpMesh = train_subject["samplingMesh"].unsqueeze(0)
-                    sampledData = transformer.sampleImage(tmpImg, tmpMesh)
-                    avgImg = avgImg + sampledData
-                avgImg = avgImg / len(self.train_subjects)
-                self.atlasImage = avgImg[0]
-                self.atlasOrigin = torch.zeros(3)  # [0.0, 0.0, 0.0]
-                self.atlasMesh = transformer.identityTransform
-            elif self.atlasDataToLoad is not None and os.path.exists(self.atlasDataToLoad):
-                subject = self.getSubject(self.atlasDataToLoad, self.atlasLabelToLoad)
+        atlasLabel = None
+        if self.initializeAtlasWithAverageImg:
+            imgShape = list(self.train_subjects[0]["samplingMesh"].shape)
+            imgShape[0] = 1
+            imgShape = [1] + imgShape
+            transformer = Transformation(imgShape)
+            avgImg = torch.zeros(imgShape)
+            for train_subject in self.train_subjects:
+                tmpImg = train_subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
+                tmpMesh = train_subject["samplingMesh"].unsqueeze(0)
+                sampledData = transformer.sampleImage(tmpImg, tmpMesh)
+                avgImg = avgImg + sampledData
+            avgImg = avgImg / len(self.train_subjects)
+            self.atlasImage = avgImg[0]
+            self.atlasOrigin = torch.zeros(3)  # [0.0, 0.0, 0.0]
+            self.atlasMesh = transformer.identityTransform
+        elif self.atlasDataToLoad is not None and os.path.exists(self.atlasDataToLoad):
+            subject = self.getSubject(self.atlasDataToLoad, self.atlasLabelToLoad)
 
-                imgShape = list(subject["samplingMesh"].shape)
-                imgShape[0] = 1
-                imgShape = [1] + imgShape
-                transformer = Transformation(imgShape)
+            imgShape = list(subject["samplingMesh"].shape)
+            imgShape[0] = 1
+            imgShape = [1] + imgShape
+            transformer = Transformation(imgShape)
 
-                tmpImg = subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
-                sampledData = transformer.sampleImage(tmpImg, subject["samplingMesh"].unsqueeze(0))
+            tmpImg = subject["image"][tio.DATA].unsqueeze(0).type(torch.FloatTensor)
+            sampledData = transformer.sampleImage(tmpImg, subject["samplingMesh"].unsqueeze(0))
 
-                if self.atlasLabelToLoad is not None:
-                    labels = subject["label"][tio.DATA]
-                    atlasLabel = transformer.sampleImage(
-                        labels.unsqueeze(0), subject["samplingMesh"].unsqueeze(0), interpolationType="nearest"
-                    )[0]
-
-                self.atlasImage = sampledData[0]
-                self.atlasOrigin = subject["meshOrigin"]
-                self.atlasMesh = transformer.identityTransform
-            else:
-                subject = self.train_subjects[0]
-                imgData = subject["image"][tio.DATA].detach().clone().type(torch.FloatTensor)
-                imgShape = list(subject["samplingMesh"].shape)
-                imgShape[0] = 1
-                imgShape = [1] + imgShape
-                transformer = Transformation(imgShape)
-
-                labels = subject["label"][tio.DATA].detach().clone()
-
-                self.atlasMesh = subject["samplingMesh"].detach().clone()
+            if self.atlasLabelToLoad is not None:
+                labels = subject["label"][tio.DATA]
                 atlasLabel = transformer.sampleImage(
-                    labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
+                    labels.unsqueeze(0), subject["samplingMesh"].unsqueeze(0), interpolationType="nearest"
                 )[0]
 
-                sampledData = transformer.sampleImage(imgData.unsqueeze(0), self.atlasMesh.unsqueeze(0))
-                self.atlasImage = sampledData[0]
-                self.atlasOrigin = subject["meshOrigin"].detach().clone()
-
-            if atlasLabel is None:
-                atlasLabel = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
-            if self.doNormalisation:
-                subject = tio.Subject(
-                    {"label": tio.LabelMap(tensor=atlasLabel), "image": tio.ScalarImage(tensor=self.atlasImage)}
-                )
-                transform = tio.ZNormalization()  # (masking_method="label")
-                normalizedAtlasSubject = transform(subject)
-                self.atlasImage = normalizedAtlasSubject["image"][tio.DATA]
-
-            self.atlasLabel = atlasLabel.unsqueeze(0)
-            self.atlasImage = self.atlasImage.unsqueeze(0)
-            self.atlasMesh = self.atlasMesh.unsqueeze(0)
+            self.atlasImage = sampledData[0]
+            self.atlasOrigin = subject["meshOrigin"]
+            self.atlasMesh = transformer.identityTransform
         else:
-            self.atlasImage = None
-            self.atlasLabel = None
-            self.atlasMesh = None
-            self.atlasOrigin = None
+            subject = self.train_subjects[0]
+            imgData = subject["image"][tio.DATA].detach().clone().type(torch.FloatTensor)
+            imgShape = list(subject["samplingMesh"].shape)
+            imgShape[0] = 1
+            imgShape = [1] + imgShape
+            transformer = Transformation(imgShape)
+
+            labels = subject["label"][tio.DATA].detach().clone()
+
+            self.atlasMesh = subject["samplingMesh"].detach().clone()
+            atlasLabel = transformer.sampleImage(
+                labels.unsqueeze(0), self.atlasMesh.unsqueeze(0), interpolationType="nearest"
+            )[0]
+
+            sampledData = transformer.sampleImage(imgData.unsqueeze(0), self.atlasMesh.unsqueeze(0))
+            self.atlasImage = sampledData[0]
+            self.atlasOrigin = subject["meshOrigin"].detach().clone()
+
+        if atlasLabel is None:
+            atlasLabel = self._craeteLabelImageData(self.atlasImage, self.atlasMesh)
+        if self.doNormalisation:
+            subject = tio.Subject(
+                {"label": tio.LabelMap(tensor=atlasLabel), "image": tio.ScalarImage(tensor=self.atlasImage)}
+            )
+            transform = tio.ZNormalization()  # (masking_method="label")
+            normalizedAtlasSubject = transform(subject)
+            self.atlasImage = normalizedAtlasSubject["image"][tio.DATA]
+
+        self.atlasLabel = atlasLabel.unsqueeze(0)
+        self.atlasImage = self.atlasImage.unsqueeze(0)
+        self.atlasMesh = self.atlasMesh.unsqueeze(0)
 
     def getSampleMesh(self, scalarImage, labelImage):
         sitkScalarImage = scalarImage.as_sitk()
 
-        if labelImage:
-            sitkLabelImage = labelImage.as_sitk()
-            label_statistic = sitk.LabelIntensityStatisticsImageFilter()
-            label_statistic.Execute(sitkLabelImage > 0, sitkLabelImage)
-            centerPoint = label_statistic.GetCentroid(1)
+        if self.useAtlasSpaceAsReferenceForMeshCreation and self.atlasOrigin is not None:
+            gridOrigin = self.atlasOrigin
         else:
-            centerPoint = sitkScalarImage.TransformContinuousIndexToPhysicalPoint(
-                np.asarray(sitkScalarImage.GetSize()) / 2.0
-            )
-
-        centerPoint = centerPoint - (np.multiply(self.registrationGridsize, self.registrationGridSpacing) / 2.0)
+            if labelImage:
+                sitkLabelImage = labelImage.as_sitk()
+                label_statistic = sitk.LabelIntensityStatisticsImageFilter()
+                label_statistic.Execute(sitkLabelImage > 0, sitkLabelImage)
+                centerPoint = label_statistic.GetCentroid(1)
+            else:
+                centerPoint = sitkScalarImage.TransformContinuousIndexToPhysicalPoint(
+                    np.asarray(sitkScalarImage.GetSize()) / 2.0
+                )
+            gridOrigin = centerPoint - (np.multiply(self.registrationGridsize, self.registrationGridSpacing) / 2.0)
 
         imgSize = torch.asarray(sitkScalarImage.GetSize())
         dirMatrix = torch.inverse(torch.Tensor(sitkScalarImage.GetDirection()).reshape([3, 3]))
@@ -325,14 +330,13 @@ class AtlasDataModule(pl.LightningDataModule):
         spacing = torch.Tensor(sitkScalarImage.GetSpacing())
 
         gridVecWorldC = [
-            (torch.arange(s) * self.registrationGridSpacing[idx]) + centerPoint[idx]
+            (torch.arange(s) * self.registrationGridSpacing[idx]) + gridOrigin[idx]
             for idx, s in enumerate(self.registrationGridsize)
         ]
         gridWorldC = torch.meshgrid(*gridVecWorldC)
         gridShape = gridWorldC[0].shape + (len(gridWorldC),)
         flatGridWorldC = [s.flatten() for s in gridWorldC]
         flatGridWorldC = torch.stack(flatGridWorldC, 1)
-        gridOrigin = flatGridWorldC[0, :]
 
         flatImgC = torch.matmul(dirMatrix, ((flatGridWorldC - orig) / spacing)[:, :, None])
         flatImgC = flatImgC.squeeze()
@@ -348,8 +352,12 @@ class AtlasDataModule(pl.LightningDataModule):
 
     # pytorch lightning hook
     def setup(self, stage: Optional[str] = None):
-        self._prepare_data()
-        self._setAtlasImage()
+        if self.useAtlasSpaceAsReferenceForMeshCreation:
+            self._setAtlasImage()
+            self._prepare_data()
+        else:
+            self._prepare_data()
+            self._setAtlasImage()
         transform = self._getAugmentationTransform()
         if stage == "fit" or stage is None:
             train_subjects, val_subjects = self._dataSplit()
