@@ -27,7 +27,28 @@ class Test(unittest.TestCase):
         config.setParam("batchSize", batchSize)
         return config
 
-    def testDeformationCombination(self):
+    def testApplicationItkRegistrationMatrix2(self):
+        img = sitk.ReadImage("./resources/ITKRegMatrix/orig.nii.gz")
+        reg = sitk.ReadTransform("./resources/ITKRegMatrix/affineRegITK.txt")
+
+        # resampledImg = atlasUtils.resampleSitkImage(img, reg)
+        # sitk.WriteImage(resampledImg, "./resources/ITKRegMatrix/origRes.nii.gz")
+
+        atlasUtils.applyRigidRegistrationToImgHeader(img, reg)
+        sitk.WriteImage(img, "./resources/ITKRegMatrix/t1Reg.nrrd")
+
+    def testApplicationItkRegistrationMatrix(self):
+        img = sitk.ReadImage("./resources/AffineReg2/t1.nrrd")
+        reg = sitk.ReadTransform("./resources/AffineReg2/reg.tfm")
+        # reg = sitk.ReadTransform("./resources/AffineReg2/trans222.tfm")
+
+        # resampledImg = atlasUtils.resampleSitkImage(img, reg)
+        # sitk.WriteImage(resampledImg, "./resources/AffineReg2/origRes.nii.gz")
+
+        atlasUtils.applyRigidRegistrationToImgHeader(img, reg)
+        sitk.WriteImage(img, "./resources/AffineReg2/t1Reg.nrrd")
+
+    def _testDeformationCombination(self):
         batchSize = 2
         data = AtlasDataModule(self.getConfig(batchSize))
         data.prepare_data()

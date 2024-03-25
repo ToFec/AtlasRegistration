@@ -8,6 +8,7 @@ import pytorch_lightning as pl
 from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from torchio.data.io import _read_itk_matrix
 
 
 def convertDistanceMapToLabelMap(distanceMap):
@@ -28,6 +29,95 @@ def resampleSitkImage(image, transform, nn=False, reference=None):
         interpolator = sitk.sitkCosineWindowedSinc
     default_value = 0.0
     return sitk.Resample(image, reference_image, transform, interpolator, default_value)
+
+    # as an alternative we could also use the scaling matrix of the singular value decomposition
+
+
+def getScaling(npTransformationMatrix):
+    scalingX = np.linalg.norm(npTransformationMatrix[:, 0])
+    scalingY = np.linalg.norm(npTransformationMatrix[:, 1])
+    scalingZ = np.linalg.norm(npTransformationMatrix[:, 2])
+    return scalingX, scalingY, scalingZ
+
+
+def normalize(npTransformationMatrix):
+    scalingX, scalingY, scalingZ = getScaling(npTransformationMatrix)
+    npTransformationMatrix[:, 0] = npTransformationMatrix[:, 0] / scalingX
+    npTransformationMatrix[:, 1] = npTransformationMatrix[:, 1] / scalingY
+    npTransformationMatrix[:, 2] = npTransformationMatrix[:, 2] / scalingZ
+
+
+def addScaling(npTransformationMatrix, scaleX, scaleY, scaleZ):
+    npTransformationMatrix[:, 0] = npTransformationMatrix[:, 0] * scaleX
+    npTransformationMatrix[:, 1] = npTransformationMatrix[:, 1] * scaleY
+    npTransformationMatrix[:, 2] = npTransformationMatrix[:, 2] * scaleZ
+
+
+def _from_itk_convention(matrix):
+    """LPS to RAS"""
+    FLIPXY = np.diag([-1, -1, 1, 1])
+    matrix = np.dot(matrix, FLIPXY)
+    matrix = np.dot(FLIPXY, matrix)
+    matrix = np.linalg.inv(matrix)
+    return matrix
+
+
+def itkToRasMatrix(transform):
+    """Read an affine transform in ITK's .tfm format"""
+    parameters = transform.GetParameters()
+    rotation_parameters = parameters[:9]
+    rotation_matrix = np.array(rotation_parameters).reshape(3, 3)
+    translation_parameters = parameters[9:]
+    translation_vector = np.array(translation_parameters).reshape(3, 1)
+    matrix = np.hstack([rotation_matrix, translation_vector])
+    homogeneous_matrix_lps = np.vstack([matrix, [0, 0, 0, 1]])
+    homogeneous_matrix_ras = _from_itk_convention(homogeneous_matrix_lps)
+    return homogeneous_matrix_ras
+
+
+def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transform):
+    transformationMatrix = transform.GetParameters()
+
+    npTransformationMatrix = np.asarray(
+        [
+            (transformationMatrix[0], transformationMatrix[1], transformationMatrix[2], transformationMatrix[9]),
+            (transformationMatrix[3], transformationMatrix[4], transformationMatrix[5], transformationMatrix[10]),
+            (transformationMatrix[6], transformationMatrix[7], transformationMatrix[8], transformationMatrix[11]),
+            (0, 0, 0, 1),
+        ]
+    )
+    npTransformationMatrix = np.linalg.inv(npTransformationMatrix)
+
+    # scalingX, scalingY, scalingZ = getScaling(npTransformationMatrix)
+    imgOrigin = image.GetOrigin()
+    # imgSpacing = image.GetSpacing()
+    imgDir = image.GetDirection()
+
+    imageOrientationPatient = np.array(
+        [
+            (imgDir[0], imgDir[1], imgDir[2], 0),
+            (imgDir[3], imgDir[4], imgDir[5], 0),
+            (imgDir[6], imgDir[7], imgDir[8], 0),
+            (0, 0, 0, 1),
+        ]
+    )
+
+    ## the new image spcing is already in the transformation matrix, so we do not need to add it separately
+    # imgSpacingNew = (imgSpacing[0] * scalingX, imgSpacing[1] * scalingY, imgSpacing[2] * scalingZ)
+
+    imgOriginNew = npTransformationMatrix @ np.append(imgOrigin, 1)
+    imgOriginNew = imgOriginNew[0:3].tolist()
+
+    newImageOrientationPatient = npTransformationMatrix @ imageOrientationPatient
+
+    # normalize(newImageOrientationPatient)
+
+    newImageOrientationPatient = newImageOrientationPatient[0:3, 0:3].ravel().tolist()
+
+    image.SetOrigin(imgOriginNew)
+    image.SetDirection(newImageOrientationPatient)
+    ## the new image spcing is already in the transformation matrix, so we do not need to add it separately
+    # image.SetSpacing(imgSpacingNew)
 
 
 def createSignedDistanceMap(sitkLabel):
