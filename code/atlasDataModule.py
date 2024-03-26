@@ -324,7 +324,9 @@ class AtlasDataModule(pl.LightningDataModule):
                 centerPoint = sitkScalarImage.TransformContinuousIndexToPhysicalPoint(
                     np.asarray(sitkScalarImage.GetSize()) / 2.0
                 )
-            gridOrigin = centerPoint - (np.multiply(self.registrationGridsize, self.registrationGridSpacing) / 2.0)
+            gridOrigin = torch.Tensor(
+                centerPoint - (np.multiply(self.registrationGridsize, self.registrationGridSpacing) / 2.0)
+            )
 
         imgSize = torch.asarray(sitkScalarImage.GetSize())
         dirMatrix = torch.inverse(torch.Tensor(sitkScalarImage.GetDirection()).reshape([3, 3]))
