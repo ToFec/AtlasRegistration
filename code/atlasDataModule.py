@@ -112,7 +112,7 @@ class AtlasDataModule(pl.LightningDataModule):
 
             if transformationFileName is not None:
                 transform = sitk.ReadTransform(transformationFileName)
-                sitkImage = atlasUtils.resampleSitkImage(sitkImage, transform)
+                atlasUtils.applyRigidRegistrationToImgHeader(sitkImage, transform)
 
             scalarImage = tio.ScalarImage.from_sitk(sitkImage)
             subjectDict = {"image": scalarImage}
@@ -121,6 +121,8 @@ class AtlasDataModule(pl.LightningDataModule):
             labelImage = None
             if labelFileName and os.path.exists(labelFileName):
                 sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
+                if transformationFileName is not None:
+                    atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
                 labelImage = tio.LabelMap.from_sitk(sitkLabel)
 
             meshName = os.path.splitext(imageFileName)[0] + "Mesh.pt"
