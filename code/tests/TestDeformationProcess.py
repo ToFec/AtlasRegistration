@@ -27,6 +27,13 @@ class Test(unittest.TestCase):
         config.setParam("batchSize", batchSize)
         return config
 
+    def testApplicationItkRegistrationMatrix3(self):
+        img = sitk.ReadImage("./resources/ITKRegMatrix2/orig_1.nii.gz")
+        reg = sitk.ReadTransform("./resources/ITKRegMatrix2/affineRegistrationMatrix.txt")
+
+        atlasUtils.applyRigidRegistrationToImgHeader(img, reg)
+        sitk.WriteImage(img, "./resources/ITKRegMatrix2/t1Reg.nrrd")
+
     def testApplicationItkRegistrationMatrix2(self):
         img = sitk.ReadImage("./resources/ITKRegMatrix/orig.nii.gz")
         reg = sitk.ReadTransform("./resources/ITKRegMatrix/affineRegITK.txt")

@@ -88,9 +88,8 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
     )
     npTransformationMatrix = np.linalg.inv(npTransformationMatrix)
 
-    # scalingX, scalingY, scalingZ = getScaling(npTransformationMatrix)
     imgOrigin = image.GetOrigin()
-    # imgSpacing = image.GetSpacing()
+    imgSpacing = image.GetSpacing()
     imgDir = image.GetDirection()
 
     imageOrientationPatient = np.array(
@@ -102,22 +101,21 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
         ]
     )
 
-    ## the new image spcing is already in the transformation matrix, so we do not need to add it separately
-    # imgSpacingNew = (imgSpacing[0] * scalingX, imgSpacing[1] * scalingY, imgSpacing[2] * scalingZ)
-
     imgOriginNew = npTransformationMatrix @ np.append(imgOrigin, 1)
     imgOriginNew = imgOriginNew[0:3].tolist()
 
     newImageOrientationPatient = npTransformationMatrix @ imageOrientationPatient
 
-    # normalize(newImageOrientationPatient)
+    scalingX, scalingY, scalingZ = getScaling(newImageOrientationPatient)
+    imgSpacingNew = (imgSpacing[0] * scalingX, imgSpacing[1] * scalingY, imgSpacing[2] * scalingZ)
+
+    normalize(newImageOrientationPatient)
 
     newImageOrientationPatient = newImageOrientationPatient[0:3, 0:3].ravel().tolist()
 
     image.SetOrigin(imgOriginNew)
     image.SetDirection(newImageOrientationPatient)
-    ## the new image spcing is already in the transformation matrix, so we do not need to add it separately
-    # image.SetSpacing(imgSpacingNew)
+    image.SetSpacing(imgSpacingNew)
 
 
 def createSignedDistanceMap(sitkLabel):

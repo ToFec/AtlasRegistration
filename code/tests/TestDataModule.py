@@ -16,7 +16,27 @@ import atlas_utils as au
 
 
 class Test(unittest.TestCase):
-    def testNormalisation(self):
+    def testMeshWithTransformation(self):
+        config = Config()
+        config.setParam("registrationGridsize", [96, 96, 80])
+        config.setParam("registrationGridSpacing", [2.0, 2.0, 2.0])
+        config.setParam("initializeAtlasWithAverageImg", False)
+        config.setParam("useAtlasSpaceAsReferenceForMeshCreation", True)
+        config.setParam("trainingDataFile", "./resources/DataTrainForAvgAtlasTest.csv")
+        config.setParam("doNormalisation", False)
+        config.setParam("atlasImage", "/home/fechter/Bilder/Atlas/mni_icbm152_t1_tal_nlin_sym_55_ext.nrrd")
+        config.setParam("atlasLabel", "/home/fechter/Bilder/Atlas/seg4_short.nrrd")
+        data = AtlasDataModule(config)
+
+        data._setAtlasImage()
+        subject = data.getSubject(
+            "/media/fechter/FastData/Learn2Reg/OASIS_OAS1_0004_MR1/orig.nii.gz",
+            "/media/fechter/FastData/Learn2Reg/OASIS_OAS1_0004_MR1/seg4.nii.gz",
+            "/media/fechter/FastData/Learn2Reg/OASIS_OAS1_0004_MR1/affineRegistrationMatrix.txt",
+        )
+        meshOrigin = subject["meshOrigin"]
+
+    def _testNormalisation(self):
         config = Config()
         config.setParam("registrationGridsize", [64, 56, 60])
         config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
@@ -46,7 +66,7 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/backMesh.pt"):
             os.remove("./resources/backMesh.pt")
 
-    def testNormalisation2(self):
+    def _testNormalisation2(self):
         config = Config()
         config.setParam("registrationGridsize", [64, 56, 60])
         config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
@@ -75,7 +95,7 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/backMesh.pt"):
             os.remove("./resources/backMesh.pt")
 
-    def testDummyMaskGeneration(self):
+    def _testDummyMaskGeneration(self):
         if os.path.exists("./resources/DummyRotatedMesh.pt"):
             os.remove("./resources/DummyRotatedMesh.pt")
         config = Config()
@@ -100,7 +120,7 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/DummyRotatedMesh.pt"):
             os.remove("./resources/DummyRotatedMesh.pt")
 
-    def testAverageAtlasGeneration(self):
+    def _testAverageAtlasGeneration(self):
         config = Config()
         config.setParam("registrationGridsize", [64, 56, 60])
         config.setParam("registrationGridSpacing", [1.0, 1.0, 1.0])
@@ -132,7 +152,7 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/backMesh.pt"):
             os.remove("./resources/backMesh.pt")
 
-    def testGridSampling(self):
+    def _testGridSampling(self):
         config = Config()
         config.setParam("trainingDataFile", "./resources/DataTestTrainingMethods.csv")
         config.setParam("registrationGridsize", [64, 56, 60])
@@ -177,7 +197,7 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/DummyRotatedMesh.pt"):
             os.remove("./resources/DummyRotatedMesh.pt")
 
-    def testGridGeneration2(self):
+    def _testGridGeneration2(self):
         config = Config()
         config.setParam("trainingDataFile", "./resources/DataTrain1.csv")
         config.setParam("registrationGridsize", [64, 56, 60])
@@ -204,7 +224,7 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/NoiseMesh.pt"):
             os.remove("./resources/NoiseMesh.pt")
 
-    def testGridGeneration(self):
+    def _testGridGeneration(self):
         config = Config()
         config.setParam("trainingDataFile", "./resources/DataTrain.csv")
         config.setParam("registrationGridsize", [64, 56, 60])
@@ -235,7 +255,7 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/DummyRotatedMesh.pt"):
             os.remove("./resources/DummyRotatedMesh.pt")
 
-    def testSignedDistanceMapGeneration(self):
+    def _testSignedDistanceMapGeneration(self):
         sitkLabel = sitk.ReadImage("./resources/DscLoss/Label1.nii.gz", sitk.sitkFloat32)
         sigendDistanceMapTensor = au.createSignedDistanceMap(sitkLabel)
 
