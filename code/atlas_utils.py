@@ -410,7 +410,7 @@ def get_first_order_reg_loss(disp_flow):
     return reg_loss
 
 
-def jacobian_determinant(deform_field, spacing):
+def jacobianDeterminant(deform_field, spacing):
     """
     jacobian determinant of a displacement field.
     NB: to compute the spatial gradients, we use np.gradient.
@@ -433,22 +433,35 @@ def jacobian_determinant(deform_field, spacing):
 
     # 3D flow
     if nb_dims == 3:
-        dx = J[0]
-        dy = J[1]
-        dz = J[2]
+        dx = J[0]  # (deform_map_np[1:, ...] - deform_map_np[:-1, ...]) / spacing[0]
+        # dx = dx[:, :-1, :-1, :]
+        dy = J[1]  # (deform_map_np[:, 1:, ...] - deform_map_np[:, :-1, ...]) / spacing[1]
+        # dy = dy[:-1, :, :-1, :]
+        dz = J[2]  # (deform_map_np[:, :, 1:, ...] - deform_map_np[:, :, :-1, ...]) / spacing[2]  #
+        # dz = dz[:-1, :-1, ...]
 
         # compute jacobian components
         Jdet0 = dx[..., 0] * (dy[..., 1] * dz[..., 2] - dy[..., 2] * dz[..., 1])
         Jdet1 = dx[..., 1] * (dy[..., 0] * dz[..., 2] - dy[..., 2] * dz[..., 0])
         Jdet2 = dx[..., 2] * (dy[..., 0] * dz[..., 1] - dy[..., 1] * dz[..., 0])
 
-        return Jdet0 - Jdet1 + Jdet2
+        # p0 = dx[..., 0] * dy[..., 1] * dz[..., 2]
+        # p1 = dx[..., 1] * dy[..., 2] * dz[..., 0]
+        # p2 = dx[..., 2] * dy[..., 0] * dz[..., 1]
+        #
+        # m0 = dx[..., 2] * dy[..., 1] * dz[..., 0]
+        # m1 = dx[..., 0] * dy[..., 2] * dz[..., 1]
+        # m2 = dx[..., 1] * dy[..., 0] * dz[..., 2]
+        #
+        # det = 1.0 + p0 + p1 + p2 - m0 - m1 - m2
+
+        return 1.0 + Jdet0 - Jdet1 + Jdet2
 
     else:  # must be 2
         dfdx = J[0]
         dfdy = J[1]
 
-        return dfdx[..., 0] * dfdy[..., 1] - dfdy[..., 0] * dfdx[..., 1]
+        return 1.0 + dfdx[..., 0] * dfdy[..., 1] - dfdy[..., 0] * dfdx[..., 1]
 
 
 def save_updated_atlas(atlas_img, atlas_seg, save_atlas_img_name, save_atlas_est_name, save_atlas_prob_name):

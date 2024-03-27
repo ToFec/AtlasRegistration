@@ -78,11 +78,13 @@ class AtlasDataModule(pl.LightningDataModule):
     def getInitalAtlas(self):
         return self.atlasImage, self.atlasMesh, self.atlasOrigin, self.atlasLabel
 
-    def _prepare_data(self):
-        if len(self.train_subjects) == 0:
-            self.iterateFile(self.datasetTrainingFile, self.train_subjects)
-        if len(self.test_subjects) == 0:
-            self.iterateFile(self.datasetTestFile, self.test_subjects)
+    def _prepare_data(self, stage):
+        if stage == "fit":
+            if len(self.train_subjects) == 0:
+                self.iterateFile(self.datasetTrainingFile, self.train_subjects)
+        if stage == "test":
+            if len(self.test_subjects) == 0:
+                self.iterateFile(self.datasetTestFile, self.test_subjects)
 
     def iterateFile(self, inputFile, container):
         with open(inputFile) as csvDataFile:
@@ -329,9 +331,11 @@ class AtlasDataModule(pl.LightningDataModule):
             )
 
         imgSize = torch.asarray(sitkScalarImage.GetSize())
-        dirMatrix = torch.inverse(torch.Tensor(sitkScalarImage.GetDirection()).reshape([3, 3]))
-        orig = torch.Tensor(sitkScalarImage.GetOrigin())
+        dirMatrix = torch.Tensor(sitkScalarImage.GetDirection()).reshape([3, 3])
         spacing = torch.Tensor(sitkScalarImage.GetSpacing())
+        atlasUtils.addScaling(dirMatrix, spacing[0], spacing[1], spacing[2])
+        pointToIndexMatrix = torch.inverse(dirMatrix)
+        orig = torch.Tensor(sitkScalarImage.GetOrigin())
 
         gridVecWorldC = [
             (torch.arange(s) * self.registrationGridSpacing[idx]) + gridOrigin[idx]
@@ -342,7 +346,7 @@ class AtlasDataModule(pl.LightningDataModule):
         flatGridWorldC = [s.flatten() for s in gridWorldC]
         flatGridWorldC = torch.stack(flatGridWorldC, 1)
 
-        flatImgC = torch.matmul(dirMatrix, ((flatGridWorldC - orig) / spacing)[:, :, None])
+        flatImgC = torch.matmul(pointToIndexMatrix, (flatGridWorldC - orig)[:, :, None])
         flatImgC = flatImgC.squeeze()
         flatImgC = (flatImgC / (imgSize - 1.0)) * 2.0 - 1.0
 
@@ -358,9 +362,9 @@ class AtlasDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         if self.useAtlasSpaceAsReferenceForMeshCreation:
             self._setAtlasImage()
-            self._prepare_data()
+            self._prepare_data(stage)
         else:
-            self._prepare_data()
+            self._prepare_data(stage)
             self._setAtlasImage()
         transform = self._getAugmentationTransform()
         if stage == "fit" or stage is None:

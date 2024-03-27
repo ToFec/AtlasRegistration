@@ -39,8 +39,12 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
 
+        distanceMapsImg = None
+        distanceMapsAtlas = None
         if self.transformDistanceMaps:
+            distanceMapsImg = labels.cpu()
             labels = atlas_utils.convertDistanceMapToLabelMap(labels)
+            distanceMapsAtlas = atlasLabels.cpu()
             atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)
 
         sampledImages = self.transformer.sampleImage(images, meshes)
@@ -93,6 +97,18 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             self.meshDir,
         )
 
+        if distanceMapsAtlas is not None:
+            for channel in range(0, distanceMapsAtlas.shape[1]):
+                distanceMapChannel = distanceMapsAtlas[:, channel, None, ...]
+                distanceMapChannel = distanceMapChannel.cpu()
+                atlas_utils.saveImageTensor(
+                    distanceMapChannel[0, None, ...],
+                    os.path.join(self.output_dir, "AtlasDistanceMapChannel" + str(channel) + self.fileType),
+                    atlasOrigin,
+                    self.meshSpacing,
+                    self.meshDir,
+                )
+
         for i in range(0, warpedAtlas.shape[0]):
             fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
 
@@ -112,6 +128,19 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshSpacing,
                 self.meshDir,
             )
+
+            ## save ditanceMaps
+            if distanceMapsImg is not None:
+                currDistanceMaps = distanceMapsImg[i, None, ...]
+                for channel in range(0, currDistanceMaps.shape[1]):
+                    distanceMapChannel = currDistanceMaps[0, None, channel, None, ...]
+                    atlas_utils.saveImageTensor(
+                        distanceMapChannel,
+                        os.path.join(self.output_dir, fileBaseName + "DistanceMap" + str(channel) + self.fileType),
+                        atlasOrigin,
+                        self.meshSpacing,
+                        self.meshDir,
+                    )
 
             ## save resampled original label
             atlas_utils.saveImageTensor(

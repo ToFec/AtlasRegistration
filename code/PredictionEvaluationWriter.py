@@ -36,6 +36,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
 
         self.finalResultList = []
         self.header = None
+        self.meshSpacing = config.getParam("registrationGridSpacing")
 
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         if self.header is not None:
@@ -49,8 +50,6 @@ class PredictionEvaluationWriter(BasePredictionWriter):
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes, labels = pl_module.prepare_batch(batch)
 
-        meshSpacing = atlas_utils.getMeshSpacing(meshes[0, ...])
-
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
@@ -63,6 +62,8 @@ class PredictionEvaluationWriter(BasePredictionWriter):
 
         pos_flow = prediction[0]
         neg_flow = prediction[1]
+
+        meshSpacing = [(self.meshSpacing[i] / pos_flow.shape[i + 2]) * 2 for i in range(len(self.meshSpacing))]
 
         posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
         warpedAtlas = self.transformer.sampleImage(
@@ -92,11 +93,11 @@ class PredictionEvaluationWriter(BasePredictionWriter):
 
             warpedLabelsInImgSpace = diceLoss.getDscValues(sampledLabels[i, None, ...], warpedAtlasLabels[0, None, ...])
 
-            jacobiDetNegFlow = atlas_utils.jacobian_determinant(neg_flow[i, None, ...], meshSpacing)
+            jacobiDetNegFlow = atlas_utils.jacobianDeterminant(neg_flow[i, None, ...], meshSpacing)
 
             fractionOfFoldingsNegFlow = np.sum(jacobiDetNegFlow < 0) / jacobiDetNegFlow.size
 
-            jacobiDetPosFlow = atlas_utils.jacobian_determinant(
+            jacobiDetPosFlow = atlas_utils.jacobianDeterminant(
                 pos_flow[i, None, ...], meshSpacing
             )  # Atlas to Image DefField
             fractionOfFoldingsPosFlow = np.sum(jacobiDetPosFlow < 0) / jacobiDetPosFlow.size
