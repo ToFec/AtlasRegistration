@@ -127,7 +127,7 @@ def createSignedDistanceMap(sitkLabel):
         distanceMaps.append(sitk.SignedDanielssonDistanceMap(tmpImage, useImageSpacing=True))
     distanceMap4D = sitk.JoinSeries(distanceMaps)
     distanceMapTensor = sitk.GetArrayFromImage(distanceMap4D)
-    distanceMapTensor[distanceMapTensor > 10] = 10
+    distanceMapTensor[distanceMapTensor > 0.01] = 0.01
     return distanceMapTensor
 
 
