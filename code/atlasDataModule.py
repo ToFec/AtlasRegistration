@@ -51,7 +51,7 @@ class AtlasDataModule(pl.LightningDataModule):
         if self.useAtlasSpaceAsReferenceForMeshCreation is None:
             self.useAtlasSpaceAsReferenceForMeshCreation = False
 
-        if config.getParam("labelLoss") == "NCC" or config.getParam("labelLoss") == "SSD":
+        if config.getParam("convertToDistanceMaps"):
             self.createDistanceMapFromlabel = True
         else:
             self.createDistanceMapFromlabel = False
@@ -164,6 +164,9 @@ class AtlasDataModule(pl.LightningDataModule):
                     torch.save(distnaceMapTensor, distanceMapName)
                 labelImage.data = distnaceMapTensor.to(torch.float32)
             else:
+                # for single channel loss functions:
+                # labelImage.data = labelImage.data.to(torch.float32)
+                # for multichannel loss functions:
                 newData = torch.nn.functional.one_hot(labelImage.data.squeeze()).movedim(-1, 0)
                 labelImage.data = newData.to(torch.float32)
 

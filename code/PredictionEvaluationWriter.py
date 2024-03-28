@@ -21,8 +21,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         self.output_dir = config.getParam("outputPath")
         self.csvDelimiter = config.getParam("csvDelimiter")
 
-        labelLoss = config.getParam("labelLoss")
-        if labelLoss == "NCC" or labelLoss == "SSD":
+        if config.getParam("convertToDistanceMaps"):
             self.transformDistanceMaps = True
         else:
             self.transformDistanceMaps = False

@@ -19,8 +19,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         self.meshDir = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         self.meshSpacing = config.getParam("registrationGridSpacing")
 
-        labelLoss = config.getParam("labelLoss")
-        if labelLoss == "NCC" or labelLoss == "SSD":
+        if config.getParam("convertToDistanceMaps"):
             self.transformDistanceMaps = True
         else:
             self.transformDistanceMaps = False

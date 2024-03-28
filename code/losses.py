@@ -376,6 +376,7 @@ class MultiClassMultiChannelDiceCalculator(nn.Module):
 
 
 ## to be used when the different labels are not in separate channel
+## careful with warped or resampled labels, although nearest neighbor interpolation is used there are slight variations behind the comma
 class MultiClassSingleChannelDiceCalculator(AbstractLabelLoss):
     def getDscValues(self, reference, prediction):
         smooth = 0.0000000001
@@ -399,6 +400,7 @@ class MultiClassSingleChannelDiceCalculator(AbstractLabelLoss):
             labelSum = torch.sum(predictionLabelVol) + torch.sum(referenceLabelVol)
 
             dice = 2.0 * intersection / (labelSum + smooth)
+
             dscValues[labelIdx] = dice
 
         return dscValues
