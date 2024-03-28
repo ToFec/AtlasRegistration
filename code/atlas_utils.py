@@ -18,7 +18,7 @@ def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
         valToAdd = 1
 
     for channel in range(0, distanceMap.shape[1]):
-        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel + valToAdd
+        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = (channel + valToAdd)
     return labelMap
 
 
