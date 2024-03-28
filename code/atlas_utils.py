@@ -18,7 +18,7 @@ def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
         distanceMapShape[1] = distanceMapShape[1] + 1
         valToAdd = 1
 
-    labelMap = torch.zeros(distanceMapShape)
+    labelMap = torch.zeros(distanceMapShape,device=distanceMap.device)
 
     for channel in range(0, distanceMap.shape[1]):
         labelMap[:, channel + valToAdd, ...][distanceMap[:, channel, ...] <= 0.0] = channel + valToAdd
