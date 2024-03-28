@@ -18,7 +18,11 @@ class LossCalculator:
         if self.labelSimilarityFactor is None:
             self.labelSimilarityFactor = 0.0
 
-        self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
+        if self.sim_factor is not None and self.sim_factor != 0.0:
+            self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
+        else:
+            self.sim_factor = 0.0
+            self.similarityLoss = LossFactory.lossMap["Dummy"]()
 
         diceLoss = config.getParam("labelLoss")
         if diceLoss is not None and diceLoss in LossFactory.lossMap:
@@ -30,12 +34,13 @@ class LossCalculator:
             self.diceLoss = LossFactory.lossMap["Dummy"]()
 
         self.reg_factor = config.getParam("regularizationFactor")
-        if self.reg_factor != 0.0:
+        if self.reg_factor is not None and self.reg_factor != 0.0:
             regularizationLossName = config.getParam("regularizationLoss")
             if regularizationLossName is None:
                 regularizationLossName = "BendingEnergy"
             self.regularizationLoss = LossFactory.lossMap[regularizationLossName]()
         else:
+            self.reg_factor = 0.0
             self.regularizationLoss = LossFactory.lossMap["Dummy"]()
 
         self.imagePairSimilarityFactor = config.getParam("imagePairSimFactor")
