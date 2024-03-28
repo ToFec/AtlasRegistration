@@ -22,11 +22,10 @@ class LossCalculator:
 
         diceLoss = config.getParam("labelLoss")
         if diceLoss is not None and diceLoss in LossFactory.lossMap:
-            self.ignoreBackground = config.getParam("ignoreBackground")
-            if self.ignoreBackground:
-                self.diceLoss = LossFactory.lossMap[diceLoss](self.ignoreBackground)
-            else:
-                self.diceLoss = LossFactory.lossMap[diceLoss]()
+            self.diceLoss = LossFactory.lossMap[diceLoss]()
+            ignoreBackground = config.getParam("ignoreBackground")
+            if ignoreBackground:
+                self.diceLoss.setIgnoreBackground(ignoreBackground)
         else:
             self.diceLoss = LossFactory.lossMap["Dummy"]()
 

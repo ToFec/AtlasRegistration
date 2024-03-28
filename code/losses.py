@@ -73,7 +73,19 @@ class MSELoss(nn.MSELoss):
         return mseLoss / inputTensor.shape[0]
 
 
-class NCCLoss(nn.Module):
+class AbstractLabelLoss(nn.Module):
+    def __init__(self):
+        super(AbstractLabelLoss, self).__init__()
+        self.ignoreBackground = False
+
+    def setIgnoreBackground(self, ignoreBackground):
+        self.ignoreBackground = ignoreBackground
+
+    def forward(self, input, target):
+        pass
+
+
+class NCCLoss(AbstractLabelLoss):
     """
     A implementation of the normalized cross correlation (NCC)
     """
@@ -364,11 +376,7 @@ class MultiClassMultiChannelDiceCalculator(nn.Module):
 
 
 ## to be used when the different labels are not in separate channel
-class MultiClassSingleChannelDiceCalculator(nn.Module):
-    def __init__(self, ignoreBakground=False):
-        super(MultiClassSingleChannelDiceCalculator, self).__init__()
-        self.ignoreBackground = ignoreBakground
-
+class MultiClassSingleChannelDiceCalculator(AbstractLabelLoss):
     def getDscValues(self, reference, prediction):
         smooth = 0.0000000001
         uniqueValsRef = torch.unique(reference.detach(), sorted=True)
