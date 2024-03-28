@@ -12,13 +12,16 @@ from torchio.data.io import _read_itk_matrix
 
 
 def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
-    labelMap = torch.zeros_like(distanceMap)
+    distanceMapShape = torch.tensor(distanceMap.shape)
     valToAdd = 0
     if ignoreBackground:
+        distanceMapShape[1] = distanceMapShape[1] + 1
         valToAdd = 1
 
+    labelMap = torch.zeros(distanceMapShape)
+
     for channel in range(0, distanceMap.shape[1]):
-        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel + valToAdd
+        labelMap[:, channel + valToAdd, ...][distanceMap[:, channel, ...] <= 0.0] = channel + valToAdd
     return labelMap
 
 
