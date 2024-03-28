@@ -20,7 +20,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         self.meshSpacing = config.getParam("registrationGridSpacing")
 
         labelLoss = config.getParam("labelLoss")
-        if labelLoss == "NCC":
+        if labelLoss == "NCC" or labelLoss == "SSD":
             self.transformDistanceMaps = True
         else:
             self.transformDistanceMaps = False
@@ -42,7 +42,8 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         distanceMapsImg = None
         distanceMapsAtlas = None
         if self.transformDistanceMaps:
-            distanceMapsImg = labels.cpu()
+            distanceMapsImg = self.transformer.sampleImage(labels, meshes)
+            distanceMapsImg = distanceMapsImg.cpu()
             labels = atlas_utils.convertDistanceMapToLabelMap(labels)
             distanceMapsAtlas = atlasLabels.cpu()
             atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)

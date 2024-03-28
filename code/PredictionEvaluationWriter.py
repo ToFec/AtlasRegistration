@@ -22,7 +22,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         self.csvDelimiter = config.getParam("csvDelimiter")
 
         labelLoss = config.getParam("labelLoss")
-        if labelLoss == "NCC":
+        if labelLoss == "NCC" or labelLoss == "SSD":
             self.transformDistanceMaps = True
         else:
             self.transformDistanceMaps = False

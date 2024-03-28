@@ -49,7 +49,7 @@ class AtlasDataModule(pl.LightningDataModule):
         if self.useAtlasSpaceAsReferenceForMeshCreation is None:
             self.useAtlasSpaceAsReferenceForMeshCreation = False
 
-        if config.getParam("labelLoss") == "NCC":
+        if config.getParam("labelLoss") == "NCC" or config.getParam("labelLoss") == "SSD":
             self.createDistanceMapFromlabel = True
         else:
             self.createDistanceMapFromlabel = False
