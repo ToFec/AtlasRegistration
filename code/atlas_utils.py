@@ -14,7 +14,7 @@ from torchio.data.io import _read_itk_matrix
 def convertDistanceMapToLabelMap(distanceMap):
     labelMap = torch.zeros_like(distanceMap)
     for channel in range(0, distanceMap.shape[1]):
-        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel
+        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel + 1
     return labelMap
 
 

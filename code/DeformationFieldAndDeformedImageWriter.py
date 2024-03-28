@@ -55,30 +55,30 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         neg_flow = prediction[1]
 
         posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
-        warpedAtlas = self.transformer.sampleImage(
-            atlasImages,
-            posDeformationFieldAtlas,
-        )
-        warpedAtlasLabels = self.transformer.sampleImage(
-            atlasLabels, posDeformationFieldAtlas, interpolationType="nearest"
-        )
+        # warpedAtlas = self.transformer.sampleImage(
+        #     atlasImages,
+        #     posDeformationFieldAtlas,
+        # )
+        # warpedAtlasLabels = self.transformer.sampleImage(
+        #     atlasLabels, posDeformationFieldAtlas, interpolationType="nearest"
+        # )
 
-        negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
-        warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
-        warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
+        # negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
+        # warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
+        # warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
 
         imageNames = batch["imagePath"]
-        meshOrigin = batch["meshOrigin"]
+        # meshOrigin = batch["meshOrigin"]
         atlasOrigin = pl_module.atlasOrigin.tolist()
 
         atlasImages = atlasImages.cpu()
         atlasLabels = torch.argmax(atlasLabels, dim=1, keepdim=True).cpu()
         sampledImages = sampledImages.cpu()
         sampledLabels = torch.argmax(sampledLabels, dim=1, keepdim=True).cpu()
-        warpedImages = warpedImages.cpu()
-        warpedLabels = torch.argmax(warpedLabels, dim=1, keepdim=True).cpu()
-        warpedAtlas = warpedAtlas.cpu()
-        warpedAtlasLabels = torch.argmax(warpedAtlasLabels, dim=1, keepdim=True).cpu()
+        # warpedImages = warpedImages.cpu()
+        # warpedLabels = torch.argmax(warpedLabels, dim=1, keepdim=True).cpu()
+        # warpedAtlas = warpedAtlas.cpu()
+        # warpedAtlasLabels = torch.argmax(warpedAtlasLabels, dim=1, keepdim=True).cpu()
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
 
@@ -110,7 +110,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                     self.meshDir,
                 )
 
-        for i in range(0, warpedAtlas.shape[0]):
+        for i in range(0, sampledImages.shape[0]):
             fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
 
             if os.path.exists(os.path.join(self.output_dir, fileBaseName + self.fileType)):
@@ -152,23 +152,23 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshDir,
             )
 
-            ## save deformed images in atlas space
-            atlas_utils.saveImageTensor(
-                warpedImages[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "Def" + self.fileType),
-                atlasOrigin,
-                self.meshSpacing,
-                self.meshDir,
-            )
+            # ## save deformed images in atlas space
+            # atlas_utils.saveImageTensor(
+            #     warpedImages[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "Def" + self.fileType),
+            #     atlasOrigin,
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
 
-            ## save deformed labels in atlas space
-            atlas_utils.saveImageTensor(
-                warpedLabels[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "LabelDef" + self.fileType),
-                atlasOrigin,
-                self.meshSpacing,
-                self.meshDir,
-            )
+            # ## save deformed labels in atlas space
+            # atlas_utils.saveImageTensor(
+            #     warpedLabels[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "LabelDef" + self.fileType),
+            #     atlasOrigin,
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
 
             ## save deformation fields: image space -> atlas space
             atlas_utils.saveDefField(
@@ -179,23 +179,23 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshDir,
             )
 
-            ## save deformed atlas in image space
-            atlas_utils.saveImageTensor(
-                warpedAtlas[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "AtlasDef" + self.fileType),
-                atlasOrigin,  # meshOrigin[i].tolist(),
-                self.meshSpacing,
-                self.meshDir,
-            )
+            # ## save deformed atlas in image space
+            # atlas_utils.saveImageTensor(
+            #     warpedAtlas[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "AtlasDef" + self.fileType),
+            #     atlasOrigin,  # meshOrigin[i].tolist(),
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
 
-            ## save deformed atlas labels in image space
-            atlas_utils.saveImageTensor(
-                warpedAtlasLabels[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "AtlasLabelDef" + self.fileType),
-                atlasOrigin,  # meshOrigin[i].tolist(),
-                self.meshSpacing,
-                self.meshDir,
-            )
+            # ## save deformed atlas labels in image space
+            # atlas_utils.saveImageTensor(
+            #     warpedAtlasLabels[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "AtlasLabelDef" + self.fileType),
+            #     atlasOrigin,  # meshOrigin[i].tolist(),
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
 
             ## save deformation fields: atlas space -> image space
             atlas_utils.saveDefField(
