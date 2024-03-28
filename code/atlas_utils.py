@@ -11,10 +11,14 @@ from matplotlib.lines import Line2D
 from torchio.data.io import _read_itk_matrix
 
 
-def convertDistanceMapToLabelMap(distanceMap):
+def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
     labelMap = torch.zeros_like(distanceMap)
+    valToAdd = 0
+    if ignoreBackground:
+        valToAdd = 1
+
     for channel in range(0, distanceMap.shape[1]):
-        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel + 1
+        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel + valToAdd
     return labelMap
 
 
@@ -118,10 +122,11 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
     image.SetSpacing(imgSpacingNew)
 
 
-def createSignedDistanceMap(sitkLabel):
+def createSignedDistanceMap(sitkLabel, ignoreBackground=False):
     array = sitk.GetArrayViewFromImage(sitkLabel)
     uniqueValues = np.unique(array)
-    uniqueValues = uniqueValues[uniqueValues != 0]
+    if ignoreBackground:
+        uniqueValues = uniqueValues[uniqueValues != 0]
     distanceMaps = []
     for uniqueVal in uniqueValues:
         tmpImage = sitkLabel == uniqueVal

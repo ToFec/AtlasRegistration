@@ -365,16 +365,18 @@ class MultiClassMultiChannelDiceCalculator(nn.Module):
 
 ## to be used when the different labels are not in separate channel
 class MultiClassSingleChannelDiceCalculator(nn.Module):
-    def getDscValues(self, reference, prediction, valueToIgnore: torch.tensor = None):
+    def __init__(self, ignoreBakground=False):
+        super(MultiClassSingleChannelDiceCalculator, self).__init__()
+        self.ignoreBackground = ignoreBakground
+
+    def getDscValues(self, reference, prediction):
         smooth = 0.0000000001
         uniqueValsRef = torch.unique(reference.detach(), sorted=True)
         uniqueValsPred = torch.unique(prediction.detach(), sorted=True)
         uniqueVals = uniqueValsRef[(uniqueValsRef.view(1, -1) == uniqueValsPred.view(-1, 1)).any(dim=0)]
 
-        if valueToIgnore is not None:
-            uniqueVals = uniqueVals[
-                torch.tensor([(valueToIgnore == uniqueVal).any() for uniqueVal in uniqueVals]).bitwise_not()
-            ]
+        if self.ignoreBackground:
+            uniqueVals = uniqueVals[uniqueVals != 0]
 
         dscValues = torch.zeros(uniqueVals.shape)
         for labelIdx, label in enumerate(uniqueVals):
@@ -393,8 +395,8 @@ class MultiClassSingleChannelDiceCalculator(nn.Module):
 
         return dscValues
 
-    def forward(self, reference, prediction, valueToIgnore: torch.tensor = None) -> torch.tensor:
-        dscValues = self.getDscValues(reference, prediction, valueToIgnore)
+    def forward(self, reference, prediction) -> torch.tensor:
+        dscValues = self.getDscValues(reference, prediction)
         loss = 1 - dscValues.mean()
 
         return loss

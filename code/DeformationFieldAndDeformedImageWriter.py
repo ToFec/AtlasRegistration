@@ -32,6 +32,8 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         else:
             self.fileType = _fileType
 
+        self.ignoreBackground = config.getParam("ignoreBackground")
+
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes, labels = pl_module.prepare_batch(batch)
 
@@ -44,9 +46,9 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         if self.transformDistanceMaps:
             distanceMapsImg = self.transformer.sampleImage(labels, meshes)
             distanceMapsImg = distanceMapsImg.cpu()
-            labels = atlas_utils.convertDistanceMapToLabelMap(labels)
+            labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
             distanceMapsAtlas = atlasLabels.cpu()
-            atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)
+            atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels, self.ignoreBackground)
 
         sampledImages = self.transformer.sampleImage(images, meshes)
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")

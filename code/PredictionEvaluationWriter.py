@@ -37,6 +37,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         self.finalResultList = []
         self.header = None
         self.meshSpacing = config.getParam("registrationGridSpacing")
+        self.ignoreBackground = config.getParam("ignoreBackground")
 
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         if self.header is not None:
@@ -55,8 +56,8 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
 
         if self.transformDistanceMaps:
-            labels = atlas_utils.convertDistanceMapToLabelMap(labels)
-            atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)
+            labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
+            atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels, self.ignoreBackground)
 
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
