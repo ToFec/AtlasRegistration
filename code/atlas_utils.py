@@ -121,6 +121,7 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
 def createSignedDistanceMap(sitkLabel):
     array = sitk.GetArrayViewFromImage(sitkLabel)
     uniqueValues = np.unique(array)
+    uniqueValues = uniqueValues[uniqueValues != 0]
     distanceMaps = []
     for uniqueVal in uniqueValues:
         tmpImage = sitkLabel == uniqueVal
