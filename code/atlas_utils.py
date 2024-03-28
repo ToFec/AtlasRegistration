@@ -12,7 +12,7 @@ from torchio.data.io import _read_itk_matrix
 
 
 def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
-    distanceMapShape = torch.tensor(distanceMap.shape)
+    distanceMapShape = list(distanceMap.shape)
     valToAdd = 0
     if ignoreBackground:
         distanceMapShape[1] = distanceMapShape[1] + 1
