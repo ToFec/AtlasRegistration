@@ -18,7 +18,7 @@ def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
         distanceMapShape[1] = distanceMapShape[1] + 1
         valToAdd = 1
 
-    labelMap = torch.zeros(distanceMapShape,device=distanceMap.device)
+    labelMap = torch.zeros(distanceMapShape, device=distanceMap.device)
 
     for channel in range(0, distanceMap.shape[1]):
         labelMap[:, channel + valToAdd, ...][distanceMap[:, channel, ...] <= 0.0] = channel + valToAdd
@@ -136,7 +136,7 @@ def createSignedDistanceMap(sitkLabel, ignoreBackground=False):
         distanceMaps.append(sitk.SignedDanielssonDistanceMap(tmpImage, useImageSpacing=True))
     distanceMap4D = sitk.JoinSeries(distanceMaps)
     distanceMapTensor = sitk.GetArrayFromImage(distanceMap4D)
-    distanceMapTensor[distanceMapTensor > 0.01] = 0.01
+    # distanceMapTensor[distanceMapTensor > 0.01] = 0.01
     return distanceMapTensor
 
 

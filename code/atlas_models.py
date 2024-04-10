@@ -3,6 +3,31 @@ import torch
 import torch.nn.functional as F
 from atlas_utils import *
 import imageTransformation
+from EncoderBrick import EncoderBrick
+from DecoderBrick import DecoderBrick
+from SelfSupervisionBrick import SelfSupervisionBrick
+from numpy import power
+
+
+class ScalingAndSquaring(nn.Module):
+    def __init__(self, num_steps=0):
+        super(ScalingAndSquaring, self).__init__()
+        self.num_steps = num_steps
+        self.scale = 1.0 / (2**self.num_steps)
+        self.bilinear = imageTransformation.Transformation()
+
+    def forward(self, flow):
+        pos_flow = flow * self.scale
+        neg_flow = -flow * self.scale
+        for _ in range(self.num_steps):
+            pos_deform_field = self.bilinear.getDeformationField(pos_flow)
+            neg_deform_field = self.bilinear.getDeformationField(neg_flow)
+            pos_flow_1 = self.bilinear.sampleImage(pos_flow, pos_deform_field, paddMode="zeros")
+            neg_flow_1 = self.bilinear.sampleImage(neg_flow, neg_deform_field, paddMode="zeros")
+            pos_flow = pos_flow_1 + pos_flow
+            neg_flow = neg_flow_1 + neg_flow
+
+        return pos_flow, neg_flow
 
 
 dim = 3
@@ -100,12 +125,16 @@ class Dummy(nn.Module):
 
 
 class SVF_resid(nn.Module):
-    def __init__(self, bn=False):
+    def __init__(
+        self,
+        bn=False,
+        scaleSquare=7,
+    ):
         super(SVF_resid, self).__init__()
         self.imageSizeModuloVal = 16
-        self.int_steps = 7
-        self.scale = 1.0 / (2**self.int_steps)
-        self.bilinear = imageTransformation.Transformation()
+
+        self.scaleAndSquare = ScalingAndSquaring(scaleSquare)
+
         self.down_path_1 = conv_bn_rel(2, 16, 3, stride=1, active_unit="relu", same_padding=True, bn=False, group=2)
         self.down_path_2_1 = conv_bn_rel(16, 32, 2, stride=2, active_unit="relu", same_padding=False, bn=False, group=2)
         self.down_path_2_2 = conv_bn_rel(32, 32, 3, stride=1, active_unit="relu", same_padding=True, bn=False, group=2)
@@ -193,15 +222,135 @@ class SVF_resid(nn.Module):
         output = self.up_path_2_3(u2_2)
 
         flow = self.up_path_1_2(self.up_path_1_1(output))
-
-        pos_flow = flow * self.scale
-        neg_flow = -flow * self.scale
-        for _ in range(self.int_steps):
-            pos_deform_field = self.bilinear.getDeformationField(pos_flow)
-            neg_deform_field = self.bilinear.getDeformationField(neg_flow)
-            pos_flow_1 = self.bilinear.sampleImage(pos_flow, pos_deform_field, paddMode="zeros")
-            neg_flow_1 = self.bilinear.sampleImage(neg_flow, neg_deform_field, paddMode="zeros")
-            pos_flow = pos_flow_1 + pos_flow
-            neg_flow = neg_flow_1 + neg_flow
+        pos_flow, neg_flow = self.scaleAndSquare(flow)
 
         return pos_flow, neg_flow
+
+
+class UNet(nn.Module):
+    def __init__(
+        self,
+        in_channels=2,
+        bn=True,
+        concatLayer=True,
+        depth=5,
+        numberOfFiltersFirstLayer=32,
+        useDeepSelfSupervision=False,
+        padImg=True,
+        scaleSquare=7,
+    ):
+        super(UNet, self).__init__()
+
+        if depth < 2:
+            raise ValueError("minimum depth is 2")
+
+        self.scaleAndSquare = ScalingAndSquaring(scaleSquare)
+
+        self.useBatchNorm = bn
+        self.concatLayer = concatLayer
+        self.in_channels = in_channels
+        self.useDeepSelfSupervision = useDeepSelfSupervision
+
+        self.encoders = []
+        self.decoders = []
+        self.pools = []
+        self.selfSupervisions = []
+
+        self.depth = depth
+        for i in range(self.depth):
+            currentNumberOfInputChannels = self.in_channels if i == 0 else outputFilterNumber
+            outputFilterNumber = numberOfFiltersFirstLayer * (2**i)
+            self.encoders.append(
+                EncoderBrick(
+                    outputFilterNumber, currentNumberOfInputChannels, self.useBatchNorm, self.concatLayer, padImg
+                )
+            )
+            if i < self.depth - 1:
+                self.pools.append(nn.AvgPool3d(2, 2))
+                self.decoders.append(
+                    DecoderBrick(
+                        outputFilterNumber, outputFilterNumber * 2, self.useBatchNorm, self.concatLayer, padImg
+                    )
+                )
+            if self.useDeepSelfSupervision:
+                self.selfSupervisions.append(SelfSupervisionBrick(in_channels, outputFilterNumber, i, padImg))
+
+        if not self.useDeepSelfSupervision:
+            self.selfSupervisions.append(SelfSupervisionBrick(in_channels, numberOfFiltersFirstLayer, 0, padImg))
+
+        self.encoders = nn.ModuleList(self.encoders)
+        self.decoders = nn.ModuleList(self.decoders)
+        self.pools = nn.ModuleList(self.pools)
+        self.selfSupervisions = nn.ModuleList(self.selfSupervisions)
+
+        self.imageSizeModuloVal = 2 ** (self.depth - 1)
+
+        self.receptiveFieldOffsets = [0] * (depth - 1)
+        if not padImg:
+            offsetBase = 2
+            offsetCenter = 2
+            for i in range(depth - 1):
+                offsetCenter = offsetBase * offsetCenter
+                offset = offsetCenter
+                for j in range(i):
+                    offset += 2 * power(offsetBase, 2 + j)
+                self.receptiveFieldOffsets[i] = offset
+
+        self.reset_params()
+
+    def getShapeForModel(self, shape):
+        shape = torch.tensor(shape)
+        remainderVals = torch.remainder(shape, self.imageSizeModuloVal)
+        newShape = shape + ((self.imageSizeModuloVal - remainderVals) * ((remainderVals != 0.0)))
+        return newShape
+
+    def forward(self, x):
+        encoder_outs = []
+        supervisionInputs = list(range(len(self.encoders)))  # python3
+        for i, encoder in enumerate(self.encoders):
+            x = encoder(x)
+            rFOffSet = self.receptiveFieldOffsets[self.depth - 2 - i]
+            encoder_outs.append(
+                x[
+                    :,
+                    :,
+                    rFOffSet : x.shape[2] - rFOffSet,
+                    rFOffSet : x.shape[3] - rFOffSet,
+                    rFOffSet : x.shape[4] - rFOffSet,
+                ]
+            )
+            if i < self.depth - 1:
+                x = self.pools[i](x)
+            else:
+                supervisionInputs[i] = x
+
+        for i in range(len(self.decoders) - 1, -1, -1):
+            decoder = self.decoders[i]
+            encOut = encoder_outs[i]
+            x = decoder(x, encOut)
+            supervisionInputs[i] = x
+
+        outputFields = []
+        for i in range(len(self.selfSupervisions) - 1, -1, -1):
+            decOut = supervisionInputs[i]
+            selfSupervision = self.selfSupervisions[i]
+            outputFields.append(selfSupervision(decOut))
+
+        x = torch.stack(outputFields)
+        flow = torch.sum(x, dim=0)
+
+        pos_flow, neg_flow = self.scaleAndSquare(flow)
+
+        return pos_flow, neg_flow
+
+    def reset_params(self):
+        for _, m in enumerate(self.modules()):
+            if isinstance(m, nn.Conv3d):
+                torch.nn.init.xavier_normal_(m.weight)
+                torch.nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.ConvTranspose3d):
+                torch.nn.init.xavier_normal_(m.weight)
+                torch.nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm3d):
+                torch.nn.init.constant_(m.weight, 1)
+                torch.nn.init.constant_(m.bias, 0)

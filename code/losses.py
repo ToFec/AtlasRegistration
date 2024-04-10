@@ -96,11 +96,43 @@ class NCCLoss(AbstractLabelLoss):
         input_minus_mean = input - torch.mean(input, 1).view(input.shape[0], 1)
         target_minus_mean = target - torch.mean(target, 1).view(input.shape[0], 1)
         nccSqr = ((input_minus_mean * target_minus_mean).mean(1)) / torch.sqrt(
-            ((input_minus_mean**2).mean(1)) * ((target_minus_mean**2).mean(1))
+            (((input_minus_mean**2).mean(1)) * ((target_minus_mean**2).mean(1))) + 1e-10
         )
         nccSqr = nccSqr.mean()
 
         return 1 - nccSqr
+
+
+class NCCLoss2(AbstractLabelLoss):
+    def __init__(self, valueToIgnore=None):
+        super(NCCLoss2, self).__init__()
+        self.valueToIgnore = valueToIgnore
+
+    ## images must have the same shape
+    def forward(self, origImg, defImg):
+        results = torch.empty(origImg.shape[0] * origImg.shape[1], device=origImg.device)
+        for imgIdx in range(origImg.shape[0]):
+            for chanIdx in range(origImg.shape[1]):
+                x = origImg[
+                    imgIdx,
+                    chanIdx,
+                ]
+                y = defImg[
+                    imgIdx,
+                    chanIdx,
+                ]
+                if self.valueToIgnore is not None:
+                    valuesToConsider = (x != self.valueToIgnore) & (y != self.valueToIgnore)
+                    x = x[valuesToConsider]
+                    y = y[valuesToConsider]
+                else:
+                    x = torch.reshape(x, (-1,))
+                    y = torch.reshape(y, (-1,))
+                x = torch.nn.functional.normalize(x, 2, -1)
+                y = torch.nn.functional.normalize(y, 2, -1)
+                dotProd = torch.dot(x, y) + 1
+                results[imgIdx * origImg.shape[0] + chanIdx] = dotProd
+        return 1 - (torch.sum(results) / (2 * origImg.shape[0] * origImg.shape[1]))
 
 
 class LNCCLoss(nn.Module):
@@ -795,6 +827,7 @@ class LossFactory(object):
         "SSD": MSELoss,
         "MSE": MSELoss,
         "NCC": NCCLoss,
+        "NCC2": NCCLoss2,
         "LNCC": LNCCLoss,
         "BendingEnergy": BendingEnergyLoss,
         "GradLoss": GradLoss,
