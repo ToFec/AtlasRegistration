@@ -13,6 +13,8 @@ import torch
 from losses import LossFactory
 import numpy as np
 import csv
+import SimpleITK as sitk
+import atlas_utils as atlasUtils
 
 
 class PredictionEvaluationWriter(BasePredictionWriter):
@@ -33,6 +35,19 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         else:
             self.fileType = _fileType
 
+        atlasLabelName = config.getParam("atlasLabel")
+        atlasImageName = config.getParam("atlasImage")
+        meshName = os.path.splitext(atlasImageName)[0] + "Mesh.pt"
+        sampleMesh, _, _ = torch.load(meshName)
+        sitkLabel = sitk.ReadImage(atlasLabelName, sitk.sitkInt64)
+        self.atlasLabelImage = tio.LabelMap.from_sitk(sitkLabel)
+        imgShape = list(sampleMesh.shape)
+        imgShape[0] = 1
+        imgShape = [1] + imgShape
+        transformer = Transformation(imgShape)
+        tmpImg = self.atlasLabelImage[tio.DATA].unsqueeze(0).type(torch.FloatTensor)
+        self.atlasLabelImage = transformer.sampleImage(tmpImg, sampleMesh.unsqueeze(0))
+
         self.finalResultList = []
         self.header = None
         self.meshSpacing = config.getParam("registrationGridSpacing")
@@ -48,15 +63,30 @@ class PredictionEvaluationWriter(BasePredictionWriter):
                     writer.writerow(lineToWrite)
 
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
-        images, meshes, labels = pl_module.prepare_batch(batch)
+        images, meshes, _ = pl_module.prepare_batch(batch)
 
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
-        atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
+        # atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
+        atlasLabels = (
+            self.atlasLabelImage.data.expand(images.shape[0], -1, -1, -1, -1).to(torch.float32).to(images.device)
+        )
 
-        if self.transformDistanceMaps:
-            labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
-            atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels, self.ignoreBackground)
+        labels = []
+        for labelIdx in range(len(batch["labelPath"])):
+            labelFileName = batch["labelPath"][labelIdx]
+            transformationFileName = batch["preTransformaton"][labelIdx]
+            sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
+
+            if transformationFileName is not None:
+                transform = sitk.ReadTransform(transformationFileName)
+                atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
+            labels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
+        labels = torch.cat(labels).to(images.device)
+
+        # if self.transformDistanceMaps:
+        #     labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
+        #     atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels, self.ignoreBackground)
 
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
@@ -79,10 +109,10 @@ class PredictionEvaluationWriter(BasePredictionWriter):
 
         imageNames = batch["imagePath"]
 
-        atlasLabels = torch.argmax(atlasLabels, dim=1, keepdim=True)
-        sampledLabels = torch.argmax(sampledLabels, dim=1, keepdim=True)
-        warpedLabels = torch.argmax(warpedLabels, dim=1, keepdim=True)
-        warpedAtlasLabels = torch.argmax(warpedAtlasLabels, dim=1, keepdim=True)
+        # atlasLabels = torch.argmax(atlasLabels, dim=1, keepdim=True)
+        # sampledLabels = torch.argmax(sampledLabels, dim=1, keepdim=True)
+        # warpedLabels = torch.argmax(warpedLabels, dim=1, keepdim=True)
+        # warpedAtlasLabels = torch.argmax(warpedAtlasLabels, dim=1, keepdim=True)
 
         diceLoss = LossFactory.lossMap["MultiClassSingleChannelDiceCalculator"]()
 

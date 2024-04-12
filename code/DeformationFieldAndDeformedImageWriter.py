@@ -10,6 +10,8 @@ from imageTransformation import Transformation
 import atlas_utils
 import torchio as tio
 import torch
+import SimpleITK as sitk
+import atlas_utils as atlasUtils
 
 
 class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
@@ -23,6 +25,19 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             self.transformDistanceMaps = True
         else:
             self.transformDistanceMaps = False
+
+        atlasLabelName = config.getParam("atlasLabel")
+        atlasImageName = config.getParam("atlasImage")
+        meshName = os.path.splitext(atlasImageName)[0] + "Mesh.pt"
+        sampleMesh, _, _ = torch.load(meshName)
+        sitkLabel = sitk.ReadImage(atlasLabelName, sitk.sitkInt64)
+        self.atlasLabelImage = tio.LabelMap.from_sitk(sitkLabel)
+        imgShape = list(sampleMesh.shape)
+        imgShape[0] = 1
+        imgShape = [1] + imgShape
+        transformer = Transformation(imgShape)
+        tmpImg = self.atlasLabelImage[tio.DATA].unsqueeze(0).type(torch.FloatTensor)
+        self.atlasLabelImage = transformer.sampleImage(tmpImg, sampleMesh.unsqueeze(0), interpolationType="nearest")
 
         self.transformer = Transformation()
         _fileType = config.getParam("fileTypeToWrite")
@@ -39,18 +54,30 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
         atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
+        loadedAtlasLabels = self.atlasLabelImage.data.expand(images.shape[0], -1, -1, -1, -1).to(images.device)
+
+        loadedLabels = []
+        for labelIdx in range(len(batch["labelPath"])):
+            labelFileName = batch["labelPath"][labelIdx]
+            transformationFileName = batch["preTransformaton"][labelIdx]
+            sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
+
+            if transformationFileName is not None:
+                transform = sitk.ReadTransform(transformationFileName)
+                atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
+            loadedLabels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
+
+        loadedLabels = torch.cat(loadedLabels).to(images.device)
 
         distanceMapsImg = None
         distanceMapsAtlas = None
         if self.transformDistanceMaps:
             distanceMapsImg = self.transformer.sampleImage(labels, meshes)
             distanceMapsImg = distanceMapsImg.cpu()
-            labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
             distanceMapsAtlas = atlasLabels.cpu()
-            atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels, self.ignoreBackground)
 
         sampledImages = self.transformer.sampleImage(images, meshes)
-        sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
+        sampledLabels = self.transformer.sampleImage(loadedLabels, meshes, interpolationType="nearest")
 
         pos_flow = prediction[0]
         neg_flow = prediction[1]
@@ -73,9 +100,11 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         atlasOrigin = pl_module.atlasOrigin.tolist()
 
         atlasImages = atlasImages.cpu()
-        atlasLabels = torch.argmax(atlasLabels, dim=1, keepdim=True).cpu()
+        atlasLabels = loadedAtlasLabels.cpu()
+        # atlasLabels = torch.argmax(loadedAtlasLabels, dim=1, keepdim=True).cpu()
         sampledImages = sampledImages.cpu()
-        sampledLabels = torch.argmax(sampledLabels, dim=1, keepdim=True).cpu()
+        sampledLabels = sampledLabels.cpu()
+        # sampledLabels = torch.argmax(sampledLabels, dim=1, keepdim=True).cpu()
         # warpedImages = warpedImages.cpu()
         # warpedLabels = torch.argmax(warpedLabels, dim=1, keepdim=True).cpu()
         # warpedAtlas = warpedAtlas.cpu()

@@ -136,7 +136,10 @@ def createSignedDistanceMap(sitkLabel, ignoreBackground=False):
         distanceMaps.append(sitk.SignedDanielssonDistanceMap(tmpImage, useImageSpacing=True))
     distanceMap4D = sitk.JoinSeries(distanceMaps)
     distanceMapTensor = sitk.GetArrayFromImage(distanceMap4D)
-    # distanceMapTensor[distanceMapTensor > 0.01] = 0.01
+    # the following two lines could be used to reduce memory load with distance maps
+    # the positive part is truncated and the channels are merged
+    distanceMapTensor[distanceMapTensor > 0.0] = 0.0
+    distanceMapTensor = np.min(distanceMapTensor, axis=0, keepdims=True)
     return distanceMapTensor
 
 
