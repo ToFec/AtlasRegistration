@@ -59,12 +59,13 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         loadedLabels = []
         for labelIdx in range(len(batch["labelPath"])):
             labelFileName = batch["labelPath"][labelIdx]
-            transformationFileName = batch["preTransformaton"][labelIdx]
             sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
-
-            if transformationFileName is not None:
-                transform = sitk.ReadTransform(transformationFileName)
-                atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
+            # as long as we deal only with affine registrations we do not need to consider them here
+            # because they are only applied to the header and the information is already considered in the provided mesh
+            # transformationFileName = batch["preTransformaton"][labelIdx]
+            # if transformationFileName is not None:
+            #     transform = sitk.ReadTransform(transformationFileName)
+            #     atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
             loadedLabels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
 
         loadedLabels = torch.cat(loadedLabels).to(images.device)

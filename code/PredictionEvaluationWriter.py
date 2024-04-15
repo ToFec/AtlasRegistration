@@ -78,9 +78,11 @@ class PredictionEvaluationWriter(BasePredictionWriter):
             transformationFileName = batch["preTransformaton"][labelIdx]
             sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
 
-            if transformationFileName is not None:
-                transform = sitk.ReadTransform(transformationFileName)
-                atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
+            # as long as we deal only with affine registrations we do not need to consider them here
+            # because they are only applied to the header and the information is already considered in the provided mesh
+            # if transformationFileName is not None:
+            #     transform = sitk.ReadTransform(transformationFileName)
+            #     atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
             labels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
         labels = torch.cat(labels).to(images.device)
 
