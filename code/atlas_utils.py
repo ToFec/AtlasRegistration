@@ -125,7 +125,7 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
     image.SetSpacing(imgSpacingNew)
 
 
-def createSignedDistanceMap(sitkLabel, ignoreBackground=False):
+def createSignedDistanceMap(sitkLabel, ignoreBackground=False, maxValue=None):
     array = sitk.GetArrayViewFromImage(sitkLabel)
     uniqueValues = np.unique(array)
     if ignoreBackground:
@@ -140,6 +140,11 @@ def createSignedDistanceMap(sitkLabel, ignoreBackground=False):
     # the positive part is truncated and the channels are merged
     distanceMapTensor[distanceMapTensor > 0.0] = 0.0
     distanceMapTensor = np.min(distanceMapTensor, axis=0, keepdims=True)
+    distanceMapTensor = np.abs(distanceMapTensor)
+    if maxValue is None:
+        maxValue = np.ceil(distanceMapTensor.max())
+    array = array * maxValue
+    distanceMapTensor[0, ...] = distanceMapTensor[0, ...] + array
     return distanceMapTensor
 
 

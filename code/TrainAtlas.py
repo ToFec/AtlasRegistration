@@ -33,6 +33,8 @@ def getCheckPointString(config):
     loss_name = config.getParam("similarityLoss")
     reg_loss_name = config.getParam("regularizationLoss")
     labelLoss = config.getParam("labelLoss")
+    labelSimilarityFactor = config.getParam("labelSimilarityFactor")
+    labelSimilarityFactorAtlasSpace = config.getParam("labelSimilarityFactorAtlasSpace")
 
     reg_factor = config.getParam("regularizationFactor")
     sim_factor = config.getParam("similarityFactor")
@@ -64,16 +66,30 @@ def getCheckPointString(config):
         + str(reg_factor)
         + "_sim_"
         + str(sim_factor)
-        + "_Isim_"
-        + str(pair_sim_factor)
-        + "_IlabelSim"
-        + str(imgSpaceLabelSimFactor)
-        + "_Asim"
-        + str(atlas_Pair_Sim_Factor)
-        + "_AlabelSim"
-        + str(atlasSpaceLabelSimFactor)
-        + "_smooth_"
-        + str(smooth_factor)
+    )
+    if pair_sim_factor is not None and pair_sim_factor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_Isim_" + str(pair_sim_factor)
+
+    if imgSpaceLabelSimFactor is not None and imgSpaceLabelSimFactor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_IlabelSim" + str(imgSpaceLabelSimFactor)
+
+    if atlas_Pair_Sim_Factor is not None and atlas_Pair_Sim_Factor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_Asim" + str(atlas_Pair_Sim_Factor)
+
+    if atlasSpaceLabelSimFactor is not None and atlasSpaceLabelSimFactor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_AlabelSim" + str(atlasSpaceLabelSimFactor)
+
+    if smooth_factor is not None and smooth_factor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_smooth_" + str(smooth_factor)
+
+    if labelSimilarityFactor is not None and labelSimilarityFactor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_lSim_" + str(labelSimilarityFactor)
+
+    if labelSimilarityFactorAtlasSpace is not None and labelSimilarityFactorAtlasSpace > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_lSimA_" + str(labelSimilarityFactorAtlasSpace)
+
+    stringForStoringVariables = (
+        stringForStoringVariables
         + "_e_"
         + str(max_epochs)
         + "_b_"
@@ -83,6 +99,7 @@ def getCheckPointString(config):
         + "_alr_"
         + str(atlas_lr)
     )
+
     return stringForStoringVariables
 
 

@@ -18,6 +18,10 @@ class LossCalculator:
         if self.labelSimilarityFactor is None:
             self.labelSimilarityFactor = 0.0
 
+        self.labelSimilarityFactorAtlasSpace = config.getParam("labelSimilarityFactorAtlasSpace")
+        if self.labelSimilarityFactorAtlasSpace is None:
+            self.labelSimilarityFactorAtlasSpace = 0.0
+
         if self.sim_factor is not None and self.sim_factor != 0.0:
             self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
         else:
@@ -110,6 +114,11 @@ class LossCalculator:
             # self.lossWrapper.labelSimilarityLoss = self._getImageSpaceSimilarityLoss(warpedAtlasLabels, sampledLabels)
             self.lossWrapper.labelSimilarityLoss = self._getDiceloss(sampledLabels, warpedAtlasLabels)
 
+        warpedLabels = None
+        if self.labelSimilarityFactorAtlasSpace != 0.0:
+            warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
+            self.lossWrapper.labelSimilarityLossAtlasSpace = self._getDiceloss(atlasLabels, warpedLabels)
+
         if self.imagePairSimilarityFactor != 0.0:
             deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
             self.lossWrapper.pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, sampledImages)
@@ -129,7 +138,8 @@ class LossCalculator:
         if self.atlasSpaceLabelSimFactor != 0.0:
             batch_size = labels.shape[0]
             if (batch_size % 2) == 0:
-                warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
+                if warpedLabels is None:
+                    warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
                 self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
                     warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
                 )
@@ -143,6 +153,7 @@ class LossCalculator:
             self.lossWrapper.imgSpaceLabelLoss,
             self.lossWrapper.atlasSpaceLabelLoss,
             self.lossWrapper.labelSimilarityLoss,
+            self.lossWrapper.labelSimilarityLossAtlasSpace,
         )
 
     def getLosses(self):
@@ -154,6 +165,7 @@ class LossCalculator:
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
+            labelSimilarityFactorAtlasSpace,
         ) = self.getLossesWithoutWeighting()
 
         sim_loss = sim_loss * self.sim_factor
@@ -168,6 +180,8 @@ class LossCalculator:
 
         labelSimilarityLoss = labelSimilarityLoss * self.labelSimilarityFactor
 
+        labelSimilarityFactorAtlasSpace = labelSimilarityFactorAtlasSpace * self.labelSimilarityFactorAtlasSpace
+
         return (
             sim_loss,
             reg_loss,
@@ -176,6 +190,7 @@ class LossCalculator:
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
+            labelSimilarityFactorAtlasSpace,
         )
 
     def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):

@@ -135,6 +135,7 @@ class AtlasModule(pl.LightningModule):
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
+            labelSimilarityFactorAtlasSpace,
         ) = self.criterion.getLosses()
         loss = (
             sim_loss
@@ -144,6 +145,7 @@ class AtlasModule(pl.LightningModule):
             + imgSpaceLabelLoss
             + atlasSpaceLabelLoss
             + labelSimilarityLoss
+            + labelSimilarityFactorAtlasSpace
         )
         return {
             "loss": loss,
@@ -154,6 +156,7 @@ class AtlasModule(pl.LightningModule):
             "image_space_label_loss": imgSpaceLabelLoss,
             "atlas_space_label_loss": atlasSpaceLabelLoss,
             "label_sim_loss": labelSimilarityLoss,
+            "label_sim_loss_atlas_space": labelSimilarityFactorAtlasSpace,
         }
 
     def training_step(self, batch, batch_idx):
@@ -201,6 +204,7 @@ class AtlasModule(pl.LightningModule):
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
+            labelSimilarityFactorAtlasSpace,
         ) = self.criterion.getLossesWithoutWeighting()
 
         self.log(
@@ -211,7 +215,8 @@ class AtlasModule(pl.LightningModule):
             + atlas_pair_sim_loss
             + imgSpaceLabelLoss
             + atlasSpaceLabelLoss
-            + labelSimilarityLoss,
+            + labelSimilarityLoss
+            + labelSimilarityFactorAtlasSpace,
         )
         self.log("val_sim_loss_uw", sim_loss)
         self.log("val_reg_loss_uw", reg_loss)
@@ -220,6 +225,7 @@ class AtlasModule(pl.LightningModule):
         self.log("val_image_space_label_loss_uw", imgSpaceLabelLoss)
         self.log("val_atlas_space_label_loss_uw", atlasSpaceLabelLoss)
         self.log("val_label_sim_loss_uw", labelSimilarityLoss)
+        self.log("val_label_sim_loss_atlas_space_UW", labelSimilarityFactorAtlasSpace)
 
         (
             sim_loss,
@@ -229,6 +235,7 @@ class AtlasModule(pl.LightningModule):
             imgSpaceLabelLoss,
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
+            labelSimilarityFactorAtlasSpace,
         ) = self.criterion.getLosses()
 
         loss = (
@@ -239,6 +246,7 @@ class AtlasModule(pl.LightningModule):
             + imgSpaceLabelLoss
             + atlasSpaceLabelLoss
             + labelSimilarityLoss
+            + labelSimilarityFactorAtlasSpace
         )
 
         self.log("val_loss", loss)
@@ -249,6 +257,7 @@ class AtlasModule(pl.LightningModule):
         self.log("val_image_space_label_loss", imgSpaceLabelLoss)
         self.log("val_atlas_space_label_loss", atlasSpaceLabelLoss)
         self.log("val_label_sim_loss", labelSimilarityLoss)
+        self.log("val_label_sim_loss_atlas_space", labelSimilarityFactorAtlasSpace)
 
         if self.logTemporaryDeformationFields:
             for logger in self.loggers:
