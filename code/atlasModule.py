@@ -267,6 +267,8 @@ class AtlasModule(pl.LightningModule):
 
         return {
             "loss": loss,
+            "val_atlas_space_label_loss_uw": atlasSpaceLabelLoss,
+            "val_label_sim_loss_atlas_space_UW": labelSimilarityFactorAtlasSpace,
         }
 
     def test_step(self, batch, batch_idx):
@@ -322,3 +324,10 @@ class AtlasModule(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         self.epochEndLogging(outputs, "Validation")
+
+        avg_val_label_sim_loss_atlas_space_UW = torch.stack(
+            [x["val_label_sim_loss_atlas_space_UW"] for x in outputs]
+        ).mean()
+        avg_val_atlas_space_label_loss_uw = torch.stack([x["val_atlas_space_label_loss_uw"] for x in outputs]).mean()
+        self.log("ptl/label_sim_loss_atlas_space", avg_val_label_sim_loss_atlas_space_UW)
+        self.log("ptl/atlas_space_label_loss", avg_val_atlas_space_label_loss_uw)

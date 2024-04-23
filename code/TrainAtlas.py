@@ -22,6 +22,12 @@ import torch
 from ImageLogger import ImageLogger
 from DeformationFieldAndDeformedImageWriter import DeformationFieldAndDeformedImageWriter
 
+from ray import tune
+from ray.tune.integration.pytorch_lightning import TuneReportCallback
+from ray.tune.schedulers import ASHAScheduler
+from ray.tune.search import ConcurrencyLimiter
+from ray.tune.search.optuna import OptunaSearch
+
 
 def getCheckPointString(config):
     seed = config.getParam("seed")
@@ -277,7 +283,14 @@ def runTraining(config):
     )
     callBackFunctions.append(checkpoint_callback)
 
-    callBackFunctions.append(pl.callbacks.DeviceStatsMonitor())
+    # callBackFunctions.append(pl.callbacks.DeviceStatsMonitor())
+
+    if config.getParam("tuneHyperParams"):
+        metrics = {
+            "atlasLabelSim": "ptl/label_sim_loss_atlas_space",
+            "labelSimAtlasSpace": "ptl/atlas_space_label_loss",
+        }
+        callBackFunctions.append(TuneReportCallback(metrics, on="validation_epoch_end"))
 
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
     callBackFunctions.append(lr_monitor)
@@ -333,6 +346,7 @@ parser = argparse.ArgumentParser(description="Atlas Registration")
 parser.add_argument("-c", "--configFile", dest="configFile", help="configuration file")
 parser.add_argument("-t", "--test", dest="runTests", action="store_true", help="run tests with best model")
 parser.add_argument("-p", "--predict", dest="predict", action="store_true")
+parser.add_argument("-o", "--optimiseParams", dest="hpyerSearch", action="store_true")
 parser.add_argument("-s", "--testSampling", dest="testSampling", default=0, type=int)
 
 
@@ -358,6 +372,43 @@ def valiateConfigFile(configuration: Config):
     return retVal
 
 
+def runHyperParamSearchTraining(configDict: dict):
+    configObj = Config()
+    configObj.setParams(configDict)
+    runTraining(configObj)
+
+
+def runHyperParamSearch(config: Config):
+    trainable = tune.with_parameters(runHyperParamSearchTraining)
+    max_epochs = config.getParam("epochs")
+    scheduler = ASHAScheduler(
+        max_t=max_epochs,
+        grace_period=1,
+        reduction_factor=2,
+    )
+
+    algo = OptunaSearch()
+    algo = ConcurrencyLimiter(algo, max_concurrent=4)
+    numSamples = 1000  # 10
+
+    analysis = tune.run(
+        trainable,
+        metric="atlasLabelSim",
+        mode="min",
+        config=config.getParams(),
+        search_alg=algo,
+        num_samples=numSamples,
+        name="tune_atlas",
+        scheduler=scheduler,
+        resources_per_trial={
+            "cpu": 4,
+            "gpu": 1,
+        },
+    )
+
+    print(analysis.best_config)
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -372,6 +423,8 @@ if __name__ == "__main__":
             runTests(config)
         elif args.predict:
             runPrediction(config)
+        elif args.hpyerSearch:
+            runHyperParamSearch(config)
         elif args.testSampling > 0:
             runTestImgSampling(config, args.testSampling)
         else:

@@ -109,40 +109,29 @@ class LossCalculator:
 
         self.lossWrapper.reg_loss = self.regularizationLoss(pos_flow)
 
-        if self.labelSimilarityFactor != 0.0:
-            warpedAtlasLabels = self.transformer.sampleImage(atlasLabels, posDeformationFieldAtlas)
-            # self.lossWrapper.labelSimilarityLoss = self._getImageSpaceSimilarityLoss(warpedAtlasLabels, sampledLabels)
-            self.lossWrapper.labelSimilarityLoss = self._getDiceloss(sampledLabels, warpedAtlasLabels)
+        warpedAtlasLabels = self.transformer.sampleImage(atlasLabels, posDeformationFieldAtlas)
+        # self.lossWrapper.labelSimilarityLoss = self._getImageSpaceSimilarityLoss(warpedAtlasLabels, sampledLabels)
+        self.lossWrapper.labelSimilarityLoss = self._getDiceloss(sampledLabels, warpedAtlasLabels)
 
-        warpedLabels = None
-        if self.labelSimilarityFactorAtlasSpace != 0.0:
-            warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
-            self.lossWrapper.labelSimilarityLossAtlasSpace = self._getDiceloss(atlasLabels, warpedLabels)
+        warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
+        self.lossWrapper.labelSimilarityLossAtlasSpace = self._getDiceloss(atlasLabels, warpedLabels)
 
-        if self.imagePairSimilarityFactor != 0.0:
-            deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
-            self.lossWrapper.pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, sampledImages)
+        deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
+        self.lossWrapper.pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, sampledImages)
 
-        if self.imageSpaceLabelSimFactor != 0.0:
-            deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
-            self.lossWrapper.imgSpaceLabelLoss = self._getDiceloss(sampledLabels, deformedLabels)
+        deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
+        self.lossWrapper.imgSpaceLabelLoss = self._getDiceloss(sampledLabels, deformedLabels)
 
-        if self.atlasPairSimilarityFactor != 0.0:
-            batch_size = images.shape[0]
-            if (batch_size % 2) == 0:
-                warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
-                self.lossWrapper.atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(
-                    warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
-                )
+        batch_size = images.shape[0]
+        if (batch_size % 2) == 0:
+            warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
+            self.lossWrapper.atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(
+                warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
+            )
 
-        if self.atlasSpaceLabelSimFactor != 0.0:
-            batch_size = labels.shape[0]
-            if (batch_size % 2) == 0:
-                if warpedLabels is None:
-                    warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
-                self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
-                    warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
-                )
+            self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
+                warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
+            )
 
     def getLossesWithoutWeighting(self):
         return (

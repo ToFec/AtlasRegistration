@@ -46,7 +46,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         imgShape = [1] + imgShape
         transformer = Transformation(imgShape)
         tmpImg = self.atlasLabelImage[tio.DATA].unsqueeze(0).type(torch.FloatTensor)
-        self.atlasLabelImage = transformer.sampleImage(tmpImg, sampleMesh.unsqueeze(0))
+        self.atlasLabelImage = transformer.sampleImage(tmpImg, sampleMesh.unsqueeze(0), interpolationType="nearest")
 
         self.finalResultList = []
         self.header = None

@@ -419,13 +419,23 @@ class MultiClassSingleChannelDiceCalculator(AbstractLabelLoss):
         if self.ignoreBackground:
             uniqueVals = uniqueVals[uniqueVals != 0]
 
+        distanceToUniqueValsPred = uniqueVals[:, None] - uniqueValsPred[None, :]
+        labelIdxToTakePred = torch.argmin(distanceToUniqueValsPred.abs(), dim=0)
+
+        distanceToUniqueValsRef = uniqueVals[:, None] - uniqueValsRef[None, :]
+        labelIdxToTakeRef = torch.argmin(distanceToUniqueValsRef.abs(), dim=0)
+
         dscValues = torch.zeros(uniqueVals.shape)
-        for labelIdx, label in enumerate(uniqueVals):
+        for labelIdx, _ in enumerate(uniqueVals):
             referenceLabelVol = torch.zeros_like(reference, dtype=torch.float)
-            referenceLabelVol[reference == label] = (reference[reference == label] + 1.0) / (label + 1.0)
+            referenceLabelVol[torch.isin(reference, uniqueValsRef[labelIdxToTakeRef == labelIdx])] = (
+                reference[torch.isin(reference, uniqueValsRef[labelIdxToTakeRef == labelIdx])] + 1.0
+            ) / (reference[torch.isin(reference, uniqueValsRef[labelIdxToTakeRef == labelIdx])] + 1.0)
 
             predictionLabelVol = torch.zeros_like(prediction, dtype=torch.float)
-            predictionLabelVol[prediction == label] = (prediction[prediction == label] + 1.0) / (label + 1.0)
+            predictionLabelVol[torch.isin(prediction, uniqueValsPred[labelIdxToTakePred == labelIdx])] = (
+                prediction[torch.isin(prediction, uniqueValsPred[labelIdxToTakePred == labelIdx])] + 1.0
+            ) / (prediction[torch.isin(prediction, uniqueValsPred[labelIdxToTakePred == labelIdx])] + 1.0)
 
             intersection = torch.sum(referenceLabelVol * predictionLabelVol)
 

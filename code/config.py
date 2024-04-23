@@ -6,6 +6,7 @@ Created on Apr 11, 2022
 
 import os, json, logging
 from pathlib import Path
+from ray import tune
 
 
 class Config(object):
@@ -23,6 +24,16 @@ class Config(object):
                 if k.startswith("__"):
                     self.comments[k] = self.params[k]
                     self.params.pop(k)
+                if k.startswith("f_"):
+                    func = eval(self.params[k])
+                    self.params.pop(k)
+                    self.params[k[2:]] = func
+
+    def getParams(self):
+        return self.params
+
+    def setParams(self, params: dict):
+        self.params = params
 
     def setParam(self, key, value):
         self.params[key] = value
