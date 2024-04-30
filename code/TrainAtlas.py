@@ -56,7 +56,7 @@ def getCheckPointString(config):
     gridSpacingStr = "".join(map(str, gridSpacing))
 
     stringForStoringVariables = (
-        "atlasRegistration"
+        "AR_"
         + str(loss_name)
         + "_"
         + str(labelLoss)
@@ -69,30 +69,32 @@ def getCheckPointString(config):
         + "_s_"
         + str(seed)
         + "_r_"
-        + str(reg_factor)
+        + "{:.2f}".format(reg_factor)
         + "_sim_"
-        + str(sim_factor)
+        + "{:.2f}".format(sim_factor)
     )
     if pair_sim_factor is not None and pair_sim_factor > 0.0:
-        stringForStoringVariables = stringForStoringVariables + "_Isim_" + str(pair_sim_factor)
+        stringForStoringVariables = stringForStoringVariables + "_Isim_" + "{:.2f}".format(pair_sim_factor)
 
     if imgSpaceLabelSimFactor is not None and imgSpaceLabelSimFactor > 0.0:
-        stringForStoringVariables = stringForStoringVariables + "_IlabelSim" + str(imgSpaceLabelSimFactor)
+        stringForStoringVariables = stringForStoringVariables + "_ILSim" + "{:.2f}".format(imgSpaceLabelSimFactor)
 
     if atlas_Pair_Sim_Factor is not None and atlas_Pair_Sim_Factor > 0.0:
-        stringForStoringVariables = stringForStoringVariables + "_Asim" + str(atlas_Pair_Sim_Factor)
+        stringForStoringVariables = stringForStoringVariables + "_Asim" + "{:.2f}".format(atlas_Pair_Sim_Factor)
 
     if atlasSpaceLabelSimFactor is not None and atlasSpaceLabelSimFactor > 0.0:
-        stringForStoringVariables = stringForStoringVariables + "_AlabelSim" + str(atlasSpaceLabelSimFactor)
+        stringForStoringVariables = stringForStoringVariables + "_ALSim" + "{:.2f}".format(atlasSpaceLabelSimFactor)
 
     if smooth_factor is not None and smooth_factor > 0.0:
-        stringForStoringVariables = stringForStoringVariables + "_smooth_" + str(smooth_factor)
+        stringForStoringVariables = stringForStoringVariables + "_smooth_" + "{:.2f}".format(smooth_factor)
 
     if labelSimilarityFactor is not None and labelSimilarityFactor > 0.0:
-        stringForStoringVariables = stringForStoringVariables + "_lSim_" + str(labelSimilarityFactor)
+        stringForStoringVariables = stringForStoringVariables + "_lSim_" + "{:.2f}".format(labelSimilarityFactor)
 
     if labelSimilarityFactorAtlasSpace is not None and labelSimilarityFactorAtlasSpace > 0.0:
-        stringForStoringVariables = stringForStoringVariables + "_lSimA_" + str(labelSimilarityFactorAtlasSpace)
+        stringForStoringVariables = (
+            stringForStoringVariables + "_lSimA_" + "{:.2f}".format(labelSimilarityFactorAtlasSpace)
+        )
 
     stringForStoringVariables = (
         stringForStoringVariables
@@ -389,7 +391,7 @@ def runHyperParamSearch(config: Config):
 
     algo = OptunaSearch()
     algo = ConcurrencyLimiter(algo, max_concurrent=4)
-    numSamples = 1000  # 10
+    numSamples = 500  # 10
 
     analysis = tune.run(
         trainable,
