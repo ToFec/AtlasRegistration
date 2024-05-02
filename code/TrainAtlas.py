@@ -391,7 +391,7 @@ def runHyperParamSearch(config: Config):
 
     algo = OptunaSearch()
     algo = ConcurrencyLimiter(algo, max_concurrent=4)
-    numSamples = 500  # 10
+    numSamples = 1000  # 10
 
     analysis = tune.run(
         trainable,
