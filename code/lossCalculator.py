@@ -132,6 +132,9 @@ class LossCalculator:
             self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
                 warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
             )
+        else:
+            self.lossWrapper.atlas_pair_sim_loss = torch.zeros_like(self.lossWrapper.reg_loss)
+            self.lossWrapper.atlasSpaceLabelLoss = torch.zeros_like(self.lossWrapper.reg_loss)
 
     def getLossesWithoutWeighting(self):
         return (
