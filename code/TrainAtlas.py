@@ -406,6 +406,7 @@ def runHyperParamSearch(config: Config):
             "cpu": 4,
             "gpu": 1,
         },
+        resume=True,
     )
 
     print(analysis.best_config)
