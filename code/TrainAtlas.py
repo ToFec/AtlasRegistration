@@ -414,10 +414,8 @@ def runHyperParamSearch(config: Config):
     print(best_result)
     print("#### experiment directory #####")
     print(analysis.experiment_path)
-    # print("## Checkpoint best config ##")
-    # print(best_result.checkpoint)
-    # print("## metrics best config ##")
-    # print(best_result.metrics)
+    print("## Checkpoint best config ##")
+    print(analysis.best_checkpoint)
 
 
 if __name__ == "__main__":
