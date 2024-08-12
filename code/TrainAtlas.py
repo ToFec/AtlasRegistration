@@ -27,6 +27,7 @@ from ray.tune.integration.pytorch_lightning import TuneReportCallback
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search import ConcurrencyLimiter
 from ray.tune.search.optuna import OptunaSearch
+from ray.train import Result
 
 
 def getCheckPointString(config):
@@ -409,7 +410,15 @@ def runHyperParamSearch(config: Config):
         resume=True,
     )
 
-    print(analysis.best_config)
+    best_result: Result = analysis.get_best_result()
+    print("##### Best config #########")
+    print(best_result.config)
+    print("#### Path best config #####")
+    print(best_result.path)
+    print("## Checkpoint best config ##")
+    print(best_result.checkpoint)
+    print("## metrics best config ##")
+    print(best_result.metrics)
 
 
 if __name__ == "__main__":
