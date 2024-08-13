@@ -27,7 +27,7 @@ from ray.tune.integration.pytorch_lightning import TuneReportCallback
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search import ConcurrencyLimiter
 from ray.tune.search.optuna import OptunaSearch
-import ray.train.constants.DEFAULT_STORAGE_PATH as RayDefaultStoratePath
+from ray.train.constants import DEFAULT_STORAGE_PATH as RayDefaultStoratePath
 
 
 def getCheckPointString(config):
