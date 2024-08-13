@@ -116,8 +116,8 @@ class AtlasDataModule(pl.LightningDataModule):
             sitkImage = sitk.ReadImage(imageFileName, sitk.GetPixelIDValueFromString(self.loadImagesAsDataType))
 
             subjectDict = {}
-            subjectDict["preTransformaton"] = transformationFileName
             if transformationFileName is not None:
+                subjectDict["preTransformaton"] = transformationFileName
                 transform = sitk.ReadTransform(transformationFileName)
                 atlasUtils.applyRigidRegistrationToImgHeader(sitkImage, transform)
 

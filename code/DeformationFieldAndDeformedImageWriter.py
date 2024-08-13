@@ -11,7 +11,6 @@ import atlas_utils
 import torchio as tio
 import torch
 import SimpleITK as sitk
-import atlas_utils as atlasUtils
 
 
 class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
@@ -52,7 +51,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         images, meshes, labels = pl_module.prepare_batch(batch)
 
         atlasImages = pl_module.getInputAtlasImage(images.shape[0])
-        atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
+        # atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
         atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
         loadedAtlasLabels = self.atlasLabelImage.data.expand(images.shape[0], -1, -1, -1, -1).to(images.device)
 
@@ -83,7 +82,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         pos_flow = prediction[0]
         neg_flow = prediction[1]
 
-        posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
+        # posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
         # warpedAtlas = self.transformer.sampleImage(
         #     atlasImages,
         #     posDeformationFieldAtlas,

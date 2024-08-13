@@ -75,7 +75,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         labels = []
         for labelIdx in range(len(batch["labelPath"])):
             labelFileName = batch["labelPath"][labelIdx]
-            transformationFileName = batch["preTransformaton"][labelIdx]
+            # transformationFileName = batch["preTransformaton"][labelIdx]
             sitkLabel = sitk.ReadImage(labelFileName, sitk.sitkInt64)
 
             # as long as we deal only with affine registrations we do not need to consider them here
