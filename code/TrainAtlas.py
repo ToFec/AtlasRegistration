@@ -27,6 +27,7 @@ from ray.tune.integration.pytorch_lightning import TuneReportCallback
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search import ConcurrencyLimiter
 from ray.tune.search.optuna import OptunaSearch
+import ray.train.constants.DEFAULT_STORAGE_PATH as RayDefaultStoratePath
 
 
 def getCheckPointString(config):
@@ -349,6 +350,7 @@ parser.add_argument("-c", "--configFile", dest="configFile", help="configuration
 parser.add_argument("-t", "--test", dest="runTests", action="store_true", help="run tests with best model")
 parser.add_argument("-p", "--predict", dest="predict", action="store_true")
 parser.add_argument("-o", "--optimiseParams", dest="hpyerSearch", action="store_true")
+parser.add_argument("-a", "--analyseHyperParamSearch", dest="analyseHyperSearch", action="store_true")
 parser.add_argument("-s", "--testSampling", dest="testSampling", default=0, type=int)
 
 
@@ -378,6 +380,21 @@ def runHyperParamSearchTraining(configDict: dict):
     configObj = Config()
     configObj.setParams(configDict)
     runTraining(configObj)
+
+
+def analyseHyperParamSearch(config: Config):
+    analysisPath = os.path.join(RayDefaultStoratePath, "tune_atlas")
+    analysis = tune.ExperimentAnalysis(analysisPath, default_metric="atlasLabelSim", default_mode="min")
+    best_result = analysis.best_result
+    print("##### Best config #########")
+    print(best_result)
+    print("#### experiment directory #####")
+    print(analysis.experiment_path)
+    print("## Checkpoint best config ##")
+    print(analysis.best_checkpoint)
+    resultDataFrame = analysis.results_df
+
+    resultDataFrame.to_csv(os.path.join(config.getParam("outputPath"), "HyperParamSearchResults.csv"))
 
 
 def runHyperParamSearch(config: Config):
@@ -433,7 +450,10 @@ if __name__ == "__main__":
         elif args.predict:
             runPrediction(config)
         elif args.hpyerSearch:
-            runHyperParamSearch(config)
+            if args.analyseHyperSearch:
+                analyseHyperParamSearch(config)
+            else:
+                runHyperParamSearch(config)
         elif args.testSampling > 0:
             runTestImgSampling(config, args.testSampling)
         else:
