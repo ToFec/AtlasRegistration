@@ -8,7 +8,6 @@ import pytorch_lightning as pl
 from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from torchio.data.io import _read_itk_matrix
 
 
 def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):

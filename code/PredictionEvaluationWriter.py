@@ -14,7 +14,6 @@ from losses import LossFactory
 import numpy as np
 import csv
 import SimpleITK as sitk
-import atlas_utils as atlasUtils
 
 
 class PredictionEvaluationWriter(BasePredictionWriter):
@@ -82,7 +81,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
             # because they are only applied to the header and the information is already considered in the provided mesh
             # if transformationFileName is not None:
             #     transform = sitk.ReadTransform(transformationFileName)
-            #     atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
+            #     atlas_Utils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
             labels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
         labels = torch.cat(labels).to(images.device)
 

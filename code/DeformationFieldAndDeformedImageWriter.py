@@ -112,6 +112,15 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
 
+        negFlowDefField = self.transformer.getDeformationField(neg_flow)
+        warpedPosFlow = self.transformer.sampleImage(pos_flow, negFlowDefField)
+        negFlowMinusWarpedPosFlow = warpedPosFlow + neg_flow
+
+        posFlowDefField = self.transformer.getDeformationField(pos_flow)
+        warpedNegFlow = self.transformer.sampleImage(neg_flow, posFlowDefField)
+
+        posFlowMinusWarpedNegFlow = warpedNegFlow + pos_flow
+
         atlas_utils.saveImageTensor(
             atlasImages[0, None, ...],
             os.path.join(self.output_dir, "Atlas" + self.fileType),
@@ -209,6 +218,14 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshDir,
             )
 
+            atlas_utils.saveDefField(
+                os.path.join(self.output_dir, fileBaseName + "DefFieldMinusAtlasDefField" + self.fileType),
+                negFlowMinusWarpedPosFlow[i, None, ...],
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
+
             # ## save deformed atlas in image space
             # atlas_utils.saveImageTensor(
             #     warpedAtlas[i, None, ...],
@@ -231,6 +248,22 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             atlas_utils.saveDefField(
                 os.path.join(self.output_dir, fileBaseName + "AtlasDefField" + self.fileType),
                 pos_flow[i, None, ...],
+                atlasOrigin,  # meshOrigin[i].tolist(),
+                self.meshSpacing,
+                self.meshDir,
+            )
+
+            atlas_utils.saveDefField(
+                os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldWarped" + self.fileType),
+                warpedPosFlow[i, None, ...],
+                atlasOrigin,  # meshOrigin[i].tolist(),
+                self.meshSpacing,
+                self.meshDir,
+            )
+
+            atlas_utils.saveDefField(
+                os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldMinusImageDefField" + self.fileType),
+                posFlowMinusWarpedNegFlow[i, None, ...],
                 atlasOrigin,  # meshOrigin[i].tolist(),
                 self.meshSpacing,
                 self.meshDir,
