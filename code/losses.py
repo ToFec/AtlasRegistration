@@ -718,10 +718,6 @@ class GradLoss(nn.Module):
 
 
 class DummyLoss(nn.Module):
-    """
-    N-D gradient loss.
-    """
-
     def __init__(self):
         super(DummyLoss, self).__init__()
 
