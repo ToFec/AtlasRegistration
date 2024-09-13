@@ -146,7 +146,7 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
         ]
     )
 
-    print(matrix - transformationMatrix)
+    print(matrix - npTransformationMatrix)
     npTransformationMatrix = np.linalg.inv(npTransformationMatrix)
 
     imgOrigin = image.GetOrigin()
