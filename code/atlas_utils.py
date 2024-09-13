@@ -126,15 +126,27 @@ def itkToRasMatrix(transform):
 def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transform):
     transform = transform.Downcast()
     dimension = transform.GetDimension()
-    npTransformationMatrix = np.eye(dimension + 1)
+    matrix = np.eye(dimension + 1)
 
     if getattr(transform, "GetMatrix", None) is not None:
         rotation = np.array(transform.GetMatrix()).reshape((dimension, dimension))
-        npTransformationMatrix[:dimension, :dimension] = rotation
+        matrix[:dimension, :dimension] = rotation
+
+    transformationMatrix = transform.GetParameters()
 
     translation = np.array(transform.GetTranslation())
-    npTransformationMatrix[:dimension, dimension] = translation
+    matrix[:dimension, dimension] = translation
 
+    npTransformationMatrix = np.asarray(
+        [
+            (transformationMatrix[0], transformationMatrix[1], transformationMatrix[2], transformationMatrix[9]),
+            (transformationMatrix[3], transformationMatrix[4], transformationMatrix[5], transformationMatrix[10]),
+            (transformationMatrix[6], transformationMatrix[7], transformationMatrix[8], transformationMatrix[11]),
+            (0, 0, 0, 1),
+        ]
+    )
+
+    print(matrix - transformationMatrix)
     npTransformationMatrix = np.linalg.inv(npTransformationMatrix)
 
     imgOrigin = image.GetOrigin()
