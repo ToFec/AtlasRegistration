@@ -132,24 +132,23 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
         rotation = np.array(transform.GetMatrix()).reshape((dimension, dimension))
         matrix[:dimension, :dimension] = rotation
 
-    transformationMatrix = transform.GetParameters()
+    # transformationMatrix = transform.GetParameters()
 
     translation = np.array(transform.GetTranslation())
     matrix[:dimension, dimension] = translation
 
-    npTransformationMatrix = np.asarray(
-        [
-            (transformationMatrix[0], transformationMatrix[1], transformationMatrix[2], transformationMatrix[9]),
-            (transformationMatrix[3], transformationMatrix[4], transformationMatrix[5], transformationMatrix[10]),
-            (transformationMatrix[6], transformationMatrix[7], transformationMatrix[8], transformationMatrix[11]),
-            (0, 0, 0, 1),
-        ]
-    )
+    # npTransformationMatrix = np.asarray(
+    #     [
+    #         (transformationMatrix[0], transformationMatrix[1], transformationMatrix[2], transformationMatrix[9]),
+    #         (transformationMatrix[3], transformationMatrix[4], transformationMatrix[5], transformationMatrix[10]),
+    #         (transformationMatrix[6], transformationMatrix[7], transformationMatrix[8], transformationMatrix[11]),
+    #         (0, 0, 0, 1),
+    #     ]
+    # )
 
-    print(matrix - npTransformationMatrix)
-    npTransformationMatrix = np.linalg.inv(npTransformationMatrix)
+    npTransformationMatrix = np.linalg.inv(matrix)
 
-    imgOrigin = image.GetOrigin()
+    imgOrigin = np.array(image.GetOrigin())
     imgSpacing = image.GetSpacing()
     imgDir = image.GetDirection()
 
@@ -162,8 +161,8 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
         ]
     )
 
-    imgOriginNew = npTransformationMatrix @ np.append(imgOrigin, 1)
-    imgOriginNew = imgOriginNew[0:3].tolist()
+    imgOriginNew = npTransformationMatrix @ np.append(imgOrigin - transform.GetCenter(), 1)
+    imgOriginNew = (imgOriginNew[0:3] + transform.GetCenter()).tolist()
 
     newImageOrientationPatient = npTransformationMatrix @ imageOrientationPatient
 
