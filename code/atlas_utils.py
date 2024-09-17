@@ -9,7 +9,7 @@ from matplotlib.lines import Line2D
 from imageTransformation import Transformation
 
 
-def _getMissingCorrespondence(target_flow, source_flow, transformation):
+def getMissingCorrespondence(target_flow, source_flow, transformation):
     targetFlowDefField = transformation.getDeformationField(target_flow)
     warpedSourceFlow = transformation.sampleImage(source_flow, targetFlowDefField)
     targetFlowMinusWarpedSourceFlow = warpedSourceFlow + source_flow
@@ -20,7 +20,7 @@ def segmentMisssingCorrespondences(pos_flow, neg_flow, transformation=None):
     if transformation is None:
         transformation = Transformation()
 
-    negFlowMinusWarpedPosFlow = _getMissingCorrespondence(neg_flow, pos_flow, transformation)
+    negFlowMinusWarpedPosFlow = getMissingCorrespondence(neg_flow, pos_flow, transformation)
 
     meshStepLength0 = 2 / (negFlowMinusWarpedPosFlow.shape[2] - 1)
     meshStepLength1 = 2 / (negFlowMinusWarpedPosFlow.shape[3] - 1)
@@ -37,7 +37,7 @@ def segmentMisssingCorrespondences(pos_flow, neg_flow, transformation=None):
     )
     segmentationNegFlowMinusWarpedPosFlow = (negFlowMinusWarpedPosFlowNorm > allowedDeviation).short()
 
-    posFlowMinusWarpedNegFlow = _getMissingCorrespondence(pos_flow, neg_flow, transformation)
+    posFlowMinusWarpedNegFlow = getMissingCorrespondence(pos_flow, neg_flow, transformation)
     posFlowMinusWarpedNegFlowNorm = torch.linalg.norm(posFlowMinusWarpedNegFlow, dim=1)
     posFlowMinusWarpedNegFlowNorm = torch.nn.functional.avg_pool3d(
         torch.nn.functional.avg_pool3d(posFlowMinusWarpedNegFlowNorm, kernel_size=5, stride=1, padding=2),

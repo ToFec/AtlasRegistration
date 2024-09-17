@@ -15,3 +15,4 @@ class LossWrapper(object):
         self.atlas_pair_sim_loss = 0.0
         self.imgSpaceLabelLoss = 0.0
         self.atlasSpaceLabelLoss = 0.0
+        self.defFieldInverseConsistencyLoss = 0.0

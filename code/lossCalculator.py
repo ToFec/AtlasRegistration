@@ -7,6 +7,7 @@ from losses import LossFactory
 from imageTransformation import Transformation
 import torch
 from LossWrapper import LossWrapper
+import atlas_utils
 
 
 class LossCalculator:
@@ -63,6 +64,10 @@ class LossCalculator:
         else:
             self.smooth_factor = 0.0
             self.smoothLoss = LossFactory.lossMap["Dummy"]
+
+        self.defFieldInverseConsistencyLossFactor = config.getParam("defDieldInverseConsistencyLossFactor")
+        if self.defFieldInverseConsistencyLossFactor is None:
+            self.defFieldInverseConsistencyLossFactor = 0.0
 
         self.transformer = Transformation()
 
@@ -136,6 +141,10 @@ class LossCalculator:
             self.lossWrapper.atlas_pair_sim_loss = torch.zeros_like(self.lossWrapper.reg_loss)
             self.lossWrapper.atlasSpaceLabelLoss = torch.zeros_like(self.lossWrapper.reg_loss)
 
+        self.lossWrapper.defFieldInverseConsistencyLoss = atlas_utils.getMissingCorrespondence(
+            pos_flow, neg_flow, self.transformer
+        )
+
     def getLossesWithoutWeighting(self):
         return (
             self.lossWrapper.sim_loss,
@@ -146,6 +155,7 @@ class LossCalculator:
             self.lossWrapper.atlasSpaceLabelLoss,
             self.lossWrapper.labelSimilarityLoss,
             self.lossWrapper.labelSimilarityLossAtlasSpace,
+            self.lossWrapper.defFieldInverseConsistencyLoss,
         )
 
     def getLosses(self):
@@ -158,6 +168,7 @@ class LossCalculator:
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
             labelSimilarityFactorAtlasSpace,
+            defFieldInverseConsistencyLoss,
         ) = self.getLossesWithoutWeighting()
 
         sim_loss = sim_loss * self.sim_factor
@@ -174,6 +185,8 @@ class LossCalculator:
 
         labelSimilarityFactorAtlasSpace = labelSimilarityFactorAtlasSpace * self.labelSimilarityFactorAtlasSpace
 
+        defFieldInverseConsistencyLoss = defFieldInverseConsistencyLoss * self.defFieldInverseConsistencyLossFactor
+
         return (
             sim_loss,
             reg_loss,
@@ -183,6 +196,7 @@ class LossCalculator:
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
             labelSimilarityFactorAtlasSpace,
+            defFieldInverseConsistencyLoss,
         )
 
     def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):

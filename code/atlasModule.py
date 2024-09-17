@@ -136,6 +136,7 @@ class AtlasModule(pl.LightningModule):
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
             labelSimilarityFactorAtlasSpace,
+            defFieldInverseConsistencyLoss,
         ) = self.criterion.getLosses()
         loss = (
             sim_loss
@@ -146,6 +147,7 @@ class AtlasModule(pl.LightningModule):
             + atlasSpaceLabelLoss
             + labelSimilarityLoss
             + labelSimilarityFactorAtlasSpace
+            + defFieldInverseConsistencyLoss
         )
         return {
             "loss": loss,
@@ -157,6 +159,7 @@ class AtlasModule(pl.LightningModule):
             "atlas_space_label_loss": atlasSpaceLabelLoss,
             "label_sim_loss": labelSimilarityLoss,
             "label_sim_loss_atlas_space": labelSimilarityFactorAtlasSpace,
+            "def_field_inverse_consistency": defFieldInverseConsistencyLoss,
         }
 
     def training_step(self, batch, batch_idx):
@@ -205,6 +208,7 @@ class AtlasModule(pl.LightningModule):
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
             labelSimilarityFactorAtlasSpace,
+            defFieldInverseConsistencyLoss,
         ) = self.criterion.getLossesWithoutWeighting()
 
         self.log(
@@ -217,6 +221,7 @@ class AtlasModule(pl.LightningModule):
             + atlasSpaceLabelLoss
             + labelSimilarityLoss
             + labelSimilarityFactorAtlasSpace,
+            +defFieldInverseConsistencyLoss,
         )
         self.log("val_sim_loss_uw", sim_loss)
         self.log("val_reg_loss_uw", reg_loss)
@@ -226,6 +231,7 @@ class AtlasModule(pl.LightningModule):
         self.log("val_atlas_space_label_loss_uw", atlasSpaceLabelLoss)
         self.log("val_label_sim_loss_uw", labelSimilarityLoss)
         self.log("val_label_sim_loss_atlas_space_UW", labelSimilarityFactorAtlasSpace)
+        self.log("val_def_field_inverse_consistency_UW", defFieldInverseConsistencyLoss)
 
         (
             sim_loss,
@@ -236,6 +242,7 @@ class AtlasModule(pl.LightningModule):
             atlasSpaceLabelLoss,
             labelSimilarityLoss,
             labelSimilarityFactorAtlasSpace,
+            defFieldInverseConsistencyLoss,
         ) = self.criterion.getLosses()
 
         loss = (
@@ -247,6 +254,7 @@ class AtlasModule(pl.LightningModule):
             + atlasSpaceLabelLoss
             + labelSimilarityLoss
             + labelSimilarityFactorAtlasSpace
+            + defFieldInverseConsistencyLoss
         )
 
         self.log("val_loss", loss)
@@ -258,6 +266,7 @@ class AtlasModule(pl.LightningModule):
         self.log("val_atlas_space_label_loss", atlasSpaceLabelLoss)
         self.log("val_label_sim_loss", labelSimilarityLoss)
         self.log("val_label_sim_loss_atlas_space", labelSimilarityFactorAtlasSpace)
+        self.log("val_def_field_inverse_consistency", defFieldInverseConsistencyLoss)
 
         if self.logTemporaryDeformationFields:
             for logger in self.loggers:
@@ -286,7 +295,7 @@ class AtlasModule(pl.LightningModule):
         self.log("test_image_space_label_loss", stepInfo["image_space_label_loss"])
         self.log("test_atlas_space_label_loss", stepInfo["atlas_space_label_loss"])
         self.log("test_label_sim_loss", stepInfo["label_sim_loss"])
-
+        self.log("test_def_field_inverse_consistency", stepInfo["def_field_inverse_consistency"])
         return stepInfo
 
     def epochEndLogging(self, outputs, trainValString):
