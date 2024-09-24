@@ -12,6 +12,8 @@ import atlas_utils
 
 class LossCalculator:
     def __init__(self, config):
+        self.transformer = Transformation()
+
         self.lossWrapper = LossWrapper()
         similartiyLossName = config.getParam("similarityLoss")
         self.sim_factor = config.getParam("similarityFactor")
@@ -66,10 +68,12 @@ class LossCalculator:
             self.smoothLoss = LossFactory.lossMap["Dummy"]
 
         self.defFieldInverseConsistencyLossFactor = config.getParam("defDieldInverseConsistencyLossFactor")
+
         if self.defFieldInverseConsistencyLossFactor is None:
             self.defFieldInverseConsistencyLossFactor = 0.0
-
-        self.transformer = Transformation()
+            self.defFieldInverseConsistencyLoss = LossFactory.lossMap["Dummy"]()
+        else:
+            self.defFieldInverseConsistencyLoss = LossFactory.lossMap["MissingCorrespondences"](self.transformer)
 
     def _getDefomredImages(
         self, posDeformationField, neg_flow, images, meshes, paddMode="border", interpolationType="bilinear"
@@ -141,9 +145,7 @@ class LossCalculator:
             self.lossWrapper.atlas_pair_sim_loss = torch.zeros_like(self.lossWrapper.reg_loss)
             self.lossWrapper.atlasSpaceLabelLoss = torch.zeros_like(self.lossWrapper.reg_loss)
 
-        self.lossWrapper.defFieldInverseConsistencyLoss = atlas_utils.getMissingCorrespondence(
-            pos_flow, neg_flow, self.transformer
-        )
+        self.lossWrapper.defFieldInverseConsistencyLoss = self.defFieldInverseConsistencyLoss(pos_flow, neg_flow)
 
     def getLossesWithoutWeighting(self):
         return (

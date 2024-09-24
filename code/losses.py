@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+import atlas_utils
 
 ###############################################################################
 # Functions
@@ -722,7 +723,7 @@ class DummyLoss(nn.Module):
         super(DummyLoss, self).__init__()
 
     def forward(self, *args):
-        return 1.0
+        return torch.tensor(1.0)
 
 
 class BendingEnergyLoss(nn.Module):
@@ -798,6 +799,19 @@ class BendingEnergyLoss(nn.Module):
         return d
 
 
+class MissingCorrespondencesLoss(nn.Module):
+    def __init__(self, transformer):
+        super(MissingCorrespondencesLoss, self).__init__()
+        self.transformer = transformer
+
+    def forward(self, pos_flow, neg_flow):
+        missingCorrespondences0 = torch.abs(atlas_utils.getMissingCorrespondence(pos_flow, neg_flow, self.transformer))
+        missingCorrespondences1 = torch.abs(atlas_utils.getMissingCorrespondence(neg_flow, pos_flow, self.transformer))
+
+        loss = (missingCorrespondences0.mean() + missingCorrespondences1.mean()) / 2.0
+        return loss
+
+
 class LaplaceOperator(nn.Module):
     """
     regularization loss of Laplace of a 3d velocity field
@@ -842,4 +856,5 @@ class LossFactory(object):
         "MultiClassSingleChannelDiceCalculator": MultiClassSingleChannelDiceCalculator,
         "MultiClassMultiChannelDiceCalculator": MultiClassMultiChannelDiceCalculator,
         "GeneralDice": GeneralizedDiceLoss,
+        "MissingCorrespondences": MissingCorrespondencesLoss,
     }

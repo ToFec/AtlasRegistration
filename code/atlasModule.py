@@ -220,8 +220,8 @@ class AtlasModule(pl.LightningModule):
             + imgSpaceLabelLoss
             + atlasSpaceLabelLoss
             + labelSimilarityLoss
-            + labelSimilarityFactorAtlasSpace,
-            +defFieldInverseConsistencyLoss,
+            + labelSimilarityFactorAtlasSpace
+            + defFieldInverseConsistencyLoss,
         )
         self.log("val_sim_loss_uw", sim_loss)
         self.log("val_reg_loss_uw", reg_loss)
