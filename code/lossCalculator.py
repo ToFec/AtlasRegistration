@@ -71,9 +71,9 @@ class LossCalculator:
 
         if self.defFieldInverseConsistencyLossFactor is None:
             self.defFieldInverseConsistencyLossFactor = 0.0
-            self.defFieldInverseConsistencyLoss = LossFactory.lossMap["Dummy"]()
-        else:
-            self.defFieldInverseConsistencyLoss = LossFactory.lossMap["MissingCorrespondences"](self.transformer)
+            # self.defFieldInverseConsistencyLoss = LossFactory.lossMap["Dummy"]()
+        # else:
+        self.defFieldInverseConsistencyLoss = LossFactory.lossMap["MissingCorrespondences"](self.transformer)
 
     def _getDefomredImages(
         self, posDeformationField, neg_flow, images, meshes, paddMode="border", interpolationType="bilinear"

@@ -42,6 +42,7 @@ def getCheckPointString(config):
     labelLoss = config.getParam("labelLoss")
     labelSimilarityFactor = config.getParam("labelSimilarityFactor")
     labelSimilarityFactorAtlasSpace = config.getParam("labelSimilarityFactorAtlasSpace")
+    inverseConsistencyLoss = config.getParam("defDieldInverseConsistencyLossFactor")
 
     reg_factor = config.getParam("regularizationFactor")
     sim_factor = config.getParam("similarityFactor")
@@ -96,6 +97,9 @@ def getCheckPointString(config):
         stringForStoringVariables = (
             stringForStoringVariables + "_lSimA_" + "{:.2f}".format(labelSimilarityFactorAtlasSpace)
         )
+
+    if inverseConsistencyLoss is not None and inverseConsistencyLoss > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_inv_" + "{:.2f}".format(inverseConsistencyLoss)
 
     stringForStoringVariables = (
         stringForStoringVariables
