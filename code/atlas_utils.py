@@ -48,8 +48,8 @@ def segmentMisssingCorrespondences(pos_flow, neg_flow, transformation=None):
 
     segmentationPosFlowMinusWarpedNegFlow = (posFlowMinusWarpedNegFlowNorm > allowedDeviation).short()
 
-    return segmentationPosFlowMinusWarpedNegFlow, segmentationNegFlowMinusWarpedPosFlow
-    # return posFlowMinusWarpedNegFlowNorm, negFlowMinusWarpedPosFlowNorm
+    # return segmentationPosFlowMinusWarpedNegFlow, segmentationNegFlowMinusWarpedPosFlow
+    return posFlowMinusWarpedNegFlowNorm, negFlowMinusWarpedPosFlowNorm
 
 
 def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
