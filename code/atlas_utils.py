@@ -210,8 +210,8 @@ def loadDefField(filename):
     defField[..., 0] = (defField[..., 0] / defFieldSpacing[0]) * defFieldDirection[
         0
     ]  # should be sign of direction or reorient to standard direction?
-    defField[..., 1] = (defField[..., 1] / defFieldSpacing[1]) * defFieldDirection[4]
-    defField[..., 2] = (defField[..., 2] / defFieldSpacing[2]) * defFieldDirection[8]
+    defField[..., 1] = defField[..., 1] / defFieldSpacing[1] * defFieldDirection[4]
+    defField[..., 2] = defField[..., 2] / defFieldSpacing[2] * defFieldDirection[8]
 
     defField[..., 0] = defField[..., 0] / ((defField.shape[2] - 1) / 2.0)
     defField[..., 1] = defField[..., 1] / ((defField.shape[1] - 1) / 2.0)
@@ -224,6 +224,7 @@ def loadDefField(filename):
     return defField
 
 
+# deprecated
 def getMeshSpacing(mesh):
     spacing0 = torch.sqrt(torch.sum(torch.pow((mesh[:, 0, 0, 0] - mesh[:, 1, 0, 0]), 2)))
     spacing1 = torch.sqrt(torch.sum(torch.pow((mesh[:, 0, 0, 0] - mesh[:, 0, 1, 0]), 2)))
@@ -233,16 +234,16 @@ def getMeshSpacing(mesh):
 
 
 def saveDefField(filename, defField, origin, spacing, direction):
-    defField = defField[0, ...].detach()
+    defField = defField[0, ...].detach().clone()
     defField = defField.permute([3, 2, 1, 0])
 
     defField[..., 0] = defField[..., 0] * ((defField.shape[2] - 1) / 2.0)
     defField[..., 1] = defField[..., 1] * ((defField.shape[1] - 1) / 2.0)
     defField[..., 2] = defField[..., 2] * ((defField.shape[0] - 1) / 2.0)
 
-    defField[..., 0] = (defField[..., 0] * spacing[0]) * direction[0]
-    defField[..., 1] = (defField[..., 1] * spacing[1]) * direction[4]
-    defField[..., 2] = (defField[..., 2] * spacing[2]) * direction[8]
+    defField[..., 0] = defField[..., 0] * spacing[0] * direction[0]
+    defField[..., 1] = defField[..., 1] * spacing[1] * direction[4]
+    defField[..., 2] = defField[..., 2] * spacing[2] * direction[8]
 
     defDataToSave = sitk.GetImageFromArray(defField, isVector=True)
 
@@ -287,7 +288,30 @@ def getOptimizer(optimizerType):
     return torch.optim.AdamW
 
 
-def jacobianDeterminant(deform_field, spacing):
+def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
+    dx = (deform_field[:, :, 1:, :, :] - deform_field[:, :, :-1, :, :]) / spacing[0]
+    dy = (deform_field[:, :, :, 1:, :] - deform_field[:, :, :, :-1, :]) / spacing[1]
+    dz = (deform_field[:, :, :, :, 1:] - deform_field[:, :, :, :, :-1]) / spacing[2]
+
+    # Pad the gradients to match the original size
+    dx = torch.nn.functional.pad(dx, (0, 0, 0, 0, 0, 1))
+    dy = torch.nn.functional.pad(dy, (0, 0, 0, 1, 0, 0))
+    dz = torch.nn.functional.pad(dz, (0, 1, 0, 0, 0, 0))
+
+    # Compute Jacobian determinant
+    jacobian_det = (
+        (1 + dx[:, 0]) * (1 + dy[:, 1]) * (1 + dz[:, 2])
+        + dx[:, 1] * dy[:, 2] * dz[:, 0]
+        + dx[:, 2] * dy[:, 0] * dz[:, 1]
+        - (1 + dx[:, 0]) * dy[:, 2] * dz[:, 1]
+        - dx[:, 1] * (1 + dy[:, 1]) * dz[:, 0]
+        - dx[:, 2] * dy[:, 0] * (1 + dz[:, 2])
+    )
+
+    return jacobian_det
+
+
+def _jacobianDeterminant(deform_field, spacing):
     """
     jacobian determinant of a displacement field.
     NB: to compute the spatial gradients, we use np.gradient.

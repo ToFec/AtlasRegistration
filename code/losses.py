@@ -343,6 +343,16 @@ class FocalLoss(nn.Module):
         return loss
 
 
+class JacobianLoss(nn.Module):
+    def forward(self, defField, spacing):
+        jacobian = atlas_utils.jacobianDeterminant(defField, spacing)
+
+        # Penalize areas where the Jacobian determinant is negative or deviates from 1
+        loss = torch.mean(torch.abs(jacobian - 1))
+
+        return loss
+
+
 class DiceLoss(nn.Module):
     def initialize(self, class_num, weight=None):
         self.class_num = class_num

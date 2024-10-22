@@ -129,7 +129,7 @@ def getModelAndData(config, stageType):
     stringForStoringVariables = getCheckPointString(config)
 
     f = open(os.path.join(config.getParam("checkPointPath"), stringForStoringVariables + ".txt"), "r")
-    checkPointPath = f.read()
+    checkPointPath = f.read().splitlines()[0]
 
     model = AtlasModule.load_from_checkpoint(checkPointPath)
 
@@ -235,7 +235,7 @@ def runTestImgSampling(config, nuOfFilesToWrite):
                 return
 
 
-def runTraining(config):
+def runTraining(config, resume=False):
     seed = config.getParam("seed")
 
     if seed is not None:
@@ -245,38 +245,38 @@ def runTraining(config):
     if matMulPrecision:
         atlas_utils.setMatmulPrecision(matMulPrecision)
 
-    max_epochs = config.getParam("epochs")
-
     stringForStoringVariables = getCheckPointString(config)
-
-    network = NetworkFactory.getNetwork(config)
-
-    newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
-    config.setParam("registrationGridsize", newShape.tolist())
-
-    loss = LossCalculator(config)
-    optimizer = atlas_utils.getOptimizer(config.getParam("optimizer"))
 
     data = AtlasDataModule(config)
     data.prepare_data()
     data.setup(stage="fit")
-
     atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
-    model = AtlasModule(
-        network,
-        atlasImage,
-        atlasLabel,
-        atlasMesh,
-        atlasOrigin,
-        loss,
-        networkLearning_rate=config.getParam("learningRate"),
-        atlasLearning_rate=config.getParam("atlasLearningRate"),
-        networkOptimizer_class=optimizer,
-        atlasOptimizer_class=optimizer,
-        useLrScheduler=config.getParam("lrScheduler"),
-        logTemporaryDeformationFields=config.getParam("logTemporaryDeformationFields"),
-    )
+    if resume:
+        f = open(os.path.join(config.getParam("checkPointPath"), stringForStoringVariables + ".txt"), "r")
+        checkPointPath = f.read().splitlines()[0]
+        model = AtlasModule.load_from_checkpoint(checkPointPath)
+    else:
+        network = NetworkFactory.getNetwork(config)
+        newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
+        config.setParam("registrationGridsize", newShape.tolist())
+        loss = LossCalculator(config)
+        optimizer = atlas_utils.getOptimizer(config.getParam("optimizer"))
+
+        model = AtlasModule(
+            network,
+            atlasImage,
+            atlasLabel,
+            atlasMesh,
+            atlasOrigin,
+            loss,
+            networkLearning_rate=config.getParam("learningRate"),
+            atlasLearning_rate=config.getParam("atlasLearningRate"),
+            networkOptimizer_class=optimizer,
+            atlasOptimizer_class=optimizer,
+            useLrScheduler=config.getParam("lrScheduler"),
+            logTemporaryDeformationFields=config.getParam("logTemporaryDeformationFields"),
+        )
 
     callBackFunctions = []
 
@@ -319,6 +319,7 @@ def runTraining(config):
     # profiler = pl.profilers.PyTorchProfiler(
     #     on_trace_ready=torch.profiler.tensorboard_trace_handler("./tb_logs/profile0")
     # )
+
     trainer = pl.Trainer(
         accelerator=config.getParam("accelerator"),
         devices="auto",
@@ -330,7 +331,7 @@ def runTraining(config):
         profiler=profiler,  # "pytorch"
         deterministic="warn",
         check_val_every_n_epoch=5,
-        max_epochs=max_epochs,
+        max_epochs=config.getParam("epochs"),
     )
 
     trainer.tune(model, datamodule=data)
@@ -356,6 +357,7 @@ parser.add_argument("-p", "--predict", dest="predict", action="store_true")
 parser.add_argument("-o", "--optimiseParams", dest="hpyerSearch", action="store_true")
 parser.add_argument("-a", "--analyseHyperParamSearch", dest="analyseHyperSearch", action="store_true")
 parser.add_argument("-s", "--testSampling", dest="testSampling", default=0, type=int)
+parser.add_argument("-r", "--resume", dest="resume", action="store_true")
 
 
 def valiateConfigFile(configuration: Config):
@@ -460,5 +462,7 @@ if __name__ == "__main__":
                 runHyperParamSearch(config)
         elif args.testSampling > 0:
             runTestImgSampling(config, args.testSampling)
+        elif args.resume:
+            runTraining(config, resume=True)
         else:
             runTraining(config)

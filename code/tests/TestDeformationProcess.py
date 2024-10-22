@@ -27,6 +27,68 @@ class Test(unittest.TestCase):
         config.setParam("batchSize", batchSize)
         return config
 
+    def _testSignsOfOrientation2(self):
+        # compare results with sitk
+        deformationFieldName0 = "./resources/JacobianTest/img1DefField.mhd"
+        deformation_field = sitk.ReadImage(deformationFieldName0)
+        image = sitk.ReadImage("./resources/JacobianTest/img1.mhd")
+        resampler = sitk.ResampleImageFilter()
+        resampler.SetReferenceImage(image)
+        dis_tx = sitk.DisplacementFieldTransform(sitk.Cast(deformation_field, sitk.sitkVectorFloat64))
+        resampler.SetTransform(dis_tx)
+        out = resampler.Execute(image)
+
+        sitk.WriteImage(out, "./resources/JacobianTest/warped_imageSitk.nrrd")
+
+    def _testSignsOfOrientation(self):
+        deformationFieldName0 = "./resources/JacobianTest/img1DefField.mhd"
+        defField = atlasUtils.loadDefField(deformationFieldName0)
+        transformer = Transformation()
+        deformaiton = transformer.getDeformationField(defField)
+
+        img = sitk.ReadImage("./resources/JacobianTest/img1.mhd")
+        imgA = sitk.GetArrayFromImage(img)
+        imgA = imgA.transpose()
+        imgA = torch.from_numpy(imgA)[None, None, ...]
+
+        img2 = sitk.ReadImage("./resources/JacobianTest/img+1.mhd")
+        imgA2 = sitk.GetArrayFromImage(img2)
+        imgA2 = imgA2.transpose()
+        imgA2 = torch.from_numpy(imgA2)
+
+        # tmpDeformed = transformer.sampleImage(atlasImage[0, None, :], deformaiton).detach()
+
+        tmpDeformed = transformer.sampleImage(imgA, deformaiton)
+
+        atlasUtils.saveImageTensor(
+            tmpDeformed,
+            "./resources/JacobianTest/img1Deformed.mhd",
+            img.GetOrigin(),
+            img.GetSpacing(),
+            img.GetDirection(),
+        )
+        atlasUtils.saveImageTensor(
+            imgA,
+            "./resources/JacobianTest/img1SAved.mhd",
+            img.GetOrigin(),
+            img.GetSpacing(),
+            img.GetDirection(),
+        )
+        atlasUtils.saveImageTensor(
+            imgA2[None, None, ...],
+            "./resources/JacobianTest/img1SAved2.mhd",
+            img2.GetOrigin(),
+            img2.GetSpacing(),
+            img2.GetDirection(),
+        )
+        atlasUtils.saveDefField(
+            "./resources/JacobianTest/defFieldSAved.mhd",
+            defField,
+            img.GetOrigin(),
+            img.GetSpacing(),
+            img.GetDirection(),
+        )
+
     def _testApplicationItkRegistrationMatrix3(self):
         img = sitk.ReadImage("./resources/ITKRegMatrix2/orig_1.nii.gz")
         reg = sitk.ReadTransform("./resources/ITKRegMatrix2/affineRegistrationMatrix.txt")

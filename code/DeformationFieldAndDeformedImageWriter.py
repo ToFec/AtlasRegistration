@@ -256,5 +256,25 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshDir,
             )
 
+            flowFieldSpacing = [(2.0 / (pos_flow.shape[i + 2] - 1)) for i in range(len(self.meshSpacing))]
+
+            jacobiDetNegFlow = atlas_utils.jacobianDeterminant(neg_flow[i, None, ...], flowFieldSpacing)
+
+            atlas_utils.saveImageTensor(
+                jacobiDetNegFlow[None, ...],
+                os.path.join(self.output_dir, fileBaseName + "DefFieldJacobian" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
+            jacobiDetPosFlow = atlas_utils.jacobianDeterminant(pos_flow[i, None, ...], flowFieldSpacing)
+            atlas_utils.saveImageTensor(
+                jacobiDetPosFlow[None, ...],
+                os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldJacobian" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
+
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         pass

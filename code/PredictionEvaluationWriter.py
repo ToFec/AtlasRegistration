@@ -94,7 +94,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         pos_flow = prediction[0]
         neg_flow = prediction[1]
 
-        meshSpacing = [(self.meshSpacing[i] / pos_flow.shape[i + 2]) * 2 for i in range(len(self.meshSpacing))]
+        flowFieldSpacing = [(2.0 / (pos_flow.shape[i + 2] - 1)) for i in range(len(self.meshSpacing))]
 
         posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
         warpedAtlas = self.transformer.sampleImage(
@@ -124,14 +124,14 @@ class PredictionEvaluationWriter(BasePredictionWriter):
 
             warpedLabelsInImgSpace = diceLoss.getDscValues(sampledLabels[i, None, ...], warpedAtlasLabels[0, None, ...])
 
-            jacobiDetNegFlow = atlas_utils.jacobianDeterminant(neg_flow[i, None, ...], meshSpacing)
+            jacobiDetNegFlow = atlas_utils.jacobianDeterminant(neg_flow[i, None, ...], flowFieldSpacing)
 
-            fractionOfFoldingsNegFlow = np.sum(jacobiDetNegFlow < 0) / jacobiDetNegFlow.size
+            fractionOfFoldingsNegFlow = torch.sum(jacobiDetNegFlow < 0) / jacobiDetNegFlow.numel()
 
             jacobiDetPosFlow = atlas_utils.jacobianDeterminant(
-                pos_flow[i, None, ...], meshSpacing
+                pos_flow[i, None, ...], flowFieldSpacing
             )  # Atlas to Image DefField
-            fractionOfFoldingsPosFlow = np.sum(jacobiDetPosFlow < 0) / jacobiDetPosFlow.size
+            fractionOfFoldingsPosFlow = torch.sum(jacobiDetPosFlow < 0) / jacobiDetPosFlow.numel()
 
             result = (
                 [
@@ -141,10 +141,10 @@ class PredictionEvaluationWriter(BasePredictionWriter):
                 + warpedLabelDscInAtlasSpace.numpy().astype(str).tolist()
                 + warpedLabelsInImgSpace.numpy().astype(str).tolist()
                 + [
-                    str(fractionOfFoldingsNegFlow),
+                    str(fractionOfFoldingsNegFlow.item()),
                 ]
                 + [
-                    str(fractionOfFoldingsPosFlow),
+                    str(fractionOfFoldingsPosFlow.item()),
                 ]
             )
 
