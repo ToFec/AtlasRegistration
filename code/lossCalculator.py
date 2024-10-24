@@ -78,8 +78,10 @@ class LossCalculator:
     def _getDefomredImages(
         self, posDeformationField, neg_flow, images, meshes, paddMode="border", interpolationType="bilinear"
     ):
-        # sec_src_imgs = torch.flip(images, dims=[0])
-        sec_src_imgs = images[::-1]
+        if isinstance(images, list):
+            sec_src_imgs = images[::-1]
+        else:
+            sec_src_imgs = torch.flip(images, dims=[0])
         negFlowAndMesh = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
         secNegFlowAndMesh = torch.flip(negFlowAndMesh, dims=[0])
         transforemdImageMeshToOtherImageSpace = self.transformer.sampleImage(secNegFlowAndMesh, posDeformationField)
