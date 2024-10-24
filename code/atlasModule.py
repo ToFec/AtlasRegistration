@@ -106,9 +106,11 @@ class AtlasModule(pl.LightningModule):
         return networkImageToRegInput, networkAtlasInput
 
     def prepare_batch(self, batch):
-        images = batch["image"][tio.DATA]
+        # images = batch["image"][tio.DATA]
+        images = [image[tio.DATA] for image in batch["image"]]
         meshes = batch["samplingMesh"]
-        labels = batch["label"][tio.DATA]
+        # labels = batch["label"][tio.DATA]
+        labels = [image[tio.DATA] for image in batch["label"]]
         return images, meshes, labels
 
     def infer_batch(self, images, atlasImages):
@@ -122,9 +124,9 @@ class AtlasModule(pl.LightningModule):
             neg_flow,
             images,
             meshes,
-            self.getInputAtlasImage(images.shape[0]),
-            self.getInputAtlasMesh(images.shape[0]),
-            self.getInputAtlasLabel(images.shape[0]),
+            self.getInputAtlasImage(meshes.shape[0]),
+            self.getInputAtlasMesh(meshes.shape[0]),
+            self.getInputAtlasLabel(meshes.shape[0]),
             labels,
         )
         (
@@ -194,9 +196,9 @@ class AtlasModule(pl.LightningModule):
             neg_flow,
             images,
             meshes,
-            self.getInputAtlasImage(images.shape[0]),
-            self.getInputAtlasMesh(images.shape[0]),
-            self.getInputAtlasLabel(images.shape[0]),
+            self.getInputAtlasImage(meshes.shape[0]),
+            self.getInputAtlasMesh(meshes.shape[0]),
+            self.getInputAtlasLabel(meshes.shape[0]),
             labels,
         )
         (

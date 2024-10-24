@@ -178,6 +178,10 @@ def applyRigidRegistrationToImgHeader(image: sitk.Image, transform: sitk.Transfo
     image.SetSpacing(imgSpacingNew)
 
 
+def customCollateTensorFunction(batch, *, collate_fn_map):
+    return batch
+
+
 def createSignedDistanceMap(sitkLabel, ignoreBackground=False, maxValue=None):
     array = sitk.GetArrayViewFromImage(sitkLabel)
     uniqueValues = np.unique(array)

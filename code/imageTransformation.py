@@ -51,9 +51,23 @@ class Transformation(torch.nn.Module):
     def sampleImage(self, images, meshes, alignCorners=True, paddMode="border", interpolationType="bilinear"):
         meshes = torch.moveaxis(meshes, 1, -1)
         meshes = meshes.flip(-1)
-        sampledImage = torch.nn.functional.grid_sample(
-            images, meshes, padding_mode=paddMode, align_corners=alignCorners, mode=interpolationType
-        )
+
+        if isinstance(images, list):
+            sampledImageList = [
+                torch.nn.functional.grid_sample(
+                    img[None, ...],
+                    meshes[idx, None, ...],
+                    padding_mode=paddMode,
+                    align_corners=alignCorners,
+                    mode=interpolationType,
+                )
+                for idx, img in enumerate(images)
+            ]
+            sampledImage = torch.cat(sampledImageList, dim=0)
+        else:
+            sampledImage = torch.nn.functional.grid_sample(
+                images, meshes, padding_mode=paddMode, align_corners=alignCorners, mode=interpolationType
+            )
         return sampledImage
 
     def combineMeshesAndFlowField(self, meshes, flowField):

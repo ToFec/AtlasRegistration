@@ -78,7 +78,8 @@ class LossCalculator:
     def _getDefomredImages(
         self, posDeformationField, neg_flow, images, meshes, paddMode="border", interpolationType="bilinear"
     ):
-        sec_src_imgs = torch.flip(images, dims=[0])
+        # sec_src_imgs = torch.flip(images, dims=[0])
+        sec_src_imgs = images[::-1]
         negFlowAndMesh = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
         secNegFlowAndMesh = torch.flip(negFlowAndMesh, dims=[0])
         transforemdImageMeshToOtherImageSpace = self.transformer.sampleImage(secNegFlowAndMesh, posDeformationField)
@@ -131,7 +132,7 @@ class LossCalculator:
         deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
         self.lossWrapper.imgSpaceLabelLoss = self._getDiceloss(sampledLabels, deformedLabels)
 
-        batch_size = images.shape[0]
+        batch_size = meshes.shape[0]
         if (batch_size % 2) == 0:
             warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
             self.lossWrapper.atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(

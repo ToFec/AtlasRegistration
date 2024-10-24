@@ -373,6 +373,12 @@ class AtlasDataModule(pl.LightningDataModule):
 
     # pytorch lightning hook
     def setup(self, stage: Optional[str] = None):
+        torch.utils.data._utils.collate.default_collate_fn_map.update(
+            {
+                tio.LabelMap: atlasUtils.customCollateTensorFunction,
+                tio.ScalarImage: atlasUtils.customCollateTensorFunction,
+            }
+        )
         if self.useAtlasSpaceAsReferenceForMeshCreation:
             self._setAtlasImage()
             self._prepare_data(stage)
