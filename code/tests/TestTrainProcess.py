@@ -305,26 +305,26 @@ class Test(unittest.TestCase):
         # defField = atlasUtils.loadDefField("./resources/DummyDeformationFieldInv.nrrd")
 
         locale.setlocale(locale.LC_NUMERIC, "en_US")
-        for batch in data.train_dataloader():
-            images, meshes, _ = model.prepare_batch(batch)
+        # for batch in data.train_dataloader():
+        #     _, meshes, _ = model.prepare_batch(batch)
 
-            # networkInputImages = model.transformer.sampleImage(images,meshes)
-            # netWorkInputAtlasImages = model.transformer.sampleImage(model.atlasImages, model.atlasMeshes)
-            # pos_flow, neg_flow = model.infer_batch(networkInputImages, netWorkInputAtlasImages)
+        # networkInputImages = model.transformer.sampleImage(images,meshes)
+        # netWorkInputAtlasImages = model.transformer.sampleImage(model.atlasImages, model.atlasMeshes)
+        # pos_flow, neg_flow = model.infer_batch(networkInputImages, netWorkInputAtlasImages)
 
-            # loss = model.criterion.getLoss(pos_flow, neg_flow, images, meshes, model.atlasImages, model.atlasMeshes)
+        # loss = model.criterion.getLoss(pos_flow, neg_flow, images, meshes, model.atlasImages, model.atlasMeshes)
 
-            deformaiton = model.transformer.combineMeshesAndFlowField(meshes[0, None, :], defField)
-            tmpDeformed = model.transformer.sampleImage(images[0, None, :], deformaiton)
+        # deformaiton = model.transformer.combineMeshesAndFlowField(meshes[0, None, :], defField)
+        # tmpDeformed = model.transformer.sampleImage(images[0, None, :], deformaiton)
 
-            # meshOrigin = data.train_set[0]['meshOrigin']
-            # meshSpacing = config.getParam("registrationGridSpacing")
-            # meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
-            # sitkImage = sitk.GetImageFromArray(tmpDeformed.squeeze(0).squeeze(0).permute([2,1,0]))
-            # sitkImage.SetOrigin(meshOrigin.tolist())
-            # sitkImage.SetDirection(meshDir)
-            # sitkImage.SetSpacing(meshSpacing)
-            # sitk.WriteImage(sitkImage, "./resources/gridTest.nrrd")
+        # meshOrigin = data.train_set[0]['meshOrigin']
+        # meshSpacing = config.getParam("registrationGridSpacing")
+        # meshDir = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]
+        # sitkImage = sitk.GetImageFromArray(tmpDeformed.squeeze(0).squeeze(0).permute([2,1,0]))
+        # sitkImage.SetOrigin(meshOrigin.tolist())
+        # sitkImage.SetDirection(meshDir)
+        # sitkImage.SetSpacing(meshSpacing)
+        # sitk.WriteImage(sitkImage, "./resources/gridTest.nrrd")
 
         if os.path.exists("./resources/DummyDeformedMesh.pt"):
             os.remove("./resources/DummyDeformedMesh.pt")

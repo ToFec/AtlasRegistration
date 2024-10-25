@@ -62,13 +62,13 @@ class PredictionEvaluationWriter(BasePredictionWriter):
                     writer.writerow(lineToWrite)
 
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
-        images, meshes, _ = pl_module.prepare_batch(batch)
+        _, meshes, _ = pl_module.prepare_batch(batch)
 
-        atlasImages = pl_module.getInputAtlasImage(images.shape[0])
-        atlasMeshes = pl_module.getInputAtlasMesh(images.shape[0])
+        atlasImages = pl_module.getInputAtlasImage(meshes.shape[0])
+        atlasMeshes = pl_module.getInputAtlasMesh(meshes.shape[0])
         # atlasLabels = pl_module.getInputAtlasLabel(images.shape[0])
         atlasLabels = (
-            self.atlasLabelImage.data.expand(images.shape[0], -1, -1, -1, -1).to(torch.float32).to(images.device)
+            self.atlasLabelImage.data.expand(meshes.shape[0], -1, -1, -1, -1).to(torch.float32).to(meshes.device)
         )
 
         labels = []
@@ -83,7 +83,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
             #     transform = sitk.ReadTransform(transformationFileName)
             #     atlas_Utils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
             labels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
-        labels = torch.cat(labels).to(images.device)
+        labels = torch.cat(labels).to(meshes.device)
 
         # if self.transformDistanceMaps:
         #     labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
