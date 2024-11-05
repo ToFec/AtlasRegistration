@@ -65,9 +65,7 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             # if transformationFileName is not None:
             #     transform = sitk.ReadTransform(transformationFileName)
             #     atlasUtils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
-            loadedLabels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
-
-        loadedLabels = torch.cat(loadedLabels).to(meshes.device)
+            loadedLabels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).to(meshes.device))
 
         distanceMapsImg = None
         distanceMapsAtlas = None

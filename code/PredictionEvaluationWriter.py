@@ -82,8 +82,7 @@ class PredictionEvaluationWriter(BasePredictionWriter):
             # if transformationFileName is not None:
             #     transform = sitk.ReadTransform(transformationFileName)
             #     atlas_Utils.applyRigidRegistrationToImgHeader(sitkLabel, transform)
-            labels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).unsqueeze(0))
-        labels = torch.cat(labels).to(meshes.device)
+            labels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).to(meshes.device))
 
         # if self.transformDistanceMaps:
         #     labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
