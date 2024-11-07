@@ -298,7 +298,7 @@ class AtlasModule(pl.LightningModule):
         self.log("test_atlas_space_label_loss", stepInfo["atlas_space_label_loss"])
         self.log("test_label_sim_loss", stepInfo["label_sim_loss"])
         self.log("test_def_field_inverse_consistency", stepInfo["def_field_inverse_consistency"])
-        return stepInfo
+        return pos_flow, neg_flow, stepInfo
 
     def epochEndLogging(self, outputs, trainValString):
         avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
