@@ -3,7 +3,7 @@ Created on Jul 10, 2023
 
 @author: fechter
 """
-from pytorch_lightning.callbacks import BasePredictionWriter
+from pytorch_lightning.callbacks import Callback
 import os
 
 from imageTransformation import Transformation
@@ -13,9 +13,9 @@ import torch
 import SimpleITK as sitk
 
 
-class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
-    def __init__(self, config, write_interval, isStageTypePredict=False):
-        super().__init__(write_interval)
+class DeformationFieldAndDeformedImageWriter(Callback):
+    def __init__(self, config, isStageTypePredict=False):
+        # super().__init__(write_interval)
         self.output_dir = config.getParam("outputPath")
         self.meshDir = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         self.meshSpacing = config.getParam("registrationGridSpacing")
@@ -48,6 +48,12 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
             self.fileType = _fileType
 
         self.ignoreBackground = config.getParam("ignoreBackground")
+
+    def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+        self.write_on_batch_end(trainer, pl_module, outputs, None, batch, batch_idx, dataloader_idx)
+
+    def on_predict_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+        self.write_on_batch_end(trainer, pl_module, outputs, None, batch, batch_idx, dataloader_idx)
 
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         images, meshes, labels = pl_module.prepare_batch(batch)
@@ -260,6 +266,3 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshSpacing,
                 self.meshDir,
             )
-
-    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
-        pass

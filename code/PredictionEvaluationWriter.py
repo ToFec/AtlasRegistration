@@ -3,7 +3,7 @@ Created on Jul 10, 2023
 
 @author: fechter
 """
-from pytorch_lightning.callbacks import BasePredictionWriter
+from pytorch_lightning.callbacks import Callback
 import os
 
 from imageTransformation import Transformation
@@ -16,9 +16,9 @@ import csv
 import SimpleITK as sitk
 
 
-class PredictionEvaluationWriter(BasePredictionWriter):
-    def __init__(self, config, write_interval):
-        super().__init__(write_interval)
+class PredictionEvaluationWriter(Callback):
+    def __init__(self, config):
+        # super().__init__(write_interval)
         self.output_dir = config.getParam("outputPath")
         self.csvDelimiter = config.getParam("csvDelimiter")
 
@@ -51,6 +51,26 @@ class PredictionEvaluationWriter(BasePredictionWriter):
         self.header = None
         self.meshSpacing = config.getParam("registrationGridSpacing")
         self.ignoreBackground = config.getParam("ignoreBackground")
+
+    def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+        self.write_on_batch_end(trainer, pl_module, outputs, None, batch, batch_idx, dataloader_idx)
+
+    def on_test_epoch_end(self, trainer, pl_module) -> None:
+        self.write_on_epoch_end(trainer, pl_module, None, None)
+
+    def on_predict_batch_end(
+        self,
+        trainer,
+        pl_module,
+        outputs,
+        batch,
+        batch_idx,
+        dataloader_idx,
+    ) -> None:
+        self.write_on_batch_end(trainer, pl_module, outputs, None, batch, batch_idx, dataloader_idx)
+
+    def on_predict_epoch_end(self, trainer, pl_module, outputs):
+        self.write_on_epoch_end(trainer, pl_module, outputs, None)
 
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         if self.header is not None:
