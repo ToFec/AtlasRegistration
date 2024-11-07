@@ -148,7 +148,15 @@ def runTests(config):
     model, data = getModelAndData(config, "test")
 
     logger = TensorBoardLogger("tb_logs", name="test_" + getCheckPointString(config))
-    trainer = pl.Trainer(accelerator=config.getParam("accelerator"), devices="auto", precision=32, logger=logger)
+    pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch")
+    evaluationWriter = PredictionEvaluationWriter(config, write_interval="batch_and_epoch")
+    trainer = pl.Trainer(
+        accelerator=config.getParam("accelerator"),
+        devices="auto",
+        precision=32,
+        logger=logger,
+        callbacks=[pred_writer, evaluationWriter],
+    )
     start = dt.datetime.now()
 
     print("Training started at", start)
@@ -158,7 +166,7 @@ def runTests(config):
 
 def runPrediction(config):
     model, data = getModelAndData(config, "test")
-    pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch")
+    pred_writer = DeformationFieldAndDeformedImageWriter(config, write_interval="batch", isStageTypePredict=True)
     evaluationWriter = PredictionEvaluationWriter(config, write_interval="batch_and_epoch")
     trainer = pl.Trainer(
         accelerator=config.getParam("accelerator"),

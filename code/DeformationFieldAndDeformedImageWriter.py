@@ -14,7 +14,7 @@ import SimpleITK as sitk
 
 
 class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
-    def __init__(self, config, write_interval):
+    def __init__(self, config, write_interval, isStageTypePredict=False):
         super().__init__(write_interval)
         self.output_dir = config.getParam("outputPath")
         self.meshDir = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
@@ -37,6 +37,8 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         transformer = Transformation(imgShape)
         tmpImg = self.atlasLabelImage[tio.DATA].unsqueeze(0).type(torch.FloatTensor)
         self.atlasLabelImage = transformer.sampleImage(tmpImg, sampleMesh.unsqueeze(0), interpolationType="nearest")
+
+        self.isStageTypePredict = isStageTypePredict
 
         self.transformer = Transformation()
         _fileType = config.getParam("fileTypeToWrite")
@@ -80,109 +82,94 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
         pos_flow = prediction[0]
         neg_flow = prediction[1]
 
-        # posDeformationFieldAtlas = self.transformer.combineMeshesAndFlowField(atlasMeshes, pos_flow)
-        # warpedAtlas = self.transformer.sampleImage(
-        #     atlasImages,
-        #     posDeformationFieldAtlas,
-        # )
-        # warpedAtlasLabels = self.transformer.sampleImage(
-        #     atlasLabels, posDeformationFieldAtlas, interpolationType="nearest"
-        # )
-
-        # negDeformationFieldImages = self.transformer.combineMeshesAndFlowField(meshes, neg_flow)
-        # warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
-        # warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages, interpolationType="nearest")
-
         imageNames = batch["imagePath"]
-        # meshOrigin = batch["meshOrigin"]
         atlasOrigin = pl_module.atlasOrigin.tolist()
 
         atlasImages = atlasImages.cpu()
         atlasLabels = loadedAtlasLabels.cpu()
-        # atlasLabels = torch.argmax(loadedAtlasLabels, dim=1, keepdim=True).cpu()
         sampledImages = sampledImages.cpu()
         sampledLabels = sampledLabels.cpu()
-        # sampledLabels = torch.argmax(sampledLabels, dim=1, keepdim=True).cpu()
-        # warpedImages = warpedImages.cpu()
-        # warpedLabels = torch.argmax(warpedLabels, dim=1, keepdim=True).cpu()
-        # warpedAtlas = warpedAtlas.cpu()
-        # warpedAtlasLabels = torch.argmax(warpedAtlasLabels, dim=1, keepdim=True).cpu()
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
 
-        posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
-            pos_flow, neg_flow, self.transformer
-        )
+        # posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
+        #     pos_flow, neg_flow, self.transformer
+        # )
 
-        atlas_utils.saveImageTensor(
-            atlasImages[0, None, ...],
-            os.path.join(self.output_dir, "Atlas" + self.fileType),
-            atlasOrigin,
-            self.meshSpacing,
-            self.meshDir,
-        )
-
-        atlas_utils.saveImageTensor(
-            atlasLabels[0, None, ...],
-            os.path.join(self.output_dir, "AtlasLabel" + self.fileType),
-            atlasOrigin,
-            self.meshSpacing,
-            self.meshDir,
-        )
-
-        if distanceMapsAtlas is not None:
-            for channel in range(0, distanceMapsAtlas.shape[1]):
-                distanceMapChannel = distanceMapsAtlas[:, channel, None, ...]
-                distanceMapChannel = distanceMapChannel.cpu()
-                atlas_utils.saveImageTensor(
-                    distanceMapChannel[0, None, ...],
-                    os.path.join(self.output_dir, "AtlasDistanceMapChannel" + str(channel) + self.fileType),
-                    atlasOrigin,
-                    self.meshSpacing,
-                    self.meshDir,
-                )
-
-        for i in range(0, sampledImages.shape[0]):
-            fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
-
-            if os.path.exists(os.path.join(self.output_dir, fileBaseName + self.fileType)):
-                fileIdx = 0
-                fileBaseNameBUP = fileBaseName + str(fileIdx)
-                while os.path.exists(os.path.join(self.output_dir, fileBaseNameBUP + self.fileType)):
-                    fileIdx = fileIdx + 1
-                    fileBaseNameBUP = fileBaseName + str(fileIdx)
-                fileBaseName = fileBaseNameBUP
-
-            ## save resampled original image
+        if not self.isStageTypePredict:
             atlas_utils.saveImageTensor(
-                sampledImages[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + self.fileType),
+                atlasImages[0, None, ...],
+                os.path.join(self.output_dir, "Atlas" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
                 self.meshDir,
             )
 
-            ## save ditanceMaps
-            if distanceMapsImg is not None:
-                currDistanceMaps = distanceMapsImg[i, None, ...]
-                for channel in range(0, currDistanceMaps.shape[1]):
-                    distanceMapChannel = currDistanceMaps[0, None, channel, None, ...]
+            atlas_utils.saveImageTensor(
+                atlasLabels[0, None, ...],
+                os.path.join(self.output_dir, "AtlasLabel" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
+
+            if distanceMapsAtlas is not None:
+                for channel in range(0, distanceMapsAtlas.shape[1]):
+                    distanceMapChannel = distanceMapsAtlas[:, channel, None, ...]
+                    distanceMapChannel = distanceMapChannel.cpu()
                     atlas_utils.saveImageTensor(
-                        distanceMapChannel,
-                        os.path.join(self.output_dir, fileBaseName + "DistanceMap" + str(channel) + self.fileType),
+                        distanceMapChannel[0, None, ...],
+                        os.path.join(self.output_dir, "AtlasDistanceMapChannel" + str(channel) + self.fileType),
                         atlasOrigin,
                         self.meshSpacing,
                         self.meshDir,
                     )
 
-            ## save resampled original label
-            atlas_utils.saveImageTensor(
-                sampledLabels[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "Label" + self.fileType),
-                atlasOrigin,
-                self.meshSpacing,
-                self.meshDir,
-            )
+        for i in range(0, sampledImages.shape[0]):
+            if self.isStageTypePredict:
+                self.output_dir = os.path.dirname(imageNames[i])
+                fileBaseName = ""
+            else:
+                fileBaseName = os.path.splitext(os.path.basename(imageNames[i]))[0]
+                if os.path.exists(os.path.join(self.output_dir, fileBaseName + self.fileType)):
+                    fileIdx = 0
+                    fileBaseNameBUP = fileBaseName + str(fileIdx)
+                    while os.path.exists(os.path.join(self.output_dir, fileBaseNameBUP + self.fileType)):
+                        fileIdx = fileIdx + 1
+                        fileBaseNameBUP = fileBaseName + str(fileIdx)
+                    fileBaseName = fileBaseNameBUP
+
+            if not self.isStageTypePredict:
+                ## save resampled original image
+                atlas_utils.saveImageTensor(
+                    sampledImages[i, None, ...],
+                    os.path.join(self.output_dir, fileBaseName + self.fileType),
+                    atlasOrigin,
+                    self.meshSpacing,
+                    self.meshDir,
+                )
+
+                ## save ditanceMaps
+                if distanceMapsImg is not None:
+                    currDistanceMaps = distanceMapsImg[i, None, ...]
+                    for channel in range(0, currDistanceMaps.shape[1]):
+                        distanceMapChannel = currDistanceMaps[0, None, channel, None, ...]
+                        atlas_utils.saveImageTensor(
+                            distanceMapChannel,
+                            os.path.join(self.output_dir, fileBaseName + "DistanceMap" + str(channel) + self.fileType),
+                            atlasOrigin,
+                            self.meshSpacing,
+                            self.meshDir,
+                        )
+
+                ## save resampled original label
+                atlas_utils.saveImageTensor(
+                    sampledLabels[i, None, ...],
+                    os.path.join(self.output_dir, fileBaseName + "Label" + self.fileType),
+                    atlasOrigin,
+                    self.meshSpacing,
+                    self.meshDir,
+                )
 
             # ## save deformed images in atlas space
             # atlas_utils.saveImageTensor(
@@ -211,13 +198,13 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshDir,
             )
 
-            atlas_utils.saveImageTensor(
-                negFlowMinusWarpedPosFlow[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "DefFieldMinusAtlasDefField" + self.fileType),
-                atlasOrigin,
-                self.meshSpacing,
-                self.meshDir,
-            )
+            # atlas_utils.saveImageTensor(
+            #     negFlowMinusWarpedPosFlow[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "DefFieldMinusAtlasDefField" + self.fileType),
+            #     atlasOrigin,
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
 
             # ## save deformed atlas in image space
             # atlas_utils.saveImageTensor(
@@ -246,13 +233,13 @@ class DeformationFieldAndDeformedImageWriter(BasePredictionWriter):
                 self.meshDir,
             )
 
-            atlas_utils.saveImageTensor(
-                posFlowMinusWarpedNegFlow[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldMinusImageDefField" + self.fileType),
-                atlasOrigin,
-                self.meshSpacing,
-                self.meshDir,
-            )
+            # atlas_utils.saveImageTensor(
+            #     posFlowMinusWarpedNegFlow[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldMinusImageDefField" + self.fileType),
+            #     atlasOrigin,
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
 
             flowFieldSpacing = [(2.0 / (pos_flow.shape[i + 2] - 1)) for i in range(len(self.meshSpacing))]
 
