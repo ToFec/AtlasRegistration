@@ -243,7 +243,7 @@ def runTestImgSampling(config, nuOfFilesToWrite):
                 return
 
 
-def runTraining(config, resume=False):
+def runTraining(config, resume: str = None):
     seed = config.getParam("seed")
 
     if seed is not None:
@@ -260,8 +260,8 @@ def runTraining(config, resume=False):
     data.setup(stage="fit")
     atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
-    if resume:
-        f = open(os.path.join(config.getParam("checkPointPath"), stringForStoringVariables + ".txt"), "r")
+    if resume is not None:
+        f = open(resume, "r")
         checkPointPath = f.read().splitlines()[0]
         model = AtlasModule.load_from_checkpoint(checkPointPath)
     else:
@@ -365,7 +365,7 @@ parser.add_argument("-p", "--predict", dest="predict", action="store_true")
 parser.add_argument("-o", "--optimiseParams", dest="hpyerSearch", action="store_true")
 parser.add_argument("-a", "--analyseHyperParamSearch", dest="analyseHyperSearch", action="store_true")
 parser.add_argument("-s", "--testSampling", dest="testSampling", default=0, type=int)
-parser.add_argument("-r", "--resume", dest="resume", action="store_true")
+parser.add_argument("-r", "--resume", dest="resume")
 
 
 def valiateConfigFile(configuration: Config):
@@ -471,6 +471,6 @@ if __name__ == "__main__":
         elif args.testSampling > 0:
             runTestImgSampling(config, args.testSampling)
         elif args.resume:
-            runTraining(config, resume=True)
+            runTraining(config, resume=args.resume)
         else:
             runTraining(config)
