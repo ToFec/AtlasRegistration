@@ -263,6 +263,7 @@ def runTraining(config, resume: str = None):
     if resume is not None:
         f = open(resume, "r")
         checkPointPath = f.read().splitlines()[0]
+        logging.warn(f"trying to load model file from {resume}")
         model = AtlasModule.load_from_checkpoint(checkPointPath)
     else:
         network = NetworkFactory.getNetwork(config)
