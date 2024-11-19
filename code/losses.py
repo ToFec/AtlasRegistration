@@ -344,11 +344,38 @@ class FocalLoss(nn.Module):
 
 
 class JacobianLoss(nn.Module):
-    def forward(self, defField, spacing):
-        jacobian = atlas_utils.jacobianDeterminant(defField, spacing)
+    def __init__(self, flowFieldShape):
+        super(JacobianLoss, self).__init__()
+        self.flowFieldSpacing = [(2.0 / (flowFieldShape[i] - 1)) for i in range(len(flowFieldShape))]
+
+    def forward(self, defField):
+        jacobian = atlas_utils.jacobianDeterminant(defField, self.flowFieldSpacing)
 
         # Penalize areas where the Jacobian determinant is negative or deviates from 1
         loss = torch.mean(torch.abs(jacobian - 1))
+
+        return loss
+
+
+class VolumePreservationLoss(nn.Module):
+    def __init__(self, flowFieldShape, maxDistanceInDistanceMaps=None):
+        super(VolumePreservationLoss, self).__init__()
+        self.flowFieldSpacing = [(2.0 / (flowFieldShape[i] - 1)) for i in range(len(flowFieldShape))]
+        self.maxDistanceInDistanceMaps = maxDistanceInDistanceMaps
+
+    def forward(self, defField, labelMap):
+        jacobian = atlas_utils.jacobianDeterminant(defField, self.flowFieldSpacing)
+
+        if self.maxDistanceInDistanceMaps:
+            jacobyMeanValue = torch.zeros_like(labelMap)
+            labelMap = torch.floor(labelMap / self.maxDistanceInDistanceMaps)
+            labels = torch.unique(labelMap)
+            for label in labels:
+                jacobyMeanValue[labelMap == label] = jacobian[labelMap == label].mean()
+        else:
+            jacobyMeanValue = jacobian.mean()
+
+        loss = torch.mean(torch.abs(jacobian - jacobyMeanValue))
 
         return loss
 
@@ -867,4 +894,6 @@ class LossFactory(object):
         "MultiClassMultiChannelDiceCalculator": MultiClassMultiChannelDiceCalculator,
         "GeneralDice": GeneralizedDiceLoss,
         "MissingCorrespondences": MissingCorrespondencesLoss,
+        "JacobianLoss": JacobianLoss,
+        "VolumePreservationLoss": VolumePreservationLoss,
     }

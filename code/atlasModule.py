@@ -129,40 +129,16 @@ class AtlasModule(pl.LightningModule):
             self.getInputAtlasLabel(meshes.shape[0]),
             labels,
         )
-        (
-            sim_loss,
-            reg_loss,
-            pair_sim_loss,
-            atlas_pair_sim_loss,
-            imgSpaceLabelLoss,
-            atlasSpaceLabelLoss,
-            labelSimilarityLoss,
-            labelSimilarityFactorAtlasSpace,
-            defFieldInverseConsistencyLoss,
-        ) = self.criterion.getLosses()
-        loss = (
-            sim_loss
-            + reg_loss
-            + pair_sim_loss
-            + atlas_pair_sim_loss
-            + imgSpaceLabelLoss
-            + atlasSpaceLabelLoss
-            + labelSimilarityLoss
-            + labelSimilarityFactorAtlasSpace
-            + defFieldInverseConsistencyLoss
-        )
-        return {
-            "loss": loss,
-            "sim_loss": sim_loss,
-            "reg_loss": reg_loss,
-            "pair_sim_loss": pair_sim_loss,
-            "atlas_pair_sim_loss": atlas_pair_sim_loss,
-            "image_space_label_loss": imgSpaceLabelLoss,
-            "atlas_space_label_loss": atlasSpaceLabelLoss,
-            "label_sim_loss": labelSimilarityLoss,
-            "label_sim_loss_atlas_space": labelSimilarityFactorAtlasSpace,
-            "def_field_inverse_consistency": defFieldInverseConsistencyLoss,
-        }
+        lossWrapper = self.criterion.getLosses()
+        totalLoss = torch.zeros_like(lossWrapper.getUnweightedLoss("reg_loss"))
+        dictToReturn = {}
+        for loss in lossWrapper.getLossNames():
+            currLoss = lossWrapper.getWeightedLoss(loss)
+            totalLoss = totalLoss + currLoss
+            dictToReturn[loss] = currLoss
+
+        dictToReturn["loss"] = totalLoss
+        return dictToReturn
 
     def training_step(self, batch, batch_idx):
         optNetwork, _ = self.optimizers(use_pl_optimizer=True)
@@ -201,74 +177,21 @@ class AtlasModule(pl.LightningModule):
             self.getInputAtlasLabel(meshes.shape[0]),
             labels,
         )
-        (
-            sim_loss,
-            reg_loss,
-            pair_sim_loss,
-            atlas_pair_sim_loss,
-            imgSpaceLabelLoss,
-            atlasSpaceLabelLoss,
-            labelSimilarityLoss,
-            labelSimilarityFactorAtlasSpace,
-            defFieldInverseConsistencyLoss,
-        ) = self.criterion.getLossesWithoutWeighting()
+        lossWrapper = self.criterion.getLosses()
 
-        self.log(
-            "val_loss_uw",
-            sim_loss
-            + reg_loss
-            + pair_sim_loss
-            + atlas_pair_sim_loss
-            + imgSpaceLabelLoss
-            + atlasSpaceLabelLoss
-            + labelSimilarityLoss
-            + labelSimilarityFactorAtlasSpace
-            + defFieldInverseConsistencyLoss,
-        )
-        self.log("val_sim_loss_uw", sim_loss)
-        self.log("val_reg_loss_uw", reg_loss)
-        self.log("val_pair_sim_loss_uw", pair_sim_loss)
-        self.log("val_atlas_pair_sim_loss_uw", atlas_pair_sim_loss)
-        self.log("val_image_space_label_loss_uw", imgSpaceLabelLoss)
-        self.log("val_atlas_space_label_loss_uw", atlasSpaceLabelLoss)
-        self.log("val_label_sim_loss_uw", labelSimilarityLoss)
-        self.log("val_label_sim_loss_atlas_space_UW", labelSimilarityFactorAtlasSpace)
-        self.log("val_def_field_inverse_consistency_UW", defFieldInverseConsistencyLoss)
+        totalLoss = torch.zeros_like(lossWrapper.getUnweightedLoss("reg_loss"))
+        totalLossUW = torch.zeros_like(totalLoss)
+        for loss in lossWrapper.getLossNames():
+            currLoss = lossWrapper.getWeightedLoss(loss)
+            currLossUW = lossWrapper.getUnweightedLoss(loss)
+            totalLoss = totalLoss + currLoss
+            totalLossUW = totalLossUW + currLossUW
 
-        (
-            sim_loss,
-            reg_loss,
-            pair_sim_loss,
-            atlas_pair_sim_loss,
-            imgSpaceLabelLoss,
-            atlasSpaceLabelLoss,
-            labelSimilarityLoss,
-            labelSimilarityFactorAtlasSpace,
-            defFieldInverseConsistencyLoss,
-        ) = self.criterion.getLosses()
+            self.log(f"val_{loss}", currLoss)
+            self.log(f"val_{loss}_uw", currLossUW)
 
-        loss = (
-            sim_loss
-            + reg_loss
-            + pair_sim_loss
-            + atlas_pair_sim_loss
-            + imgSpaceLabelLoss
-            + atlasSpaceLabelLoss
-            + labelSimilarityLoss
-            + labelSimilarityFactorAtlasSpace
-            + defFieldInverseConsistencyLoss
-        )
-
-        self.log("val_loss", loss)
-        self.log("val_sim_loss", sim_loss)
-        self.log("val_reg_loss", reg_loss)
-        self.log("val_pair_sim_loss", pair_sim_loss)
-        self.log("val_atlas_pair_sim_loss", atlas_pair_sim_loss)
-        self.log("val_image_space_label_loss", imgSpaceLabelLoss)
-        self.log("val_atlas_space_label_loss", atlasSpaceLabelLoss)
-        self.log("val_label_sim_loss", labelSimilarityLoss)
-        self.log("val_label_sim_loss_atlas_space", labelSimilarityFactorAtlasSpace)
-        self.log("val_def_field_inverse_consistency", defFieldInverseConsistencyLoss)
+        self.log("val_loss_uw", totalLossUW)
+        self.log("val_loss", totalLoss)
 
         if self.logTemporaryDeformationFields:
             for logger in self.loggers:
@@ -277,9 +200,9 @@ class AtlasModule(pl.LightningModule):
                     logger.saveImage(defFieldToSave, "DeformationField0", self.current_epoch)
 
         return {
-            "loss": loss,
-            "val_atlas_space_label_loss_uw": atlasSpaceLabelLoss,
-            "val_label_sim_loss_atlas_space_UW": labelSimilarityFactorAtlasSpace,
+            "loss": totalLoss,
+            "val_atlas_space_label_loss_uw": lossWrapper.getWeightedLoss("atlasSpaceLabelLoss"),
+            "val_label_sim_loss_atlas_space_UW": lossWrapper.getWeightedLoss("labelSimilarityLossAtlasSpace"),
         }
 
     def test_step(self, batch, batch_idx):
@@ -288,16 +211,8 @@ class AtlasModule(pl.LightningModule):
         pos_flow, neg_flow = self.infer_batch(networkImageToRegInput, networkAtlasInput)
         stepInfo = self.gatherInfoOfTrainingValidationStep(pos_flow, neg_flow, images, meshes, labels)
 
-        loss = stepInfo["loss"]
-        self.log("test_loss", loss)
-        self.log("test_sim_loss", stepInfo["sim_loss"])
-        self.log("test_reg_loss", stepInfo["reg_loss"])
-        self.log("test_pair_sim_loss", stepInfo["pair_sim_loss"])
-        self.log("test_atlas_pair_sim_loss", stepInfo["atlas_pair_sim_loss"])
-        self.log("test_image_space_label_loss", stepInfo["image_space_label_loss"])
-        self.log("test_atlas_space_label_loss", stepInfo["atlas_space_label_loss"])
-        self.log("test_label_sim_loss", stepInfo["label_sim_loss"])
-        self.log("test_def_field_inverse_consistency", stepInfo["def_field_inverse_consistency"])
+        for lossName in stepInfo.keys():
+            self.log(f"test_{lossName}", stepInfo[lossName])
         return pos_flow, neg_flow, stepInfo
 
     def epochEndLogging(self, outputs, trainValString):

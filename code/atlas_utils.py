@@ -182,6 +182,13 @@ def customCollateTensorFunction(batch, *, collate_fn_map):
     return batch
 
 
+def roundToHighestPosition(arr):
+    log10 = torch.floor(torch.log10(torch.abs(arr)))
+    base = 10**log10
+    rounded = torch.floor(arr / base) * base
+    return rounded
+
+
 def createSignedDistanceMap(sitkLabel, ignoreBackground=False, maxValue=None):
     array = sitk.GetArrayViewFromImage(sitkLabel)
     uniqueValues = np.unique(array)
@@ -304,12 +311,12 @@ def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
 
     # Compute Jacobian determinant
     jacobian_det = (
-        (1 + dx[:, 0]) * (1 + dy[:, 1]) * (1 + dz[:, 2])
-        + dx[:, 1] * dy[:, 2] * dz[:, 0]
-        + dx[:, 2] * dy[:, 0] * dz[:, 1]
-        - (1 + dx[:, 0]) * dy[:, 2] * dz[:, 1]
-        - dx[:, 1] * (1 + dy[:, 1]) * dz[:, 0]
-        - dx[:, 2] * dy[:, 0] * (1 + dz[:, 2])
+        (1 + dx[:, 0, None]) * (1 + dy[:, 1, None]) * (1 + dz[:, 2, None])
+        + dx[:, 1, None] * dy[:, 2, None] * dz[:, 0, None]
+        + dx[:, 2, None] * dy[:, 0, None] * dz[:, 1, None]
+        - (1 + dx[:, 0, None]) * dy[:, 2, None] * dz[:, 1, None]
+        - dx[:, 1, None] * (1 + dy[:, 1, None]) * dz[:, 0, None]
+        - dx[:, 2, None] * dy[:, 0, None] * (1 + dz[:, 2, None])
     )
 
     return jacobian_det

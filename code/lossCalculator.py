@@ -15,20 +15,21 @@ class LossCalculator:
         self.transformer = Transformation()
 
         self.lossWrapper = LossWrapper()
-        similartiyLossName = config.getParam("similarityLoss")
-        self.sim_factor = config.getParam("similarityFactor")
-        self.labelSimilarityFactor = config.getParam("labelSimilarityFactor")
-        if self.labelSimilarityFactor is None:
-            self.labelSimilarityFactor = 0.0
 
-        self.labelSimilarityFactorAtlasSpace = config.getParam("labelSimilarityFactorAtlasSpace")
-        if self.labelSimilarityFactorAtlasSpace is None:
-            self.labelSimilarityFactorAtlasSpace = 0.0
+        labelSimilarityFactor = config.getParam("labelSimilarityFactor")
+        if labelSimilarityFactor is not None:
+            self.lossWrapper.setLossFactor("labelSimilarityLoss", labelSimilarityFactor)
 
-        if self.sim_factor is not None and self.sim_factor != 0.0:
+        labelSimilarityFactorAtlasSpace = config.getParam("labelSimilarityFactorAtlasSpace")
+        if labelSimilarityFactorAtlasSpace is not None:
+            self.lossWrapper.setLossFactor("labelSimilarityLossAtlasSpace", labelSimilarityFactorAtlasSpace)
+
+        sim_factor = config.getParam("similarityFactor")
+        if sim_factor is not None and sim_factor != 0.0:
+            similartiyLossName = config.getParam("similarityLoss")
             self.similarityLoss = LossFactory.lossMap[similartiyLossName]()
+            self.lossWrapper.setLossFactor("sim_loss", sim_factor)
         else:
-            self.sim_factor = 0.0
             self.similarityLoss = LossFactory.lossMap["Dummy"]()
 
         diceLoss = config.getParam("labelLoss")
@@ -40,40 +41,61 @@ class LossCalculator:
         else:
             self.diceLoss = LossFactory.lossMap["Dummy"]()
 
-        self.reg_factor = config.getParam("regularizationFactor")
-        if self.reg_factor is not None and self.reg_factor != 0.0:
+        reg_factor = config.getParam("regularizationFactor")
+        if reg_factor is not None and reg_factor != 0.0:
             regularizationLossName = config.getParam("regularizationLoss")
             if regularizationLossName is None:
                 regularizationLossName = "BendingEnergy"
             self.regularizationLoss = LossFactory.lossMap[regularizationLossName]()
+            self.lossWrapper.setLossFactor("reg_loss", reg_factor)
         else:
-            self.reg_factor = 0.0
             self.regularizationLoss = LossFactory.lossMap["Dummy"]()
 
-        self.imagePairSimilarityFactor = config.getParam("imagePairSimFactor")
-        self.imageSpaceLabelSimFactor = config.getParam("imageSpaceLabelSimFactor")
-        if self.imageSpaceLabelSimFactor is None:
-            self.imageSpaceLabelSimFactor = 0.0
+        imagePairSimilarityFactor = config.getParam("imagePairSimFactor")
+        if imagePairSimilarityFactor is not None:
+            self.lossWrapper.setLossFactor("pair_sim_loss", imagePairSimilarityFactor)
 
-        self.atlasPairSimilarityFactor = config.getParam("atlasPairSimFactor")
-        self.atlasSpaceLabelSimFactor = config.getParam("atlasSpaceLabelSimFactor")
-        if self.atlasSpaceLabelSimFactor is None:
-            self.atlasSpaceLabelSimFactor = 0.0
+        imageSpaceLabelSimFactor = config.getParam("imageSpaceLabelSimFactor")
+        if imageSpaceLabelSimFactor is not None:
+            self.lossWrapper.setLossFactor("imgSpaceLabelLoss", imageSpaceLabelSimFactor)
 
-        self.smooth_factor = config.getParam("smoothingFactor")
-        if self.smooth_factor is not None and self.smooth_factor != 0.0:
+        atlasPairSimilarityFactor = config.getParam("atlasPairSimFactor")
+        if atlasPairSimilarityFactor is not None:
+            self.lossWrapper.setLossFactor("atlas_pair_sim_loss", atlasPairSimilarityFactor)
+
+        atlasSpaceLabelSimFactor = config.getParam("atlasSpaceLabelSimFactor")
+        if atlasSpaceLabelSimFactor is not None:
+            self.lossWrapper.setLossFactor("atlasSpaceLabelLoss", atlasSpaceLabelSimFactor)
+
+        smooth_factor = config.getParam("smoothingFactor")
+        if smooth_factor is not None and smooth_factor != 0.0:
             self.smoothLoss = LossFactory.lossMap["GradLoss"](penalty="l2")
+            self.lossWrapper.setLossFactor("smooth_loss", smooth_factor)
         else:
-            self.smooth_factor = 0.0
             self.smoothLoss = LossFactory.lossMap["Dummy"]
 
-        self.defFieldInverseConsistencyLossFactor = config.getParam("defDieldInverseConsistencyLossFactor")
-
-        if self.defFieldInverseConsistencyLossFactor is None:
-            self.defFieldInverseConsistencyLossFactor = 0.0
+        defFieldInverseConsistencyLossFactor = config.getParam("defDieldInverseConsistencyLossFactor")
+        if defFieldInverseConsistencyLossFactor is not None:
+            self.lossWrapper.setLossFactor("defFieldInverseConsistencyLoss", defFieldInverseConsistencyLossFactor)
             # self.defFieldInverseConsistencyLoss = LossFactory.lossMap["Dummy"]()
         # else:
         self.defFieldInverseConsistencyLoss = LossFactory.lossMap["MissingCorrespondences"](self.transformer)
+
+        jacobianLossFactor = config.getParam("jacobianLossFactor")
+        if jacobianLossFactor is not None:
+            self.lossWrapper.setLossFactor("jacobianLoss", jacobianLossFactor)
+        registrationGridsize = config.getParam("registrationGridsize")
+        self.defFieldJacobianLoss = LossFactory.lossMap["JacobianLoss"](registrationGridsize)
+
+        maximalDistanceForDitanceMaps = None
+        if config.getParam("convertToDistanceMaps") is not None and config.getParam("convertToDistanceMaps"):
+            maximalDistanceForDitanceMaps = config.getParam("maxDistanceForDistanceMaps")
+        volumePreservationLossFactor = config.getParam("volumePreservationLossFactor")
+        if volumePreservationLossFactor is not None:
+            self.lossWrapper.setLossFactor("volumePreservationLoss", volumePreservationLossFactor)
+        self.volumePreservationLoss = LossFactory.lossMap["VolumePreservationLoss"](
+            registrationGridsize, maximalDistanceForDitanceMaps
+        )
 
     def _getDefomredImages(
         self, posDeformationField, neg_flow, images, meshes, paddMode="border", interpolationType="bilinear"
@@ -117,92 +139,55 @@ class LossCalculator:
         sampledImages = self.transformer.sampleImage(images, meshes)
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
-        self.lossWrapper.sim_loss = self._getImageSpaceSimilarityLoss(warpedAtlas, sampledImages)
+        self.lossWrapper.setLoss("sim_loss", self._getImageSpaceSimilarityLoss(warpedAtlas, sampledImages))
 
-        self.lossWrapper.reg_loss = self.regularizationLoss(pos_flow)
+        self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow))
 
         warpedAtlasLabels = self.transformer.sampleImage(atlasLabels, posDeformationFieldAtlas)
         # self.lossWrapper.labelSimilarityLoss = self._getImageSpaceSimilarityLoss(warpedAtlasLabels, sampledLabels)
-        self.lossWrapper.labelSimilarityLoss = self._getDiceloss(sampledLabels, warpedAtlasLabels)
+        self.lossWrapper.setLoss("labelSimilarityLoss", self._getDiceloss(sampledLabels, warpedAtlasLabels))
 
         warpedLabels = self.transformer.sampleImage(labels, negDeformationFieldImages)
-        self.lossWrapper.labelSimilarityLossAtlasSpace = self._getDiceloss(atlasLabels, warpedLabels)
+        self.lossWrapper.setLoss("labelSimilarityLossAtlasSpace", self._getDiceloss(atlasLabels, warpedLabels))
 
         deformedImages = self._getDefomredImages(posDeformationField, neg_flow, images, meshes)
-        self.lossWrapper.pair_sim_loss = self._getImageSpaceSimilarityLoss(deformedImages, sampledImages)
+        self.lossWrapper.setLoss("pair_sim_loss", self._getImageSpaceSimilarityLoss(deformedImages, sampledImages))
 
         deformedLabels = self._getDefomredImages(posDeformationField, neg_flow, labels, meshes)
-        self.lossWrapper.imgSpaceLabelLoss = self._getDiceloss(sampledLabels, deformedLabels)
+        self.lossWrapper.setLoss("imgSpaceLabelLoss", self._getDiceloss(sampledLabels, deformedLabels))
 
         batch_size = meshes.shape[0]
         if (batch_size % 2) == 0:
             warpedImages = self.transformer.sampleImage(images, negDeformationFieldImages)
-            self.lossWrapper.atlas_pair_sim_loss = self._getImageSpaceSimilarityLoss(
-                warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
+            self.lossWrapper.setLoss(
+                "atlas_pair_sim_loss",
+                self._getImageSpaceSimilarityLoss(
+                    warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
+                ),
             )
 
-            self.lossWrapper.atlasSpaceLabelLoss = self._getDiceloss(
-                warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]
+            self.lossWrapper.setLoss(
+                "atlasSpaceLabelLoss",
+                self._getDiceloss(warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]),
             )
         else:
-            self.lossWrapper.atlas_pair_sim_loss = torch.zeros_like(self.lossWrapper.reg_loss)
-            self.lossWrapper.atlasSpaceLabelLoss = torch.zeros_like(self.lossWrapper.reg_loss)
+            self.lossWrapper.setLoss(
+                "atlas_pair_sim_loss", torch.zeros_like(self.lossWrapper.getUnweightedLoss("reg_loss"))
+            )
+            self.lossWrapper.setLoss(
+                "atlasSpaceLabelLoss", torch.zeros_like(self.lossWrapper.getUnweightedLoss("reg_loss"))
+            )
 
-        self.lossWrapper.defFieldInverseConsistencyLoss = self.defFieldInverseConsistencyLoss(pos_flow, neg_flow)
-
-    def getLossesWithoutWeighting(self):
-        return (
-            self.lossWrapper.sim_loss,
-            self.lossWrapper.reg_loss,
-            self.lossWrapper.pair_sim_loss,
-            self.lossWrapper.atlas_pair_sim_loss,
-            self.lossWrapper.imgSpaceLabelLoss,
-            self.lossWrapper.atlasSpaceLabelLoss,
-            self.lossWrapper.labelSimilarityLoss,
-            self.lossWrapper.labelSimilarityLossAtlasSpace,
-            self.lossWrapper.defFieldInverseConsistencyLoss,
+        self.lossWrapper.setLoss(
+            "defFieldInverseConsistencyLoss", self.defFieldInverseConsistencyLoss(pos_flow, neg_flow)
         )
+
+        self.lossWrapper.setLoss("jacobianLoss", self.defFieldJacobianLoss(pos_flow))
+
+        self.lossWrapper.setLoss("volumePreservationLoss", self.volumePreservationLoss(pos_flow, atlasLabels))
 
     def getLosses(self):
-        (
-            sim_loss,
-            reg_loss,
-            pair_sim_loss,
-            atlas_pair_sim_loss,
-            imgSpaceLabelLoss,
-            atlasSpaceLabelLoss,
-            labelSimilarityLoss,
-            labelSimilarityFactorAtlasSpace,
-            defFieldInverseConsistencyLoss,
-        ) = self.getLossesWithoutWeighting()
-
-        sim_loss = sim_loss * self.sim_factor
-
-        reg_loss = reg_loss * self.reg_factor
-
-        pair_sim_loss = pair_sim_loss * self.imagePairSimilarityFactor
-        atlas_pair_sim_loss = atlas_pair_sim_loss * self.atlasPairSimilarityFactor
-
-        imgSpaceLabelLoss = imgSpaceLabelLoss * self.imageSpaceLabelSimFactor
-        atlasSpaceLabelLoss = atlasSpaceLabelLoss * self.atlasSpaceLabelSimFactor
-
-        labelSimilarityLoss = labelSimilarityLoss * self.labelSimilarityFactor
-
-        labelSimilarityFactorAtlasSpace = labelSimilarityFactorAtlasSpace * self.labelSimilarityFactorAtlasSpace
-
-        defFieldInverseConsistencyLoss = defFieldInverseConsistencyLoss * self.defFieldInverseConsistencyLossFactor
-
-        return (
-            sim_loss,
-            reg_loss,
-            pair_sim_loss,
-            atlas_pair_sim_loss,
-            imgSpaceLabelLoss,
-            atlasSpaceLabelLoss,
-            labelSimilarityLoss,
-            labelSimilarityFactorAtlasSpace,
-            defFieldInverseConsistencyLoss,
-        )
+        return self.lossWrapper
 
     def getDiceLosses(self, pos_flow, neg_flow, labels, meshes):
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")

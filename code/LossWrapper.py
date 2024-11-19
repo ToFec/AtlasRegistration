@@ -7,12 +7,28 @@ Created on Feb 9, 2024
 
 class LossWrapper(object):
     def __init__(self):
-        self.sim_loss = 0.0
-        self.labelSimilarityLoss = 0.0
-        self.labelSimilarityLossAtlasSpace = 0.0
-        self.reg_loss = 0.0
-        self.pair_sim_loss = 0.0
-        self.atlas_pair_sim_loss = 0.0
-        self.imgSpaceLabelLoss = 0.0
-        self.atlasSpaceLabelLoss = 0.0
-        self.defFieldInverseConsistencyLoss = 0.0
+        self.lossDict = {}
+        self.lossFactors = {}
+
+    def setLoss(self, lossName, value):
+        self.lossDict[lossName] = value
+        if lossName not in self.lossFactors.keys():
+            self.lossFactors[lossName] = 0.0
+
+    def setLossFactor(self, lossName, value):
+        self.lossFactors[lossName] = value
+
+    def getUnweightedLoss(self, lossName):
+        if lossName in self.lossDict.keys():
+            return self.lossDict[lossName]
+        else:
+            return 0.0
+
+    def getWeightedLoss(self, lossName):
+        if lossName in self.lossDict.keys():
+            return self.lossDict[lossName] * self.lossFactors[lossName]
+        else:
+            return 0.0
+
+    def getLossNames(self):
+        return list(self.lossDict.keys())

@@ -70,7 +70,7 @@ class Test(unittest.TestCase):
             regSitk.GetDirection(),
         )
 
-        self.assertAlmostEqual(atlasJacobiScaled[0, 24, 16, 17].item(), atlasJacobi[0, 24, 16, 17].item(), 5)
+        self.assertAlmostEqual(atlasJacobiScaled[0, 0, 24, 16, 17].item(), atlasJacobi[0, 0, 24, 16, 17].item(), 5)
 
     def _testJacobian2(self):
         deformationFieldName1 = "./resources/JacobianTest/img1DefField1.mha"
@@ -95,7 +95,7 @@ class Test(unittest.TestCase):
             regSitk.GetSpacing(),
             regSitk.GetDirection(),
         )
-        self.assertAlmostEqual(atlasJacobiScaled[0, 24, 16, 17].item(), atlasJacobi[0, 24, 16, 17].item(), 5)
+        self.assertAlmostEqual(atlasJacobiScaled[0, 0, 24, 16, 17].item(), atlasJacobi[0, 0, 24, 16, 17].item(), 5)
 
     def testJacobian(self):
         deformationFieldName = "./resources/JacobianTest/img1DefField.mha"
