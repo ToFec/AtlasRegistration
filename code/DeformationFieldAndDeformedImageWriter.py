@@ -252,7 +252,7 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             jacobiDetNegFlow = atlas_utils.jacobianDeterminant(neg_flow[i, None, ...], flowFieldSpacing)
 
             atlas_utils.saveImageTensor(
-                jacobiDetNegFlow[None, ...],
+                jacobiDetNegFlow,
                 os.path.join(self.output_dir, fileBaseName + "DefFieldJacobian" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
@@ -260,7 +260,7 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             )
             jacobiDetPosFlow = atlas_utils.jacobianDeterminant(pos_flow[i, None, ...], flowFieldSpacing)
             atlas_utils.saveImageTensor(
-                jacobiDetPosFlow[None, ...],
+                jacobiDetPosFlow,
                 os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldJacobian" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
