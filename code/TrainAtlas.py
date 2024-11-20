@@ -255,16 +255,15 @@ def runTraining(config, resume: str = None):
 
     stringForStoringVariables = getCheckPointString(config)
 
-    data = AtlasDataModule(config)
-    data.prepare_data()
-    data.setup(stage="fit")
-    atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
-
     if resume is not None:
         f = open(resume, "r")
         checkPointPath = f.read().splitlines()[0]
         logging.warn(f"trying to load model file from {resume}")
         model = AtlasModule.load_from_checkpoint(checkPointPath)
+        newShape = model.net.getShapeForModel(config.getParam("registrationGridsize"))
+        config.setParam("registrationGridsize", newShape.tolist())
+        loss = LossCalculator(config)
+        model.criterion = loss
     else:
         network = NetworkFactory.getNetwork(config)
         newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
@@ -272,6 +271,12 @@ def runTraining(config, resume: str = None):
         loss = LossCalculator(config)
         optimizer = atlas_utils.getOptimizer(config.getParam("optimizer"))
 
+    data = AtlasDataModule(config)
+    data.prepare_data()
+    data.setup(stage="fit")
+    atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
+
+    if resume is None:
         model = AtlasModule(
             network,
             atlasImage,
