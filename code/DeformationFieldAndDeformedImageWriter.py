@@ -49,6 +49,9 @@ class DeformationFieldAndDeformedImageWriter(Callback):
 
         self.ignoreBackground = config.getParam("ignoreBackground")
 
+        self.registrationGridsize = config.getParam("registrationGridsize")
+        self.maximalDistanceForDitanceMaps = config.getParam("maxDistanceForDistanceMaps")
+
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
         self.write_on_batch_end(trainer, pl_module, outputs, None, batch, batch_idx, dataloader_idx)
 
@@ -97,6 +100,11 @@ class DeformationFieldAndDeformedImageWriter(Callback):
         sampledLabels = sampledLabels.cpu()
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
+
+        from losses import VolumePreservationLoss
+
+        vpLoss = VolumePreservationLoss(self.registrationGridsize, self.maximalDistanceForDitanceMaps)
+        vpLossValues = vpLoss(pos_flow, atlasLabels)
 
         # posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
         #     pos_flow, neg_flow, self.transformer
@@ -262,6 +270,14 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             atlas_utils.saveImageTensor(
                 jacobiDetPosFlow,
                 os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldJacobian" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
+
+            atlas_utils.saveImageTensor(
+                vpLossValues[i, None, ...],
+                os.path.join(self.output_dir, fileBaseName + "VolumePreservingLoss" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
                 self.meshDir,
