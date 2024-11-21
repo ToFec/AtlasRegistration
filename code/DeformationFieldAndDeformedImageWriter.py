@@ -278,7 +278,7 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             vpLossValues = torch.abs(jacobiDetPosFlow - jacobyMeanValue)
 
             atlas_utils.saveImageTensor(
-                vpLossValues[i, None, ...],
+                vpLossValues,
                 os.path.join(self.output_dir, fileBaseName + "VolumePreservingLoss" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
