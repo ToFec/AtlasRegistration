@@ -49,7 +49,6 @@ class DeformationFieldAndDeformedImageWriter(Callback):
 
         self.ignoreBackground = config.getParam("ignoreBackground")
 
-        self.registrationGridsize = config.getParam("registrationGridsize")
         self.maximalDistanceForDitanceMaps = config.getParam("maxDistanceForDistanceMaps")
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
@@ -100,11 +99,6 @@ class DeformationFieldAndDeformedImageWriter(Callback):
         sampledLabels = sampledLabels.cpu()
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
-
-        from losses import VolumePreservationLoss
-
-        vpLoss = VolumePreservationLoss(self.registrationGridsize, self.maximalDistanceForDitanceMaps)
-        vpLossValues = vpLoss(pos_flow, atlasLabels)
 
         # posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
         #     pos_flow, neg_flow, self.transformer
@@ -274,6 +268,14 @@ class DeformationFieldAndDeformedImageWriter(Callback):
                 self.meshSpacing,
                 self.meshDir,
             )
+
+            jacobyMeanValue = torch.zeros_like(distanceMapsImg[i, None, ...])
+            labelMap = torch.floor(distanceMapsImg[i, None, ...] / self.maxDistanceInDistanceMaps)
+            labels = torch.unique(labelMap)
+            for label in labels:
+                jacobyMeanValue[labelMap == label] = jacobiDetPosFlow[labelMap == label].mean()
+
+            vpLossValues = torch.abs(jacobiDetPosFlow - jacobyMeanValue)
 
             atlas_utils.saveImageTensor(
                 vpLossValues[i, None, ...],
