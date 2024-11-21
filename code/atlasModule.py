@@ -52,6 +52,7 @@ class AtlasModule(pl.LightningModule):
         self.register_buffer("atlasOrigin", atlasOrigin, True)
         self.logTemporaryDeformationFields = logTemporaryDeformationFields
 
+    
     def getInputAtlasMesh(self, batch_size):
         return self.atlasMesh.expand(batch_size, -1, -1, -1, -1)
 

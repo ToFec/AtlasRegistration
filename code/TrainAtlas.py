@@ -264,6 +264,8 @@ def runTraining(config, resume: str = None):
         config.setParam("registrationGridsize", newShape.tolist())
         loss = LossCalculator(config)
         model.criterion = loss
+        model.hparams["loss"] = loss
+        
     else:
         network = NetworkFactory.getNetwork(config)
         newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
