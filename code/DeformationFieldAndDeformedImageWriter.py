@@ -270,7 +270,7 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             )
 
             jacobyMeanValue = torch.zeros_like(distanceMapsImg[i, None, ...])
-            labelMap = torch.floor(distanceMapsImg[i, None, ...] / self.maxDistanceInDistanceMaps)
+            labelMap = torch.floor(distanceMapsImg[i, None, ...] / self.maximalDistanceForDitanceMaps)
             labels = torch.unique(labelMap)
             for label in labels:
                 jacobyMeanValue[labelMap == label] = jacobiDetPosFlow[labelMap == label].mean()
