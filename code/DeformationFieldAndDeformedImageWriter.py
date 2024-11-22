@@ -275,6 +275,13 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             for label in labels:
                 jacobyMeanValue[labelMap == label] = jacobiDetPosFlow[labelMap == label].mean()
 
+            jacobiDetPosFlow = torch.nn.functional.avg_pool3d(
+                torch.nn.functional.avg_pool3d(jacobiDetPosFlow, kernel_size=5, stride=1, padding=2),
+                kernel_size=5,
+                stride=1,
+                padding=2,
+            )
+
             diff = torch.abs(jacobiDetPosFlow) / torch.abs(jacobyMeanValue)
             diff[diff != 0.0] = torch.max(diff[diff != 0.0], 1.0 / diff[diff != 0.0]) - 1.0
             vpLossValues = diff
