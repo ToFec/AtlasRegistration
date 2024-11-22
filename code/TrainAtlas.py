@@ -54,6 +54,8 @@ def getCheckPointString(config):
     gridSize = config.getParam("registrationGridsize")
     gridSpacing = config.getParam("registrationGridSpacing")
 
+    volumePreservationLossFactor = config.getParam("volumePreservationLossFactor")
+
     gridSizeStr = "".join(map(str, gridSize))
     gridSpacingStr = "".join(map(str, gridSpacing))
 
@@ -72,9 +74,9 @@ def getCheckPointString(config):
         + str(seed)
         + "_r_"
         + "{:.2f}".format(reg_factor)
-        + "_sim_"
-        + "{:.2f}".format(sim_factor)
     )
+    if sim_factor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "{:.2f}".format(sim_factor)
     if pair_sim_factor is not None and pair_sim_factor > 0.0:
         stringForStoringVariables = stringForStoringVariables + "_Isim_" + "{:.2f}".format(pair_sim_factor)
 
@@ -97,6 +99,9 @@ def getCheckPointString(config):
         stringForStoringVariables = (
             stringForStoringVariables + "_lSimA_" + "{:.2f}".format(labelSimilarityFactorAtlasSpace)
         )
+
+    if volumePreservationLossFactor is not None and volumePreservationLossFactor > 0.0:
+        stringForStoringVariables = stringForStoringVariables + "_vp_" + "{:.2f}".format(volumePreservationLossFactor)
 
     if inverseConsistencyLoss is not None and inverseConsistencyLoss > 0.0:
         stringForStoringVariables = stringForStoringVariables + "_inv_" + "{:.2f}".format(inverseConsistencyLoss)
