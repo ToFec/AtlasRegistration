@@ -375,7 +375,9 @@ class VolumePreservationLoss(nn.Module):
         else:
             jacobyMeanValue = jacobian.mean()
 
-        loss = torch.mean(torch.abs(jacobian - jacobyMeanValue))
+        diff = jacobian - jacobyMeanValue
+        absDiff = torch.max(diff, 1.0 / diff)
+        loss = torch.mean(absDiff)
 
         return loss
 
