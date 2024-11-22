@@ -284,3 +284,11 @@ class DeformationFieldAndDeformedImageWriter(Callback):
                 self.meshSpacing,
                 self.meshDir,
             )
+
+            atlas_utils.saveImageTensor(
+                jacobyMeanValue,
+                os.path.join(self.output_dir, fileBaseName + "JacobiMeanValues" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
