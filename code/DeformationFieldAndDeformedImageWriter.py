@@ -275,8 +275,8 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             for label in labels:
                 jacobyMeanValue[labelMap == label] = jacobiDetPosFlow[labelMap == label].mean()
 
-            diff = jacobiDetPosFlow - jacobyMeanValue
-            diff[diff != 0.0] = torch.max(diff[diff != 0.0], 1.0 / diff[diff != 0.0])
+            diff = torch.abs(jacobiDetPosFlow) / torch.abs(jacobyMeanValue)
+            diff[diff != 0.0] = torch.max(diff[diff != 0.0], 1.0 / diff[diff != 0.0]) - 1.0
             vpLossValues = diff
 
             atlas_utils.saveImageTensor(
