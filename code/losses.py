@@ -385,6 +385,7 @@ class VolumePreservationLoss(nn.Module):
 #                padding=1,
 #            )
         
+        jacobian = torch.nn.functional.avg_pool3d(jacobian, kernel_size=3, stride=1, padding=1)
         diff = torch.abs(jacobian) / torch.abs(jacobyMeanValue)
 
         diff = diff[diff != 0.0]

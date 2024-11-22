@@ -282,11 +282,12 @@ class DeformationFieldAndDeformedImageWriter(Callback):
 #                padding=1,
 #            )
 
+            jacobiDetPosFlow = torch.nn.functional.avg_pool3d(jacobiDetPosFlow, kernel_size=3, stride=1, padding=1)
             diff = torch.abs(jacobiDetPosFlow) / torch.abs(jacobyMeanValue)
             diff[diff != 0.0] = torch.max(diff[diff != 0.0], 1.0 / diff[diff != 0.0])
 
-            #simgoid = torch.nn.Sigmoid()
-            #diff = simgoid(5*(diff-1.5))
+            simgoid = torch.nn.Sigmoid()
+            diff = simgoid(5*(diff-1.5))
             vpLossValues = diff
 
             atlas_utils.saveImageTensor(
