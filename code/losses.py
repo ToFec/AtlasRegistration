@@ -362,6 +362,7 @@ class VolumePreservationLoss(nn.Module):
         super(VolumePreservationLoss, self).__init__()
         self.flowFieldSpacing = [(2.0 / (flowFieldShape[i] - 1)) for i in range(len(flowFieldShape))]
         self.maxDistanceInDistanceMaps = maxDistanceInDistanceMaps
+        self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, defField, labelMap):
         jacobian = atlas_utils.jacobianDeterminant(defField, self.flowFieldSpacing)
@@ -376,10 +377,19 @@ class VolumePreservationLoss(nn.Module):
             jacobyMeanValue = jacobian.mean()
 
         # diff = jacobian - jacobyMeanValue
+        
+#        jacobian = torch.nn.functional.avg_pool3d(
+#                torch.nn.functional.avg_pool3d(jacobian, kernel_size=3, stride=1, padding=1),
+#                kernel_size=3,
+#                stride=1,
+#                padding=1,
+#            )
+        
         diff = torch.abs(jacobian) / torch.abs(jacobyMeanValue)
 
         diff = diff[diff != 0.0]
-        absDiff = torch.max(diff, 1.0 / diff) - 1.0
+        absDiff = torch.max(diff, 1.0 / diff)
+        absDiff = self.sigmoid(5*(absDiff-1.5))
         loss = torch.mean(absDiff)
 
         return loss
