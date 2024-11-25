@@ -148,7 +148,7 @@ class LossCalculator:
 
         if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
             deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
-                pos_flow, atlasLabels
+                pos_flow.detach(), atlasLabels
             )
             deviationFroMeanJacobyMask = 1.0 - deviationFroMeanJacobyMask
 
@@ -162,6 +162,7 @@ class LossCalculator:
 
             sampledImages = sampledImages * deviationFroMeanJacobyMask
             sampledLabels = sampledLabels * deviationFroMeanJacobyMask
+            atlasLabels = atlasLabels * deviationFroMeanJacobyMask
 
         self.lossWrapper.setLoss("sim_loss", self._getImageSpaceSimilarityLoss(warpedAtlas, sampledImages))
 
