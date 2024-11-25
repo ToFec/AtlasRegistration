@@ -367,30 +367,31 @@ class VolumePreservationLoss(nn.Module):
     def forward(self, defField, labelMap):
         jacobian = atlas_utils.jacobianDeterminant(defField, self.flowFieldSpacing)
 
-        if self.maxDistanceInDistanceMaps:
-            jacobyMeanValue = torch.zeros_like(labelMap)
-            labelMap = torch.floor(labelMap / self.maxDistanceInDistanceMaps)
-            labels = torch.unique(labelMap)
-            for label in labels:
-                jacobyMeanValue[labelMap == label] = jacobian[labelMap == label].mean()
-        else:
-            jacobyMeanValue = jacobian.mean()
+        with torch.no_grad():
+            if self.maxDistanceInDistanceMaps:
+                jacobyMeanValue = torch.zeros_like(labelMap)
+                labelMap = torch.floor(labelMap / self.maxDistanceInDistanceMaps)
+                labels = torch.unique(labelMap)
+                for label in labels:
+                    jacobyMeanValue[labelMap == label] = jacobian[labelMap == label].mean()
+            else:
+                jacobyMeanValue = jacobian.mean()
 
         # diff = jacobian - jacobyMeanValue
-        
-#        jacobian = torch.nn.functional.avg_pool3d(
-#                torch.nn.functional.avg_pool3d(jacobian, kernel_size=3, stride=1, padding=1),
-#                kernel_size=3,
-#                stride=1,
-#                padding=1,
-#            )
-        
+
+        #        jacobian = torch.nn.functional.avg_pool3d(
+        #                torch.nn.functional.avg_pool3d(jacobian, kernel_size=3, stride=1, padding=1),
+        #                kernel_size=3,
+        #                stride=1,
+        #                padding=1,
+        #            )
+
         jacobian = torch.nn.functional.avg_pool3d(jacobian, kernel_size=3, stride=1, padding=1)
         diff = torch.abs(jacobian) / torch.abs(jacobyMeanValue)
 
         diff = diff[diff != 0.0]
         absDiff = torch.max(diff, 1.0 / diff)
-        absDiff = self.sigmoid(5*(absDiff-1.5))
+        absDiff = self.sigmoid(5 * (absDiff - 1.5))
         loss = torch.mean(absDiff)
 
         return loss
