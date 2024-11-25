@@ -364,9 +364,8 @@ class VolumePreservationLoss(nn.Module):
         self.maxDistanceInDistanceMaps = maxDistanceInDistanceMaps
         self.sigmoid = torch.nn.Sigmoid()
 
-    def forward(self, defField, labelMap):
+    def getDeviationFromMeanJacobyMask(self, defField, labelMap, timesMeanValue=1.5):
         jacobian = atlas_utils.jacobianDeterminant(defField, self.flowFieldSpacing)
-
         with torch.no_grad():
             if self.maxDistanceInDistanceMaps:
                 jacobyMeanValue = torch.zeros_like(labelMap)
@@ -377,22 +376,17 @@ class VolumePreservationLoss(nn.Module):
             else:
                 jacobyMeanValue = jacobian.mean()
 
-        # diff = jacobian - jacobyMeanValue
-
-        #        jacobian = torch.nn.functional.avg_pool3d(
-        #                torch.nn.functional.avg_pool3d(jacobian, kernel_size=3, stride=1, padding=1),
-        #                kernel_size=3,
-        #                stride=1,
-        #                padding=1,
-        #            )
-
         jacobian = torch.nn.functional.avg_pool3d(jacobian, kernel_size=3, stride=1, padding=1)
         diff = torch.abs(jacobian) / torch.abs(jacobyMeanValue)
 
-        diff = diff[diff != 0.0]
+        diff[diff == 0.0] = 0.0000001
         absDiff = torch.max(diff, 1.0 / diff)
-        absDiff = self.sigmoid(5 * (absDiff - 1.5))
-        loss = torch.mean(absDiff)
+        absDiff = self.sigmoid(5 * (absDiff - timesMeanValue))
+        return absDiff
+
+    def forward(self, defField, labelMap):
+        deviationMask = self.getDeviationFromMeanJacobyMask(defField, labelMap, 1.5)
+        loss = torch.mean(deviationMask)
 
         return loss
 
