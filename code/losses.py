@@ -94,8 +94,8 @@ class NCCLoss(AbstractLabelLoss):
     def forward(self, input, target, mask=None):
         input = input.view(input.shape[0], -1)
         target = target.view(target.shape[0], -1)
-        input_minus_mean = input - torch.mean(input, 1).view(input.shape[0], 1)
-        target_minus_mean = target - torch.mean(target, 1).view(input.shape[0], 1)
+        input_minus_mean = input - torch.mean(input.detach(), 1).view(input.shape[0], 1)
+        target_minus_mean = target - torch.mean(target.detach(), 1).view(input.shape[0], 1)
         if mask is not None:
             input_minus_mean = input_minus_mean * mask.view(mask.shape[0], -1)
             target_minus_mean = target_minus_mean * mask.view(mask.shape[0], -1)
@@ -386,7 +386,7 @@ class VolumePreservationLoss(nn.Module):
         absDiff = torch.max(diff, 1.0 / diff)
         absDiff = self.sigmoid(5 * (absDiff - timesMeanValue))
         absDiff = torch.zeros_like(absDiff)
-        absDiff[...,20:60,20:60,20:60] = 1.0
+        absDiff[..., 20:60, 20:60, 20:60] = 1.0
         return absDiff
 
     def forward(self, defField, labelMap):
