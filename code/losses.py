@@ -91,7 +91,7 @@ class NCCLoss(AbstractLabelLoss):
     A implementation of the normalized cross correlation (NCC)
     """
 
-    def forward(self, input, target):
+    def forward(self, input, target, mask=None):
         input = input.view(input.shape[0], -1)
         target = target.view(target.shape[0], -1)
         input_minus_mean = input - torch.mean(input, 1).view(input.shape[0], 1)
@@ -99,6 +99,8 @@ class NCCLoss(AbstractLabelLoss):
         nccSqr = ((input_minus_mean * target_minus_mean).mean(1)) / torch.sqrt(
             (((input_minus_mean**2).mean(1)) * ((target_minus_mean**2).mean(1))) + 1e-10
         )
+        if mask is not None:
+            nccSqr = nccSqr * mask
         nccSqr = nccSqr.mean()
 
         return 1 - nccSqr

@@ -110,12 +110,12 @@ class LossCalculator:
             sec_src_imgs, transforemdImageMeshToOtherImageSpace, paddMode=paddMode, interpolationType=interpolationType
         )
 
-    def _getDiceloss(self, label0, label1):
-        dscLoss = self.diceLoss(label0, label1)
+    def _getDiceloss(self, label0, label1, mask=None):
+        dscLoss = self.diceLoss(label0, label1, mask)
         return dscLoss
 
-    def _getImageSpaceSimilarityLoss(self, imgs0, imgs1):
-        imgSpaceSimLoss = self.similarityLoss(imgs0, imgs1)
+    def _getImageSpaceSimilarityLoss(self, imgs0, imgs1, mask=None):
+        imgSpaceSimLoss = self.similarityLoss(imgs0, imgs1, mask)
         return imgSpaceSimLoss / imgs0.shape[0]
 
     def getLoss(self):
@@ -146,46 +146,48 @@ class LossCalculator:
 
         self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow))
 
+        deviationFroMeanJacobyMask = None
         if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
             deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
                 pos_flow.detach(), atlasLabels
             )
             deviationFroMeanJacobyMask = 1.0 - deviationFroMeanJacobyMask
 
-            warpedAtlas = warpedAtlas * deviationFroMeanJacobyMask
-            warpedAtlasLabels = warpedAtlasLabels * deviationFroMeanJacobyMask
-            warpedLabels = warpedLabels * deviationFroMeanJacobyMask
-            warpedImages = warpedImages * deviationFroMeanJacobyMask
+        self.lossWrapper.setLoss(
+            "sim_loss", self._getImageSpaceSimilarityLoss(warpedAtlas, sampledImages, deviationFroMeanJacobyMask)
+        )
 
-            deformedImages = deformedImages * deviationFroMeanJacobyMask
-            deformedLabels = deformedLabels * deviationFroMeanJacobyMask
+        self.lossWrapper.setLoss(
+            "labelSimilarityLoss", self._getDiceloss(sampledLabels, warpedAtlasLabels, deviationFroMeanJacobyMask)
+        )
 
-            sampledImages = sampledImages * deviationFroMeanJacobyMask
-            sampledLabels = sampledLabels * deviationFroMeanJacobyMask
-            atlasLabels = atlasLabels * deviationFroMeanJacobyMask
+        self.lossWrapper.setLoss(
+            "labelSimilarityLossAtlasSpace", self._getDiceloss(atlasLabels, warpedLabels, deviationFroMeanJacobyMask)
+        )
 
-        self.lossWrapper.setLoss("sim_loss", self._getImageSpaceSimilarityLoss(warpedAtlas, sampledImages))
+        self.lossWrapper.setLoss(
+            "pair_sim_loss",
+            self._getImageSpaceSimilarityLoss(deformedImages, sampledImages, deviationFroMeanJacobyMask),
+        )
 
-        self.lossWrapper.setLoss("labelSimilarityLoss", self._getDiceloss(sampledLabels, warpedAtlasLabels))
-
-        self.lossWrapper.setLoss("labelSimilarityLossAtlasSpace", self._getDiceloss(atlasLabels, warpedLabels))
-
-        self.lossWrapper.setLoss("pair_sim_loss", self._getImageSpaceSimilarityLoss(deformedImages, sampledImages))
-
-        self.lossWrapper.setLoss("imgSpaceLabelLoss", self._getDiceloss(sampledLabels, deformedLabels))
+        self.lossWrapper.setLoss(
+            "imgSpaceLabelLoss", self._getDiceloss(sampledLabels, deformedLabels, deviationFroMeanJacobyMask)
+        )
 
         batch_size = meshes.shape[0]
         if (batch_size % 2) == 0:
             self.lossWrapper.setLoss(
                 "atlas_pair_sim_loss",
                 self._getImageSpaceSimilarityLoss(
-                    warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :]
+                    warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :], deviationFroMeanJacobyMask
                 ),
             )
 
             self.lossWrapper.setLoss(
                 "atlasSpaceLabelLoss",
-                self._getDiceloss(warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :]),
+                self._getDiceloss(
+                    warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :], deviationFroMeanJacobyMask
+                ),
             )
         else:
             self.lossWrapper.setLoss(
