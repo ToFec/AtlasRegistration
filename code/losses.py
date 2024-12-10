@@ -92,13 +92,13 @@ class NCCLoss(AbstractLabelLoss):
     """
 
     def forward(self, input, target, mask=None):
+        if mask is not None:
+            input = input * mask
+            target = target * mask
         input = input.view(input.shape[0], -1)
         target = target.view(target.shape[0], -1)
-        input_minus_mean = input - torch.mean(input.detach(), 1).view(input.shape[0], 1)
-        target_minus_mean = target - torch.mean(target.detach(), 1).view(input.shape[0], 1)
-        if mask is not None:
-            input_minus_mean = input_minus_mean * mask.view(mask.shape[0], -1)
-            target_minus_mean = target_minus_mean * mask.view(mask.shape[0], -1)
+        input_minus_mean = input - torch.mean(input, 1).view(input.shape[0], 1)
+        target_minus_mean = target - torch.mean(target, 1).view(input.shape[0], 1)
         nccSqr = ((input_minus_mean * target_minus_mean).mean(1)) / torch.sqrt(
             (((input_minus_mean**2).mean(1)) * ((target_minus_mean**2).mean(1))) + 1e-10
         )

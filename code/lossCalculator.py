@@ -179,14 +179,18 @@ class LossCalculator:
             self.lossWrapper.setLoss(
                 "atlas_pair_sim_loss",
                 self._getImageSpaceSimilarityLoss(
-                    warpedImages[: int(batch_size / 2)], warpedImages[int(batch_size / 2) :], deviationFroMeanJacobyMask[int(batch_size / 2) :]
+                    warpedImages[: int(batch_size / 2)],
+                    warpedImages[int(batch_size / 2) :],
+                    deviationFroMeanJacobyMask[int(batch_size / 2) :],
                 ),
             )
 
             self.lossWrapper.setLoss(
                 "atlasSpaceLabelLoss",
                 self._getDiceloss(
-                    warpedLabels[: int(batch_size / 2)], warpedLabels[int(batch_size / 2) :], deviationFroMeanJacobyMask[: int(batch_size / 2)]
+                    warpedLabels[: int(batch_size / 2)],
+                    warpedLabels[int(batch_size / 2) :],
+                    deviationFroMeanJacobyMask[: int(batch_size / 2)],
                 ),
             )
         else:
