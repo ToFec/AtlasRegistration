@@ -45,7 +45,8 @@ class LossCalculator:
             regularizationLossName = config.getParam("regularizationLoss")
             if regularizationLossName is None:
                 regularizationLossName = "BendingEnergy"
-            self.regularizationLoss = LossFactory.lossMap[regularizationLossName]()
+            lossMultiplier = config.getParam("regularizationLossMultiplier")
+            self.regularizationLoss = LossFactory.lossMap[regularizationLossName](loss_mult=lossMultiplier)
             self.lossWrapper.setLossFactor("reg_loss", reg_factor)
         else:
             self.regularizationLoss = LossFactory.lossMap["Dummy"]()
@@ -144,13 +145,16 @@ class LossCalculator:
         sampledImages = self.transformer.sampleImage(images, meshes)
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
-        self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow))
-
         deviationFroMeanJacobyMask = None
         if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
             deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
                 pos_flow, atlasLabels
             )
+
+        self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow, deviationFroMeanJacobyMask))
+
+        # increase regularisation loss inside mask and set other losses to zero
+        if deviationFroMeanJacobyMask is not None:
             deviationFroMeanJacobyMask = 1.0 - deviationFroMeanJacobyMask
 
         self.lossWrapper.setLoss(

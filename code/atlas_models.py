@@ -340,7 +340,6 @@ class UNet(nn.Module):
         flow = torch.sum(x, dim=0)
 
         pos_flow, neg_flow = self.scaleAndSquare(flow)
-
         return pos_flow, neg_flow
 
     def reset_params(self):

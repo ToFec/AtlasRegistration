@@ -754,7 +754,7 @@ class GradLoss(nn.Module):
         self.penalty = penalty
         self.loss_mult = loss_mult
 
-    def forward(self, y_pred):
+    def forward(self, y_pred, mask=None):
         dy = torch.abs(y_pred[:, :, 1:, :, :] - y_pred[:, :, :-1, :, :])
         dx = torch.abs(y_pred[:, :, :, 1:, :] - y_pred[:, :, :, :-1, :])
         dz = torch.abs(y_pred[:, :, :, :, 1:] - y_pred[:, :, :, :, :-1])
@@ -764,11 +764,15 @@ class GradLoss(nn.Module):
             dx = dx * dx
             dz = dz * dz
 
+        if mask is not None and self.loss_mult is not None:
+            maskToMultiply = torch.ones_like(mask) + (mask * self.loss_mult)
+            dy = dy * maskToMultiply[:, :, 1:, :, :]
+            dx = dx * maskToMultiply[:, :, :, 1:, :]
+            dz = dz * maskToMultiply[:, :, :, :, 1:]
+
         d = torch.mean(dx) + torch.mean(dy) + torch.mean(dz)
         grad = d / 3.0
 
-        if self.loss_mult is not None:
-            grad *= self.loss_mult
         return grad
 
 
