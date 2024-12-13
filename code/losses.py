@@ -368,7 +368,7 @@ class VolumePreservationLoss(nn.Module):
         self.maxDistanceInDistanceMaps = maxDistanceInDistanceMaps
         self.sigmoid = torch.nn.Sigmoid()
 
-    def getDeviationFromMeanJacobyMask(self, defField, labelMap, timesMeanValue=3.0):
+    def getDeviationFromMeanJacobyMask(self, defField, labelMap, timesMeanValue=2.0):
         jacobian = atlas_utils.jacobianDeterminant(defField, self.flowFieldSpacing)
         with torch.no_grad():
             if self.maxDistanceInDistanceMaps:

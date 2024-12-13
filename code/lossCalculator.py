@@ -148,7 +148,7 @@ class LossCalculator:
         deviationFroMeanJacobyMask = None
         if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
             deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
-                pos_flow, atlasLabels
+                pos_flow.detach(), atlasLabels
             )
 
         self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow, deviationFroMeanJacobyMask))
@@ -180,12 +180,18 @@ class LossCalculator:
 
         batch_size = meshes.shape[0]
         if (batch_size % 2) == 0:
+            if deviationFroMeanJacobyMask is not None:
+               deviationFroMeanJacobyMaskSubMaskEnd = deviationFroMeanJacobyMask[int(batch_size / 2) :]
+               deviationFroMeanJacobyMaskSubMaskStart = deviationFroMeanJacobyMask[: int(batch_size / 2)]
+            else:
+               deviationFroMeanJacobyMaskSubMaskEnd = None
+               deviationFroMeanJacobyMaskSubMaskStart = None
             self.lossWrapper.setLoss(
                 "atlas_pair_sim_loss",
                 self._getImageSpaceSimilarityLoss(
                     warpedImages[: int(batch_size / 2)],
                     warpedImages[int(batch_size / 2) :],
-                    deviationFroMeanJacobyMask[int(batch_size / 2) :],
+                    deviationFroMeanJacobyMaskSubMaskEnd,
                 ),
             )
 
@@ -194,7 +200,7 @@ class LossCalculator:
                 self._getDiceloss(
                     warpedLabels[: int(batch_size / 2)],
                     warpedLabels[int(batch_size / 2) :],
-                    deviationFroMeanJacobyMask[: int(batch_size / 2)],
+                    deviationFroMeanJacobyMaskSubMaskStart,
                 ),
             )
         else:

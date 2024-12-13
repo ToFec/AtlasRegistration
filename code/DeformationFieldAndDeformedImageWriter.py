@@ -287,7 +287,7 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             diff[diff != 0.0] = torch.max(diff[diff != 0.0], 1.0 / diff[diff != 0.0])
 
             simgoid = torch.nn.Sigmoid()
-            diff = simgoid(10*(diff-3.0))
+            diff = simgoid(10*(diff-2.0))
             vpLossValues = diff
 
             atlas_utils.saveImageTensor(
