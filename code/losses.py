@@ -392,7 +392,7 @@ class VolumePreservationLoss(nn.Module):
         deviationMask = self.getDeviationFromMeanJacobyMask(defField, labelMap)
         loss = torch.mean(deviationMask)
 
-        return loss
+        return loss, deviationMask
 
 
 class DiceLoss(nn.Module):
