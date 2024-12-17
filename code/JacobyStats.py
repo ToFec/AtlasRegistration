@@ -115,7 +115,7 @@ def main(argv=None):
                             w.writerow(
                                 [
                                     args.mask,
-                                    organVal,
+                                    organVal.item(),
                                     jacobyValsForOrgan.mean().item(),
                                     jacobyValsForOrgan.std().item(),
                                     jacobyValsForOrgan.min().item(),
