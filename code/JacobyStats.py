@@ -79,7 +79,7 @@ def main(argv=None):
                 transformer = Transformation()
                 transformer.setIdentityTransform(defField.shape)
                 idTransform = transformer.identityTransform
-                sampledMaskA = transformer.sampleImage(imgMaskA, idTransform, interpolationType="nearest")
+                sampledMaskA = transformer.sampleImage(imgMaskA, idTransform[None, ...], interpolationType="nearest")
 
                 file_exists = exists(args.output)
                 with open(args.output, "a") as csvFile:
