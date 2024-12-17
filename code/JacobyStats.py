@@ -104,7 +104,7 @@ def main(argv=None):
                         imgOrganMaskA = imgOrganMaskA.transpose()
                         imgOrganMaskA = torch.from_numpy(imgOrganMaskA.astype(np.float32))[None, None, ...]
                         sampledOrganMaskA = transformer.sampleImage(
-                            imgOrganMaskA, idTransform, interpolationType="nearest"
+                            imgOrganMaskA, idTransform[None, ...], interpolationType="nearest"
                         )
                         organVals = torch.unique(sampledOrganMaskA[sampledMaskA > 0.0])
                         sampledMaskADim = sampledOrganMaskA.dim()
