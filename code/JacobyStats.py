@@ -109,9 +109,10 @@ def main(argv=None):
                         organVals = torch.unique(sampledOrganMaskA[sampledMaskA > 0.0])
                         sampledMaskADim = sampledOrganMaskA.dim()
                         mask = (sampledOrganMaskA.unsqueeze(sampledMaskADim) == organVals).any(dim=sampledMaskADim)
+                        mask[sampledMaskA > 0.0] = False
 
                         for organVal in organVals:
-                            jacobyValsForOrgan = jacobi[sampledOrganMaskA == organVal]
+                            jacobyValsForOrgan = jacobi[sampledOrganMaskA == organVal and sampledMaskA == 0.0]
                             w.writerow(
                                 [
                                     args.mask,
