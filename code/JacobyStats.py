@@ -77,6 +77,7 @@ def main(argv=None):
                 imgMaskA = torch.from_numpy(imgMaskA.astype(np.float32))[None, None, ...]
 
                 transformer = Transformation()
+                transformer.setIdentityTransform(defField.shape)
                 idTransform = transformer.identityTransform
                 sampledMaskA = transformer.sampleImage(imgMaskA, idTransform, interpolationType="nearest")
 
