@@ -112,7 +112,7 @@ def main(argv=None):
                         mask[sampledMaskA > 0.0] = False
 
                         for organVal in organVals:
-                            jacobyValsForOrgan = jacobi[sampledOrganMaskA == organVal and sampledMaskA == 0.0]
+                            jacobyValsForOrgan = jacobi[(sampledOrganMaskA == organVal) & (sampledMaskA == 0.0)]
                             w.writerow(
                                 [
                                     args.mask,
