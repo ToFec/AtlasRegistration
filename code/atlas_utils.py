@@ -298,82 +298,28 @@ def getOptimizer(optimizerType):
         return torch.optim.Adam
     return torch.optim.AdamW
 
-
+#equal to sitk implementation
 def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
-    dx = (deform_field[:, :, 2:, :, :] - deform_field[:, :, :-2, :, :]) / spacing[0]
-    dy = (deform_field[:, :, :, 2:, :] - deform_field[:, :, :, :-2, :]) / spacing[1]
-    dz = (deform_field[:, :, :, :, 2:] - deform_field[:, :, :, :, :-2]) / spacing[2]
+    dx = (deform_field[:, :, 2:, :, :] - deform_field[:, :, :-2, :, :]) / (spacing[0]*2)
+    dy = (deform_field[:, :, :, 2:, :] - deform_field[:, :, :, :-2, :]) / (spacing[1]*2)
+    dz = (deform_field[:, :, :, :, 2:] - deform_field[:, :, :, :, :-2]) / (spacing[2]*2)
 
     # Pad the gradients to match the original size
-    dx = torch.nn.functional.pad(dx, (0, 0, 0, 0, 0, 2))
-    dy = torch.nn.functional.pad(dy, (0, 0, 0, 2, 0, 0))
-    dz = torch.nn.functional.pad(dz, (0, 2, 0, 0, 0, 0))
+    dx = torch.nn.functional.pad(dx, (0, 0, 0, 0, 1, 1))
+    dy = torch.nn.functional.pad(dy, (0, 0, 1, 1, 0, 0))
+    dz = torch.nn.functional.pad(dz, (1, 1, 0, 0, 0, 0))
 
-    # Compute Jacobian determinant
     jacobian_det = (
         (1 + dx[:, 0, None]) * (1 + dy[:, 1, None]) * (1 + dz[:, 2, None])
         + dx[:, 1, None] * dy[:, 2, None] * dz[:, 0, None]
         + dx[:, 2, None] * dy[:, 0, None] * dz[:, 1, None]
         - (1 + dx[:, 0, None]) * dy[:, 2, None] * dz[:, 1, None]
-        - dx[:, 1, None] * (1 + dy[:, 1, None]) * dz[:, 0, None]
-        - dx[:, 2, None] * dy[:, 0, None] * (1 + dz[:, 2, None])
+        - dx[:, 1, None] * dy[:, 0, None] * (1 + dz[:, 2, None])
+        - dx[:, 2, None] * (1 + dy[:, 1, None]) * dz[:, 0, None]
     )
 
     return jacobian_det
 
-
-def _jacobianDeterminant(deform_field, spacing):
-    """
-    jacobian determinant of a displacement field.
-    NB: to compute the spatial gradients, we use np.gradient.
-    Parameters:
-        disp: 2D or 3D displacement field of size [*vol_shape, nb_dims],
-              where vol_shape is of len nb_dims
-    Returns:
-        jacobian determinant (scalar)
-    """
-
-    # check inputs
-    deform_map_np = deform_field.permute([0, 2, 3, 4, 1]).squeeze().detach().cpu().numpy()
-    volshape = deform_map_np.shape[:-1]
-    nb_dims = len(volshape)
-    assert len(volshape) in (2, 3), "flow has to be 2D or 3D"
-
-    # compute gradients
-    # specify the voxel spacing!!!
-    J = np.gradient(deform_map_np, *[*spacing, 1.0])
-
-    # 3D flow
-    if nb_dims == 3:
-        dx = J[0]  # (deform_map_np[1:, ...] - deform_map_np[:-1, ...]) / spacing[0]
-        # dx = dx[:, :-1, :-1, :]
-        dy = J[1]  # (deform_map_np[:, 1:, ...] - deform_map_np[:, :-1, ...]) / spacing[1]
-        # dy = dy[:-1, :, :-1, :]
-        dz = J[2]  # (deform_map_np[:, :, 1:, ...] - deform_map_np[:, :, :-1, ...]) / spacing[2]  #
-        # dz = dz[:-1, :-1, ...]
-
-        # compute jacobian components
-        Jdet0 = dx[..., 0] * (dy[..., 1] * dz[..., 2] - dy[..., 2] * dz[..., 1])
-        Jdet1 = dx[..., 1] * (dy[..., 0] * dz[..., 2] - dy[..., 2] * dz[..., 0])
-        Jdet2 = dx[..., 2] * (dy[..., 0] * dz[..., 1] - dy[..., 1] * dz[..., 0])
-
-        # p0 = dx[..., 0] * dy[..., 1] * dz[..., 2]
-        # p1 = dx[..., 1] * dy[..., 2] * dz[..., 0]
-        # p2 = dx[..., 2] * dy[..., 0] * dz[..., 1]
-        #
-        # m0 = dx[..., 2] * dy[..., 1] * dz[..., 0]
-        # m1 = dx[..., 0] * dy[..., 2] * dz[..., 1]
-        # m2 = dx[..., 1] * dy[..., 0] * dz[..., 2]
-        #
-        # det = 1.0 + p0 + p1 + p2 - m0 - m1 - m2
-
-        return 1.0 + Jdet0 - Jdet1 + Jdet2
-
-    else:  # must be 2
-        dfdx = J[0]
-        dfdy = J[1]
-
-        return 1.0 + dfdx[..., 0] * dfdy[..., 1] - dfdy[..., 0] * dfdx[..., 1]
 
 
 def setMatmulPrecision(matMulPrecision):
