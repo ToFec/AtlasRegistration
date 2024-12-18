@@ -67,10 +67,11 @@ def main(argv=None):
             if args.deformable:
                 defField = atlas_utils.loadDefField(args.deformable)
 
-                defFieldITK = sitk.ReadImage(str(args.deformable))
-                defFieldSpacing = defFieldITK.GetSpacing()
+                meshStepLength0 = 2 / (defField.shape[2] - 1)
+                meshStepLength1 = 2 / (defField.shape[3] - 1)
+                meshStepLength2 = 2 / (defField.shape[4] - 1)
 
-                jacobi = atlas_utils.jacobianDeterminant(defField, defFieldSpacing)
+                jacobi = atlas_utils.jacobianDeterminant(defField, (meshStepLength0, meshStepLength1, meshStepLength2))
 
                 imgMaskA = sitk.GetArrayFromImage(sitkMask)
                 imgMaskA = imgMaskA.transpose()

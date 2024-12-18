@@ -300,14 +300,14 @@ def getOptimizer(optimizerType):
 
 
 def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
-    dx = (deform_field[:, :, 1:, :, :] - deform_field[:, :, :-1, :, :]) / spacing[0]
-    dy = (deform_field[:, :, :, 1:, :] - deform_field[:, :, :, :-1, :]) / spacing[1]
-    dz = (deform_field[:, :, :, :, 1:] - deform_field[:, :, :, :, :-1]) / spacing[2]
+    dx = (deform_field[:, :, 2:, :, :] - deform_field[:, :, :-2, :, :]) / spacing[0]
+    dy = (deform_field[:, :, :, 2:, :] - deform_field[:, :, :, :-2, :]) / spacing[1]
+    dz = (deform_field[:, :, :, :, 2:] - deform_field[:, :, :, :, :-2]) / spacing[2]
 
     # Pad the gradients to match the original size
-    dx = torch.nn.functional.pad(dx, (0, 0, 0, 0, 0, 1))
-    dy = torch.nn.functional.pad(dy, (0, 0, 0, 1, 0, 0))
-    dz = torch.nn.functional.pad(dz, (0, 1, 0, 0, 0, 0))
+    dx = torch.nn.functional.pad(dx, (0, 0, 0, 0, 0, 2))
+    dy = torch.nn.functional.pad(dy, (0, 0, 0, 2, 0, 0))
+    dz = torch.nn.functional.pad(dz, (0, 2, 0, 0, 0, 0))
 
     # Compute Jacobian determinant
     jacobian_det = (
