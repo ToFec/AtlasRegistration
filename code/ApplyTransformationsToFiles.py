@@ -75,9 +75,9 @@ def main(argv=None):
                     resampler.SetInterpolator(sitk.sitkLinear)
                 dis_tx = sitk.DisplacementFieldTransform(sitk.Cast(deformation_field, sitk.sitkVectorFloat64))
                 resampler.SetTransform(dis_tx)
-                out = resampler.Execute(sitkImage)
+                sitkImage = resampler.Execute(sitkImage)
 
-                sitk.WriteImage(out, args.output)
+            sitk.WriteImage(sitkImage, args.output)
         return 0
     except KeyboardInterrupt:
         return 0
