@@ -5,8 +5,6 @@ from argparse import RawDescriptionHelpFormatter
 
 import SimpleITK as sitk
 import atlas_utils
-from imageTransformation import Transformation
-import torch
 import numpy as np
 
 import csv
@@ -99,7 +97,7 @@ def main(argv=None):
                         resampledOrganMask = resampler.Execute(sitkOrganMask)
                         sampledOrganMaskA = sitk.GetArrayFromImage(resampledOrganMask)
 
-                        organVals = torch.unique(sampledOrganMaskA[sampledMaskA > 0.0])
+                        organVals = np.unique(sampledOrganMaskA[sampledMaskA > 0.0])
                         sampledMaskADim = sampledOrganMaskA.ndim
                         mask = np.any(
                             np.expand_dims(sampledOrganMaskA, axis=sampledMaskADim) == organVals, axis=sampledMaskADim
