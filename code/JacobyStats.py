@@ -65,22 +65,17 @@ def main(argv=None):
                 if sitkOrganMask is not None:
                     atlas_utils.applyRigidRegistrationToImgHeader(sitkOrganMask, transform)
             if args.deformable:
-                defField = atlas_utils.loadDefField(args.deformable)
+                sitk_displacement_field = sitk.ReadImage(args.deformable)
+                jacobi = sitk.DisplacementFieldJacobianDeterminant(sitk_displacement_field)
+                jacobiA = sitk.GetArrayFromImage(jacobi)
 
-                meshStepLength0 = 2 / (defField.shape[2] - 1)
-                meshStepLength1 = 2 / (defField.shape[3] - 1)
-                meshStepLength2 = 2 / (defField.shape[4] - 1)
+                resampler = sitk.ResampleImageFilter()
+                resampler.SetReferenceImage(sitk_displacement_field)
+                resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+                resampler.SetDefaultPixelValue(0)
+                resampledMask = resampler.Execute(sitkMask)
 
-                jacobi = atlas_utils.jacobianDeterminant(defField, (meshStepLength0, meshStepLength1, meshStepLength2))
-
-                imgMaskA = sitk.GetArrayFromImage(sitkMask)
-                imgMaskA = imgMaskA.transpose()
-                imgMaskA = torch.from_numpy(imgMaskA.astype(np.float32))[None, None, ...]
-
-                transformer = Transformation()
-                transformer.setIdentityTransform(defField.shape)
-                idTransform = transformer.identityTransform
-                sampledMaskA = transformer.sampleImage(imgMaskA, idTransform[None, ...], interpolationType="nearest")
+                sampledMaskA = sitk.GetArrayFromImage(resampledMask)
 
                 file_exists = exists(args.output)
                 with open(args.output, "a") as csvFile:
@@ -88,7 +83,7 @@ def main(argv=None):
                     if not file_exists:
                         w.writerow(("FileName", "Structure", "Mean", "Std", "Min", "Max"))
 
-                    jacobyValsInMask = jacobi[sampledMaskA > 0.0]
+                    jacobyValsInMask = jacobiA[sampledMaskA > 0.0]
                     w.writerow(
                         [
                             args.mask,
@@ -101,19 +96,18 @@ def main(argv=None):
                     )
 
                     if sitkOrganMask is not None:
-                        imgOrganMaskA = sitk.GetArrayFromImage(sitkOrganMask)
-                        imgOrganMaskA = imgOrganMaskA.transpose()
-                        imgOrganMaskA = torch.from_numpy(imgOrganMaskA.astype(np.float32))[None, None, ...]
-                        sampledOrganMaskA = transformer.sampleImage(
-                            imgOrganMaskA, idTransform[None, ...], interpolationType="nearest"
-                        )
+                        resampledOrganMask = resampler.Execute(sitkOrganMask)
+                        sampledOrganMaskA = sitk.GetArrayFromImage(resampledOrganMask)
+
                         organVals = torch.unique(sampledOrganMaskA[sampledMaskA > 0.0])
-                        sampledMaskADim = sampledOrganMaskA.dim()
-                        mask = (sampledOrganMaskA.unsqueeze(sampledMaskADim) == organVals).any(dim=sampledMaskADim)
+                        sampledMaskADim = sampledOrganMaskA.ndim
+                        mask = np.any(
+                            np.expand_dims(sampledOrganMaskA, axis=sampledMaskADim) == organVals, axis=sampledMaskADim
+                        )
                         mask[sampledMaskA > 0.0] = False
 
                         for organVal in organVals:
-                            jacobyValsForOrgan = jacobi[(sampledOrganMaskA == organVal) & (sampledMaskA == 0.0)]
+                            jacobyValsForOrgan = jacobiA[(sampledOrganMaskA == organVal) & (sampledMaskA == 0.0)]
                             w.writerow(
                                 [
                                     args.mask,
@@ -125,7 +119,7 @@ def main(argv=None):
                                 ]
                             )
 
-                        jacobyValsSurroundingOrgan = jacobi[mask]
+                        jacobyValsSurroundingOrgan = jacobiA[mask]
                         w.writerow(
                             [
                                 args.mask,
