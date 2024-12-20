@@ -50,6 +50,13 @@ def main(argv=None):
             dest="organMask",
             help="second Mask",
         )
+        parser.add_argument(
+            "-t",
+            "--rigidToOrganMask",
+            dest="rigidToOrganMask",
+            action="store_true",
+            help="apply rigid registration to organ mask",
+        )
 
         args = parser.parse_args()
         if args.mask and args.output:
@@ -60,8 +67,9 @@ def main(argv=None):
             if args.rigid:
                 transform = sitk.ReadTransform(args.rigid)
                 atlas_utils.applyRigidRegistrationToImgHeader(sitkMask, transform)
-                if sitkOrganMask is not None:
-                    atlas_utils.applyRigidRegistrationToImgHeader(sitkOrganMask, transform)
+                if args.rigidToOrganMask:
+                    if sitkOrganMask is not None:
+                        atlas_utils.applyRigidRegistrationToImgHeader(sitkOrganMask, transform)
             if args.deformable:
                 sitk_displacement_field = sitk.ReadImage(args.deformable)
                 jacobi = sitk.DisplacementFieldJacobianDeterminant(sitk_displacement_field)
