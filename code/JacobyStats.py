@@ -113,15 +113,28 @@ def main(argv=None):
                         mask[sampledMaskA > 0.0] = False
 
                         for organVal in organVals:
-                            jacobyValsForOrgan = jacobiA[(sampledOrganMaskA == organVal) & (sampledMaskA == 0.0)]
+                            jacobyValsForOrganOutOfGtv = jacobiA[
+                                (sampledOrganMaskA == organVal) & (sampledMaskA == 0.0)
+                            ]
                             w.writerow(
                                 [
                                     args.mask,
-                                    organVal.item(),
-                                    jacobyValsForOrgan.mean().item(),
-                                    jacobyValsForOrgan.std().item(),
-                                    jacobyValsForOrgan.min().item(),
-                                    jacobyValsForOrgan.max().item(),
+                                    f"Organ{organVal.item()} without Mask",
+                                    jacobyValsForOrganOutOfGtv.mean().item(),
+                                    jacobyValsForOrganOutOfGtv.std().item(),
+                                    jacobyValsForOrganOutOfGtv.min().item(),
+                                    jacobyValsForOrganOutOfGtv.max().item(),
+                                ]
+                            )
+                            jacobyValsForOrganInGtv = jacobiA[(sampledOrganMaskA == organVal) & (sampledMaskA > 0.0)]
+                            w.writerow(
+                                [
+                                    args.mask,
+                                    f"Organ{organVal.item()} AND Mask",
+                                    jacobyValsForOrganInGtv.mean().item(),
+                                    jacobyValsForOrganInGtv.std().item(),
+                                    jacobyValsForOrganInGtv.min().item(),
+                                    jacobyValsForOrganInGtv.max().item(),
                                 ]
                             )
 
