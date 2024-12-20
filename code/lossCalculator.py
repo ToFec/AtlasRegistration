@@ -152,13 +152,13 @@ class LossCalculator:
         #    )
         
         # self.lossWrapper.setLoss("volumePreservationLoss", self.volumePreservationLoss(pos_flow, atlasLabels))
-        #with torch.no_grad():
         
+        #with torch.no_grad():
+        if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
+            vpL, _ = self.volumePreservationLoss(pos_flow, atlasLabels)
+            self.lossWrapper.setLoss("volumePreservationLoss", vpL)
 
         self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow, deviationFroMeanJacobyMask))
-
-        vpL, deviationFroMeanJacobyMask = self.volumePreservationLoss(pos_flow, atlasLabels)
-        self.lossWrapper.setLoss("volumePreservationLoss", vpL)
 
         # increase regularisation loss inside mask and set other losses to zero
         if deviationFroMeanJacobyMask is not None:
