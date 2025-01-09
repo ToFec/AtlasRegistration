@@ -36,7 +36,10 @@ class LossCalculator:
             self.diceLoss = LossFactory.lossMap[diceLoss]()
             ignoreBackground = config.getParam("ignoreBackground")
             if ignoreBackground:
-                self.diceLoss.setIgnoreBackground(ignoreBackground)
+                upperThreshold = 0
+                if config.getParam("maxDistanceForDistanceMaps") is not None:
+                    upperThreshold = config.getParam("maxDistanceForDistanceMaps")
+                self.diceLoss.setIgnoreBackground(ignoreBackground, 0, upperThreshold)
         else:
             self.diceLoss = LossFactory.lossMap["Dummy"]()
 
@@ -146,14 +149,14 @@ class LossCalculator:
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
         deviationFroMeanJacobyMask = None
-        #if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
+        # if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
         #    deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
         #        pos_flow.detach(), atlasLabels
         #    )
-        
+
         # self.lossWrapper.setLoss("volumePreservationLoss", self.volumePreservationLoss(pos_flow, atlasLabels))
-        
-        #with torch.no_grad():
+
+        # with torch.no_grad():
         if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
             vpL, _ = self.volumePreservationLoss(pos_flow, atlasLabels)
             self.lossWrapper.setLoss("volumePreservationLoss", vpL)
@@ -188,11 +191,11 @@ class LossCalculator:
         batch_size = meshes.shape[0]
         if (batch_size % 2) == 0:
             if deviationFroMeanJacobyMask is not None:
-               deviationFroMeanJacobyMaskSubMaskEnd = deviationFroMeanJacobyMask[int(batch_size / 2) :]
-               deviationFroMeanJacobyMaskSubMaskStart = deviationFroMeanJacobyMask[: int(batch_size / 2)]
+                deviationFroMeanJacobyMaskSubMaskEnd = deviationFroMeanJacobyMask[int(batch_size / 2) :]
+                deviationFroMeanJacobyMaskSubMaskStart = deviationFroMeanJacobyMask[: int(batch_size / 2)]
             else:
-               deviationFroMeanJacobyMaskSubMaskEnd = None
-               deviationFroMeanJacobyMaskSubMaskStart = None
+                deviationFroMeanJacobyMaskSubMaskEnd = None
+                deviationFroMeanJacobyMaskSubMaskStart = None
             self.lossWrapper.setLoss(
                 "atlas_pair_sim_loss",
                 self._getImageSpaceSimilarityLoss(
@@ -223,7 +226,6 @@ class LossCalculator:
         )
 
         self.lossWrapper.setLoss("jacobianLoss", self.defFieldJacobianLoss(pos_flow))
-        
 
     def getLosses(self):
         return self.lossWrapper

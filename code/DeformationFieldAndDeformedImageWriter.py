@@ -199,11 +199,11 @@ class DeformationFieldAndDeformedImageWriter(Callback):
                     self.meshDir,
                 )
 
-                jacobyMeanValue = torch.zeros_like(distanceMapsAtlas[i, None, ...])
-                labelMap = torch.floor(distanceMapsAtlas[i, None, ...] / self.maximalDistanceForDitanceMaps)
-                labels = torch.unique(labelMap)
-                for label in labels:
-                    jacobyMeanValue[labelMap == label] = jacobiDetPosFlow[labelMap == label].mean()
+                # jacobyMeanValue = torch.zeros_like(distanceMapsAtlas[i, None, ...])
+                # labelMap = torch.floor(distanceMapsAtlas[i, None, ...] / self.maximalDistanceForDitanceMaps)
+                # labels = torch.unique(labelMap)
+                # for label in labels:
+                #     jacobyMeanValue[labelMap == label] = jacobiDetPosFlow[labelMap == label].mean()
 
                 #            jacobiDetPosFlow = torch.nn.functional.avg_pool3d(
                 #                torch.nn.functional.avg_pool3d(jacobiDetPosFlow, kernel_size=3, stride=1, padding=1),
@@ -212,29 +212,29 @@ class DeformationFieldAndDeformedImageWriter(Callback):
                 #                padding=1,
                 #            )
 
-                jacobiDetPosFlow = torch.nn.functional.avg_pool3d(jacobiDetPosFlow, kernel_size=3, stride=1, padding=1)
-                diff = torch.abs(jacobiDetPosFlow) / torch.abs(jacobyMeanValue)
-                diff[diff != 0.0] = torch.max(diff[diff != 0.0], 1.0 / diff[diff != 0.0])
-
-                simgoid = torch.nn.Sigmoid()
-                diff = simgoid(10 * (diff - 2.0))
-                vpLossValues = diff
-
-                atlas_utils.saveImageTensor(
-                    vpLossValues,
-                    os.path.join(self.output_dir, fileBaseName + "VolumePreservingLoss" + self.fileType),
-                    atlasOrigin,
-                    self.meshSpacing,
-                    self.meshDir,
-                )
-
-                atlas_utils.saveImageTensor(
-                    jacobyMeanValue,
-                    os.path.join(self.output_dir, fileBaseName + "JacobiMeanValues" + self.fileType),
-                    atlasOrigin,
-                    self.meshSpacing,
-                    self.meshDir,
-                )
+                # jacobiDetPosFlow = torch.nn.functional.avg_pool3d(jacobiDetPosFlow, kernel_size=3, stride=1, padding=1)
+                # diff = torch.abs(jacobiDetPosFlow) / torch.abs(jacobyMeanValue)
+                # diff[diff != 0.0] = torch.max(diff[diff != 0.0], 1.0 / diff[diff != 0.0])
+                #
+                # simgoid = torch.nn.Sigmoid()
+                # diff = simgoid(10 * (diff - 2.0))
+                # vpLossValues = diff
+                #
+                # atlas_utils.saveImageTensor(
+                #     vpLossValues,
+                #     os.path.join(self.output_dir, fileBaseName + "VolumePreservingLoss" + self.fileType),
+                #     atlasOrigin,
+                #     self.meshSpacing,
+                #     self.meshDir,
+                # )
+                #
+                # atlas_utils.saveImageTensor(
+                #     jacobyMeanValue,
+                #     os.path.join(self.output_dir, fileBaseName + "JacobiMeanValues" + self.fileType),
+                #     atlasOrigin,
+                #     self.meshSpacing,
+                #     self.meshDir,
+                # )
 
             # ## save deformed images in atlas space
             # atlas_utils.saveImageTensor(

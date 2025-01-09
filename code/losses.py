@@ -78,9 +78,18 @@ class AbstractLabelLoss(nn.Module):
     def __init__(self):
         super(AbstractLabelLoss, self).__init__()
         self.ignoreBackground = False
+        self.backgroundValueThresholdLow = None
+        self.backgroundValueThresholdHigh = None
 
-    def setIgnoreBackground(self, ignoreBackground):
+    def setIgnoreBackground(
+        self, ignoreBackground, backgroundValueThresholdLow=None, backgroundValueThresholdHigh=None
+    ):
         self.ignoreBackground = ignoreBackground
+        self.backgroundValueThresholdLow = backgroundValueThresholdLow
+        if backgroundValueThresholdHigh is None:
+            self.backgroundValueThresholdHigh = backgroundValueThresholdLow
+        else:
+            self.backgroundValueThresholdHigh = backgroundValueThresholdHigh
 
     def forward(self, input, target):
         pass
@@ -92,16 +101,40 @@ class NCCLoss(AbstractLabelLoss):
     """
 
     def forward(self, input, target, mask=None):
+        finalMask = torch.ones_like(input, dtype=torch.bool)
+        if mask is not None:
+            finalMask = mask & finalMask
+
         input = input.view(input.shape[0], -1)
         target = target.view(target.shape[0], -1)
-        input_minus_mean = input - torch.mean(input.detach(), 1).view(input.shape[0], 1)
-        target_minus_mean = target - torch.mean(target.detach(), 1).view(input.shape[0], 1)
-        if mask is not None:
-            mask = mask.view(mask.shape[0], -1)
-            input_minus_mean = input_minus_mean * mask
-            target_minus_mean = target_minus_mean * mask
-        nccSqr = ((input_minus_mean * target_minus_mean).mean(1)) / torch.sqrt(
-            (((input_minus_mean**2).mean(1)) * ((target_minus_mean**2).mean(1))) + 1e-10
+        finalMask = finalMask.view(finalMask.shape[0], -1)
+
+        if self.ignoreBackground:
+            if self.backgroundValueThresholdLow is not None:
+                bgMask = (
+                    (input >= self.backgroundValueThresholdLow) & (input <= self.backgroundValueThresholdHigh)
+                ) | ((target >= self.backgroundValueThresholdLow) & (target <= self.backgroundValueThresholdHigh))
+                bgMask = ~bgMask
+            else:
+                bgMask = (input != 0) & (target != 0)
+
+            finalMask = finalMask & bgMask
+
+        input = input * finalMask
+        target = target * finalMask
+
+        input_sum = input.sum(dim=1)
+        target_sum = target.sum(dim=1)
+        mask_sum = finalMask.sum(dim=1)
+
+        meanInput = input_sum / mask_sum
+        meanTarget = target_sum / mask_sum
+
+        input_minus_mean = (input - meanInput.view(input.shape[0], 1)) * finalMask
+        target_minus_mean = (target - meanTarget.view(target.shape[0], 1)) * finalMask
+
+        nccSqr = ((input_minus_mean * target_minus_mean).sum(1)) / torch.sqrt(
+            (((input_minus_mean**2).sum(1)) * ((target_minus_mean**2).sum(1))) + 1e-10
         )
         nccSqr = nccSqr.mean()
 

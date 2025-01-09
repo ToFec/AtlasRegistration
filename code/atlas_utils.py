@@ -194,6 +194,10 @@ def createSignedDistanceMap(sitkLabel, ignoreBackground=False, maxValue=None):
     uniqueValues = np.unique(array)
     if ignoreBackground:
         uniqueValues = uniqueValues[uniqueValues != 0]
+        array = np.array(array)
+        array[array != 0] = array[array != 0] + 1
+    else:
+        array = array + 1
     distanceMaps = []
     for uniqueVal in uniqueValues:
         tmpImage = sitkLabel == uniqueVal
@@ -298,11 +302,12 @@ def getOptimizer(optimizerType):
         return torch.optim.Adam
     return torch.optim.AdamW
 
-#equal to sitk implementation
+
+# equal to sitk implementation
 def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
-    dx = (deform_field[:, :, 2:, :, :] - deform_field[:, :, :-2, :, :]) / (spacing[0]*2)
-    dy = (deform_field[:, :, :, 2:, :] - deform_field[:, :, :, :-2, :]) / (spacing[1]*2)
-    dz = (deform_field[:, :, :, :, 2:] - deform_field[:, :, :, :, :-2]) / (spacing[2]*2)
+    dx = (deform_field[:, :, 2:, :, :] - deform_field[:, :, :-2, :, :]) / (spacing[0] * 2)
+    dy = (deform_field[:, :, :, 2:, :] - deform_field[:, :, :, :-2, :]) / (spacing[1] * 2)
+    dz = (deform_field[:, :, :, :, 2:] - deform_field[:, :, :, :, :-2]) / (spacing[2] * 2)
 
     # Pad the gradients to match the original size
     dx = torch.nn.functional.pad(dx, (0, 0, 0, 0, 1, 1))
@@ -319,7 +324,6 @@ def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
     )
 
     return jacobian_det
-
 
 
 def setMatmulPrecision(matMulPrecision):
