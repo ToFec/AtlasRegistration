@@ -157,7 +157,7 @@ class LossCalculator:
         # self.lossWrapper.setLoss("volumePreservationLoss", self.volumePreservationLoss(pos_flow, atlasLabels))
 
         # with torch.no_grad():
-        if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
+        if self.lossWrapper.getLossFactor("volumePreservationLoss") != 0.0:
             vpL, _ = self.volumePreservationLoss(pos_flow, atlasLabels)
             self.lossWrapper.setLoss("volumePreservationLoss", vpL)
 

@@ -15,6 +15,12 @@ class LossWrapper(object):
         if lossName not in self.lossFactors.keys():
             self.lossFactors[lossName] = 0.0
 
+    def getLossFactor(self, lossName):
+        if lossName in self.lossFactors.keys():
+            return self.lossFactors[lossName]
+        else:
+            return 0.0
+
     def setLossFactor(self, lossName, value):
         self.lossFactors[lossName] = value
 
