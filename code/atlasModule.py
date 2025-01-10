@@ -52,7 +52,16 @@ class AtlasModule(pl.LightningModule):
         self.register_buffer("atlasOrigin", atlasOrigin, True)
         self.logTemporaryDeformationFields = logTemporaryDeformationFields
 
-    
+    def setAtlasInformation(self, atlasImage, atlasLabel, atlasMesh, atlasOrigin, atlasLearning_rate):
+        self.alr = atlasLearning_rate
+        if self.alr > 0.0:
+            self.atlasImage = torch.nn.Parameter(atlasImage)
+        else:
+            self.register_buffer("atlasImage", atlasImage, True)
+        self.register_buffer("atlasLabel", atlasLabel, True)
+        self.register_buffer("atlasMesh", atlasMesh, True)
+        self.register_buffer("atlasOrigin", atlasOrigin, True)
+
     def getInputAtlasMesh(self, batch_size):
         return self.atlasMesh.expand(batch_size, -1, -1, -1, -1)
 

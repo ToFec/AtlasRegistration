@@ -260,31 +260,18 @@ def runTraining(config, resume: str = None):
 
     stringForStoringVariables = getCheckPointString(config)
 
-    if resume is not None:
-        f = open(resume, "r")
-        checkPointPath = f.read().splitlines()[0]
-        logging.warn(f"trying to load model file from {resume}")
-        model = AtlasModule.load_from_checkpoint(checkPointPath)
-        newShape = model.net.getShapeForModel(config.getParam("registrationGridsize"))
-        config.setParam("registrationGridsize", newShape.tolist())
-        loss = LossCalculator(config)
-        model.criterion = loss
-        model.hparams["loss"] = loss
-        model.configure_optimizers()
-
-    else:
-        network = NetworkFactory.getNetwork(config)
-        newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
-        config.setParam("registrationGridsize", newShape.tolist())
-        loss = LossCalculator(config)
-        optimizer = atlas_utils.getOptimizer(config.getParam("optimizer"))
-
     data = AtlasDataModule(config)
     data.prepare_data()
     data.setup(stage="fit")
     atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
     if resume is None:
+        network = NetworkFactory.getNetwork(config)
+        newShape = network.getShapeForModel(config.getParam("registrationGridsize"))
+        config.setParam("registrationGridsize", newShape.tolist())
+        loss = LossCalculator(config)
+        optimizer = atlas_utils.getOptimizer(config.getParam("optimizer"))
+
         model = AtlasModule(
             network,
             atlasImage,
@@ -298,6 +285,20 @@ def runTraining(config, resume: str = None):
             atlasOptimizer_class=optimizer,
             useLrScheduler=config.getParam("lrScheduler"),
             logTemporaryDeformationFields=config.getParam("logTemporaryDeformationFields"),
+        )
+    else:
+        f = open(resume, "r")
+        checkPointPath = f.read().splitlines()[0]
+        logging.warn(f"trying to load model file from {resume}")
+        model = AtlasModule.load_from_checkpoint(checkPointPath)
+        newShape = model.net.getShapeForModel(config.getParam("registrationGridsize"))
+        config.setParam("registrationGridsize", newShape.tolist())
+        loss = LossCalculator(config)
+        model.criterion = loss
+        model.hparams["loss"] = loss
+        model.configure_optimizers()
+        model.setAtlasInformation(
+            atlasImage, atlasLabel, atlasMesh, atlasOrigin, atlasLearning_rate=config.getParam("atlasLearningRate")
         )
 
     callBackFunctions = []
