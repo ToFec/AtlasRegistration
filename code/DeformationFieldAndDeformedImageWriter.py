@@ -100,9 +100,9 @@ class DeformationFieldAndDeformedImageWriter(Callback):
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
 
-        # posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
-        #     pos_flow, neg_flow, self.transformer
-        # )
+        posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
+            pos_flow, neg_flow, self.transformer
+        )
 
         if not self.isStageTypePredict:
             atlas_utils.saveImageTensor(
@@ -263,13 +263,13 @@ class DeformationFieldAndDeformedImageWriter(Callback):
                 self.meshDir,
             )
 
-            # atlas_utils.saveImageTensor(
-            #     negFlowMinusWarpedPosFlow[i, None, ...],
-            #     os.path.join(self.output_dir, fileBaseName + "DefFieldMinusAtlasDefField" + self.fileType),
-            #     atlasOrigin,
-            #     self.meshSpacing,
-            #     self.meshDir,
-            # )
+            atlas_utils.saveImageTensor(
+                negFlowMinusWarpedPosFlow[i, None, ...],
+                os.path.join(self.output_dir, fileBaseName + "DefFieldMinusAtlasDefField" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
 
             # ## save deformed atlas in image space
             # atlas_utils.saveImageTensor(
@@ -298,10 +298,10 @@ class DeformationFieldAndDeformedImageWriter(Callback):
                 self.meshDir,
             )
 
-            # atlas_utils.saveImageTensor(
-            #     posFlowMinusWarpedNegFlow[i, None, ...],
-            #     os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldMinusImageDefField" + self.fileType),
-            #     atlasOrigin,
-            #     self.meshSpacing,
-            #     self.meshDir,
-            # )
+            atlas_utils.saveImageTensor(
+                posFlowMinusWarpedNegFlow[i, None, ...],
+                os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldMinusImageDefField" + self.fileType),
+                atlasOrigin,
+                self.meshSpacing,
+                self.meshDir,
+            )
