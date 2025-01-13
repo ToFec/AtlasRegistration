@@ -120,11 +120,11 @@ class NCCLoss(AbstractLabelLoss):
 
             finalMask = finalMask & bgMask
 
-        input = input * finalMask
-        target = target * finalMask
+        inputMasked = input * finalMask
+        targetMasked = target * finalMask
 
-        input_sum = input.sum(dim=1)
-        target_sum = target.sum(dim=1)
+        input_sum = inputMasked.sum(dim=1)
+        target_sum = targetMasked.sum(dim=1)
         mask_sum = finalMask.sum(dim=1)
 
         meanInput = input_sum / mask_sum
