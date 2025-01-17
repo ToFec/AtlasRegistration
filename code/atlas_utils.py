@@ -52,17 +52,12 @@ def segmentMisssingCorrespondences(pos_flow, neg_flow, transformation=None):
     return posFlowMinusWarpedNegFlowNorm, negFlowMinusWarpedPosFlowNorm
 
 
-def convertDistanceMapToLabelMap(distanceMap, ignoreBackground=False):
+def convertDistanceMapToLabelMap(distanceMap):
     distanceMapShape = list(distanceMap.shape)
-    valToAdd = 0
-    if ignoreBackground:
-        distanceMapShape[1] = distanceMapShape[1] + 1
-        valToAdd = 1
-
     labelMap = torch.zeros(distanceMapShape, device=distanceMap.device)
 
     for channel in range(0, distanceMap.shape[1]):
-        labelMap[:, channel + valToAdd, ...][distanceMap[:, channel, ...] <= 0.0] = channel + valToAdd
+        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel
     return labelMap
 
 
@@ -189,15 +184,10 @@ def roundToHighestPosition(arr):
     return rounded
 
 
-def createSignedDistanceMap(sitkLabel, ignoreBackground=False, maxValue=None):
+def createSignedDistanceMap(sitkLabel, maxValue=None):
     array = sitk.GetArrayViewFromImage(sitkLabel)
     uniqueValues = np.unique(array)
-    if ignoreBackground:
-        uniqueValues = uniqueValues[uniqueValues != 0]
-        array = np.array(array)
-        array[array != 0] = array[array != 0] + 1
-    else:
-        array = array + 1
+    array = array + 1
     distanceMaps = []
     for uniqueVal in uniqueValues:
         tmpImage = sitkLabel == uniqueVal

@@ -47,8 +47,6 @@ class DeformationFieldAndDeformedImageWriter(Callback):
         else:
             self.fileType = _fileType
 
-        self.ignoreBackground = config.getParam("ignoreBackground")
-
         self.maximalDistanceForDitanceMaps = config.getParam("maxDistanceForDistanceMaps")
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):

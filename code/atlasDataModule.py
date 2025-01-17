@@ -46,7 +46,6 @@ class AtlasDataModule(pl.LightningDataModule):
         self.loadImagesAsDataType = config.getParam("loadImagesAsDataType")
         self.useAtlasSpaceAsReferenceForMeshCreation = config.getParam("useAtlasSpaceAsReferenceForMeshCreation")
 
-        self.ignoreBackground = config.getParam("ignoreBackground")
         self.maxDistanceForDistanceMaps = config.getParam("maxDistanceForDistanceMaps")
 
         if self.useAtlasSpaceAsReferenceForMeshCreation is None:
@@ -163,9 +162,7 @@ class AtlasDataModule(pl.LightningDataModule):
                     sitkLabel = sitk.GetImageFromArray(labelImage.data.squeeze().swapaxes(0, -1))
                     sitkLabel.CopyInformation(sitkImage)
                     distnaceMapTensor = torch.from_numpy(
-                        atlasUtils.createSignedDistanceMap(
-                            sitkLabel, self.ignoreBackground, self.maxDistanceForDistanceMaps
-                        ).swapaxes(1, -1)
+                        atlasUtils.createSignedDistanceMap(sitkLabel, self.maxDistanceForDistanceMaps).swapaxes(1, -1)
                     )
                     torch.save(distnaceMapTensor, distanceMapName)
                 labelImage.data = distnaceMapTensor.to(torch.float32)

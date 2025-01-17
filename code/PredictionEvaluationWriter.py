@@ -50,7 +50,6 @@ class PredictionEvaluationWriter(Callback):
         self.finalResultList = []
         self.header = None
         self.meshSpacing = config.getParam("registrationGridSpacing")
-        self.ignoreBackground = config.getParam("ignoreBackground")
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
         self.write_on_batch_end(trainer, pl_module, outputs, None, batch, batch_idx, dataloader_idx)
@@ -105,8 +104,8 @@ class PredictionEvaluationWriter(Callback):
             labels.append(tio.LabelMap.from_sitk(sitkLabel).data.to(torch.float32).to(meshes.device))
 
         # if self.transformDistanceMaps:
-        #     labels = atlas_utils.convertDistanceMapToLabelMap(labels, self.ignoreBackground)
-        #     atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels, self.ignoreBackground)
+        #     labels = atlas_utils.convertDistanceMapToLabelMap(labels)
+        #     atlasLabels = atlas_utils.convertDistanceMapToLabelMap(atlasLabels)
 
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
