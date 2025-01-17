@@ -296,10 +296,14 @@ def runTraining(config, resume: str = None):
         loss = LossCalculator(config)
         model.criterion = loss
         model.hparams["loss"] = loss
-        model.configure_optimizers()
+
         model.setAtlasInformation(
             atlasImage, atlasLabel, atlasMesh, atlasOrigin, atlasLearning_rate=config.getParam("atlasLearningRate")
         )
+
+        model.alr = config.getParam("atlasLearningRate")
+        model.nlr = config.getParam("learningRate")
+        model.configure_optimizers()
 
     callBackFunctions = []
 
