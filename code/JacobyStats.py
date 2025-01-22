@@ -57,11 +57,20 @@ def main(argv=None):
             action="store_true",
             help="apply rigid registration to organ mask",
         )
+        parser.add_argument(
+            "-c",
+            "--distanceToConsider",
+            dest="considerDistance",
+            help="define region around mask to consider",
+        )
 
         args = parser.parse_args()
         if args.mask and args.output:
             sitkMask = sitk.ReadImage(args.mask)
             sitkOrganMask = None
+            considerDistance = 0.0
+            if args.considerDistance:
+                considerDistance = args.considerDistance
             if args.organMask:
                 sitkOrganMask = sitk.ReadImage(args.organMask)
             if args.rigid:
@@ -112,9 +121,16 @@ def main(argv=None):
                         )
                         mask[sampledMaskA > 0.0] = False
 
+                        distanceMapTensor = np.ones_like(resampledMask) * -1.0
+                        if considerDistance > 0.0:
+                            distanceMapSitk = sitk.SignedDanielssonDistanceMap(resampledMask, useImageSpacing=True)
+                            distanceMapTensor = sitk.GetArrayFromImage(distanceMapSitk)
+
                         for organVal in organVals:
                             jacobyValsForOrganOutOfGtv = jacobiA[
-                                (sampledOrganMaskA == organVal) & (sampledMaskA == 0.0)
+                                (sampledOrganMaskA == organVal)
+                                & (sampledMaskA == 0.0)
+                                & (distanceMapTensor < considerDistance)
                             ]
                             w.writerow(
                                 [
