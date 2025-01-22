@@ -70,7 +70,7 @@ def main(argv=None):
             sitkOrganMask = None
             considerDistance = 0.0
             if args.considerDistance:
-                considerDistance = args.considerDistance
+                considerDistance = float(args.considerDistance)
             if args.organMask:
                 sitkOrganMask = sitk.ReadImage(args.organMask)
             if args.rigid:
