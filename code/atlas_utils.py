@@ -238,6 +238,21 @@ def getMeshSpacing(mesh):
     return torch.tensor((spacing0, spacing1, spacing2))
 
 
+def scaleAndOrientDeffield(defField, spacing, direction):
+    defField = defField[0, ...].detach().clone()
+    defField = defField.permute([3, 2, 1, 0])
+
+    defField[..., 0] = defField[..., 0] * ((defField.shape[2] - 1) / 2.0)
+    defField[..., 1] = defField[..., 1] * ((defField.shape[1] - 1) / 2.0)
+    defField[..., 2] = defField[..., 2] * ((defField.shape[0] - 1) / 2.0)
+
+    defField[..., 0] = defField[..., 0] * spacing[0] * direction[0]
+    defField[..., 1] = defField[..., 1] * spacing[1] * direction[4]
+    defField[..., 2] = defField[..., 2] * spacing[2] * direction[8]
+    defField = defField.permute([3, 2, 1, 0])
+    return defField
+
+
 def saveDefField(filename, defField, origin, spacing, direction):
     defField = defField[0, ...].detach().clone()
     defField = defField.permute([3, 2, 1, 0])

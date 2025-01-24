@@ -81,8 +81,16 @@ def main(argv=None):
                         atlas_utils.applyRigidRegistrationToImgHeader(sitkOrganMask, transform)
             if args.deformable:
                 sitk_displacement_field = sitk.ReadImage(args.deformable)
-                jacobi = sitk.DisplacementFieldJacobianDeterminant(sitk_displacement_field)
-                jacobiA = sitk.GetArrayFromImage(jacobi)
+
+                defFieldAtlas = atlas_utils.loadDefField(args.deformable)
+
+                scaledDefFieldAtlas = atlas_utils.scaleAndOrientDeffield(
+                    defFieldAtlas, sitk_displacement_field.GetSpacing(), sitk_displacement_field.GetDirection()
+                )
+
+                jacobiA = atlas_utils.jacobianDeterminant(
+                    scaledDefFieldAtlas[None, ...], sitk_displacement_field.GetSpacing()
+                )
 
                 resampler = sitk.ResampleImageFilter()
                 resampler.SetReferenceImage(sitk_displacement_field)
