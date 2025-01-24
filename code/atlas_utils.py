@@ -295,9 +295,9 @@ def getOptimizer(optimizerType):
 
 # equal to sitk implementation
 def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
-    dx = (deform_field[:, :, 2:, :, :] - deform_field[:, :, :-2, :, :]) / (spacing[0] * 2)
-    dy = (deform_field[:, :, :, 2:, :] - deform_field[:, :, :, :-2, :]) / (spacing[1] * 2)
-    dz = (deform_field[:, :, :, :, 2:] - deform_field[:, :, :, :, :-2]) / (spacing[2] * 2)
+    dx = (deform_field[:, :, :-2, :, :] - deform_field[:, :, 2:, :, :]) / (spacing[0] * 2)
+    dy = (deform_field[:, :, :, :-2, :] - deform_field[:, :, :, 2:, :]) / (spacing[1] * 2)
+    dz = (deform_field[:, :, :, :, :-2] - deform_field[:, :, :, :, 2:]) / (spacing[2] * 2)
 
     # Pad the gradients to match the original size
     dx = torch.nn.functional.pad(dx, (0, 0, 0, 0, 1, 1))

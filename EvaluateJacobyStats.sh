@@ -33,7 +33,7 @@ do
    	 continue 	
     fi
     
-    python code/JacobyStats.py -m "${gtv}" -r "${imgDir}/BHFI_vtkMRMLLinearTransformNodeH12Dof.h5" -d "${imgDir}/${folderForDeffields}/DefField.mha" -o "jacobiStats${folderForDeffields}.csv" -n "/home/fechter/Bilder/Atlas/seg4_short.nrrd"
+    python code/JacobyStats.py -m "${gtv}" -r "${imgDir}/BHFI_vtkMRMLLinearTransformNodeH12Dof.h5" -d "${imgDir}/${folderForDeffields}/DefField.mha" -o "jacobiStats10mm${folderForDeffields}.csv" -n "/home/fechter/Bilder/Atlas/seg4_short.nrrd" -c "10.0"
     
     echo "done"
 done
