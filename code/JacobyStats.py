@@ -91,6 +91,7 @@ def main(argv=None):
                 jacobiA = atlas_utils.jacobianDeterminant(
                     scaledDefFieldAtlas[None, ...], sitk_displacement_field.GetSpacing()
                 )
+                jacobiA = jacobiA.squeeze(0).squeeze(0).permute([2, 1, 0])
 
                 resampler = sitk.ResampleImageFilter()
                 resampler.SetReferenceImage(sitk_displacement_field)
