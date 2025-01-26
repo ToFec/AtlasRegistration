@@ -124,6 +124,7 @@ def main(argv=None):
                         sampledOrganMaskA = sitk.GetArrayFromImage(resampledOrganMask)
 
                         organVals = np.unique(sampledOrganMaskA[sampledMaskA > 0.0])
+                        organVals = organVals[organVals != 0]
                         sampledMaskADim = sampledOrganMaskA.ndim
                         mask = np.any(
                             np.expand_dims(sampledOrganMaskA, axis=sampledMaskADim) == organVals, axis=sampledMaskADim
