@@ -11,6 +11,7 @@ import atlas_utils
 import torchio as tio
 import torch
 import SimpleITK as sitk
+from losses import VolumePreservationLoss
 
 
 class DeformationFieldAndDeformedImageWriter(Callback):
@@ -48,6 +49,7 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             self.fileType = _fileType
 
         self.maximalDistanceForDitanceMaps = config.getParam("maxDistanceForDistanceMaps")
+        self.registrationGridsize = config.getParam("registrationGridsize")
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
         self.write_on_batch_end(trainer, pl_module, outputs, None, batch, batch_idx, dataloader_idx)
@@ -98,9 +100,15 @@ class DeformationFieldAndDeformedImageWriter(Callback):
         neg_flow = neg_flow.cpu()
         pos_flow = pos_flow.cpu()
 
-        posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
-            pos_flow, neg_flow, self.transformer
+        # posFlowMinusWarpedNegFlow, negFlowMinusWarpedPosFlow = atlas_utils.segmentMisssingCorrespondences(
+        #     pos_flow, neg_flow, self.transformer
+        # )
+
+        volumePreservationLoss = VolumePreservationLoss(self.registrationGridsize, self.maximalDistanceForDitanceMaps)
+        deviationFroMeanJacobyMask = volumePreservationLoss.getDeviationFromMeanJacobyMask(
+            pos_flow.detach(), atlasLabels
         )
+        deviationFroMeanJacobyMask = 1.0 - deviationFroMeanJacobyMask.detach()
 
         if not self.isStageTypePredict:
             atlas_utils.saveImageTensor(
@@ -261,13 +269,13 @@ class DeformationFieldAndDeformedImageWriter(Callback):
                 self.meshDir,
             )
 
-            atlas_utils.saveImageTensor(
-                negFlowMinusWarpedPosFlow[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "DefFieldMinusAtlasDefField" + self.fileType),
-                atlasOrigin,
-                self.meshSpacing,
-                self.meshDir,
-            )
+            # atlas_utils.saveImageTensor(
+            #     negFlowMinusWarpedPosFlow[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "DefFieldMinusAtlasDefField" + self.fileType),
+            #     atlasOrigin,
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
 
             # ## save deformed atlas in image space
             # atlas_utils.saveImageTensor(
@@ -297,9 +305,16 @@ class DeformationFieldAndDeformedImageWriter(Callback):
             )
 
             atlas_utils.saveImageTensor(
-                posFlowMinusWarpedNegFlow[i, None, ...],
-                os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldMinusImageDefField" + self.fileType),
+                deviationFroMeanJacobyMask[i, None, ...],
+                os.path.join(self.output_dir, fileBaseName + "DeviationFroMeanJacobyMask" + self.fileType),
                 atlasOrigin,
                 self.meshSpacing,
                 self.meshDir,
             )
+            # atlas_utils.saveImageTensor(
+            #     posFlowMinusWarpedNegFlow[i, None, ...],
+            #     os.path.join(self.output_dir, fileBaseName + "AtlasDefFieldMinusImageDefField" + self.fileType),
+            #     atlasOrigin,
+            #     self.meshSpacing,
+            #     self.meshDir,
+            # )
