@@ -102,8 +102,6 @@ class NCCLoss(AbstractLabelLoss):
 
     def forward(self, input, target, mask=None):
         finalMask = torch.ones_like(input, dtype=torch.bool)
-        if mask is not None:
-            finalMask = mask & finalMask
 
         input = input.view(input.shape[0], -1)
         target = target.view(target.shape[0], -1)
@@ -119,6 +117,9 @@ class NCCLoss(AbstractLabelLoss):
                 bgMask = (input != 0) & (target != 0)
 
             finalMask = finalMask & bgMask
+
+        if mask is not None:
+            finalMask = mask * finalMask
 
         inputMasked = input * finalMask
         targetMasked = target * finalMask
