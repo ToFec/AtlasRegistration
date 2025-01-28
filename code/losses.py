@@ -119,7 +119,7 @@ class NCCLoss(AbstractLabelLoss):
             finalMask = finalMask & bgMask
 
         if mask is not None:
-            finalMask = mask * finalMask
+            finalMask = mask.view(finalMask.shape[0], -1) * finalMask
 
         inputMasked = input * finalMask
         targetMasked = target * finalMask
