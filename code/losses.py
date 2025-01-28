@@ -437,7 +437,7 @@ class VolumePreservationLoss(nn.Module):
 
         diff[diff == 0.0] = 0.0000001
         absDiff = torch.max(diff, 1.0 / diff)
-        absDiff = self.sigmoid(10 * (absDiff - timesMeanValue))
+        absDiff = self.sigmoid(5 * (absDiff - timesMeanValue))
         return absDiff
 
     def forward(self, defField, labelMap):

@@ -163,7 +163,8 @@ class AtlasModule(pl.LightningModule):
 
         self.manual_backward(loss)
 
-        torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
+        #print(optNetwork)
+        #torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
 
         optNetwork.step()
 

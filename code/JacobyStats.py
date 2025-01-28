@@ -136,6 +136,7 @@ def main(argv=None):
                             distanceMapSitk = sitk.SignedDanielssonDistanceMap(resampledMask, useImageSpacing=True)
                             distanceMapTensor = sitk.GetArrayFromImage(distanceMapSitk)
 
+                        mask[distanceMapTensor > considerDistance] = False
                         for organVal in organVals:
                             jacobyValsForOrganOutOfGtv = jacobiA[
                                 (sampledOrganMaskA == organVal)
