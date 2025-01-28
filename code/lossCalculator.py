@@ -148,20 +148,17 @@ class LossCalculator:
         sampledImages = self.transformer.sampleImage(images, meshes)
         sampledLabels = self.transformer.sampleImage(labels, meshes, interpolationType="nearest")
 
+        self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow))
+
         deviationFroMeanJacobyMask = None
-        # if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
-        #    deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
-        #        pos_flow.detach(), atlasLabels
-        #    )
+        if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
+            deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
+                pos_flow.detach(), atlasLabels
+            )
 
-        # self.lossWrapper.setLoss("volumePreservationLoss", self.volumePreservationLoss(pos_flow, atlasLabels))
-
-        # with torch.no_grad():
-        if self.lossWrapper.getLossFactor("volumePreservationLoss") != 0.0:
-            vpL, _ = self.volumePreservationLoss(pos_flow, atlasLabels)
-            self.lossWrapper.setLoss("volumePreservationLoss", vpL)
-
-        self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow, deviationFroMeanJacobyMask))
+        # if self.lossWrapper.getLossFactor("volumePreservationLoss") != 0.0:
+        #     vpL, _ = self.volumePreservationLoss(pos_flow, atlasLabels)
+        #     self.lossWrapper.setLoss("volumePreservationLoss", vpL)
 
         # increase regularisation loss inside mask and set other losses to zero
         if deviationFroMeanJacobyMask is not None:
