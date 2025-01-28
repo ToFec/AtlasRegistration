@@ -52,15 +52,6 @@ def segmentMisssingCorrespondences(pos_flow, neg_flow, transformation=None):
     return posFlowMinusWarpedNegFlowNorm, negFlowMinusWarpedPosFlowNorm
 
 
-def convertDistanceMapToLabelMap(distanceMap):
-    distanceMapShape = list(distanceMap.shape)
-    labelMap = torch.zeros(distanceMapShape, device=distanceMap.device)
-
-    for channel in range(0, distanceMap.shape[1]):
-        labelMap[:, channel, ...][distanceMap[:, channel, ...] <= 0.0] = channel
-    return labelMap
-
-
 def resampleSitkImage(image, transform, nn=False, reference=None):
     if reference is not None:
         reference_image = reference
@@ -182,6 +173,12 @@ def roundToHighestPosition(arr):
     base = 10**log10
     rounded = torch.floor(arr / base) * base
     return rounded
+
+
+def convertDistanceMapToLabelMap(distanceMap, maxDistanceInDistanceMaps):
+    labelMap = torch.floor(distanceMap / maxDistanceInDistanceMaps)
+    labelMap = labelMap - 1
+    return labelMap
 
 
 def createSignedDistanceMap(sitkLabel, maxValue=None):

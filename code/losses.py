@@ -424,7 +424,7 @@ class VolumePreservationLoss(nn.Module):
         with torch.no_grad():
             if self.maxDistanceInDistanceMaps:
                 jacobyMeanValue = torch.zeros_like(labelMap)
-                labelMap = torch.floor(labelMap / self.maxDistanceInDistanceMaps)
+                labelMap = atlas_utils.convertDistanceMapToLabelMap(labelMap, self.maxDistanceInDistanceMaps)
                 labels = torch.unique(labelMap)
                 for label in labels:
                     jacobyMeanValue[labelMap == label] = jacobian[labelMap == label].mean()
