@@ -84,13 +84,14 @@ def main(argv=None):
 
                 defFieldAtlas = atlas_utils.loadDefField(args.deformable)
 
-                scaledDefFieldAtlas = atlas_utils.scaleAndOrientDeffield(
-                    defFieldAtlas, sitk_displacement_field.GetSpacing(), sitk_displacement_field.GetDirection()
-                )
+                meshStepLength0 = 2 / (defFieldAtlas.shape[2] - 1)
+                meshStepLength1 = 2 / (defFieldAtlas.shape[3] - 1)
+                meshStepLength2 = 2 / (defFieldAtlas.shape[4] - 1)
 
                 jacobiA = atlas_utils.jacobianDeterminant(
-                    scaledDefFieldAtlas[None, ...], sitk_displacement_field.GetSpacing()
+                    defFieldAtlas, (meshStepLength0, meshStepLength1, meshStepLength2)
                 )
+
                 jacobiA = jacobiA.squeeze(0).squeeze(0).permute([2, 1, 0])
 
                 resampler = sitk.ResampleImageFilter()

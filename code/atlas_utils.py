@@ -305,7 +305,9 @@ def getOptimizer(optimizerType):
     return torch.optim.AdamW
 
 
-# equal to sitk implementation
+# all but (jacobian_det[jacobian_det != 0.0] = 1.0 / jacobian_det[jacobian_det != 0.0])
+# equal to sitk implementation; we do 1/x because sitk gives values above 1 in compressed areas
+# and values below 1 in expanded areas
 def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
     dx = (deform_field[:, :, 2:, :, :] - deform_field[:, :, :-2, :, :]) / (spacing[0] * 2)
     dy = (deform_field[:, :, :, 2:, :] - deform_field[:, :, :, :-2, :]) / (spacing[1] * 2)
