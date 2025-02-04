@@ -151,14 +151,14 @@ class LossCalculator:
         self.lossWrapper.setLoss("reg_loss", self.regularizationLoss(pos_flow))
 
         deviationFroMeanJacobyMask = None
-        if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
-            deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
-                pos_flow.detach(), atlasLabels
-            )
+        #if self.lossWrapper.lossFactors["volumePreservationLoss"] != 0.0:
+        #    deviationFroMeanJacobyMask = self.volumePreservationLoss.getDeviationFromMeanJacobyMask(
+        #        pos_flow.detach(), atlasLabels
+        #    )
 
-        # if self.lossWrapper.getLossFactor("volumePreservationLoss") != 0.0:
-        #     vpL, _ = self.volumePreservationLoss(pos_flow, atlasLabels)
-        #     self.lossWrapper.setLoss("volumePreservationLoss", vpL)
+        if self.lossWrapper.getLossFactor("volumePreservationLoss") != 0.0:
+            vpL, _ = self.volumePreservationLoss(pos_flow, atlasLabels)
+            self.lossWrapper.setLoss("volumePreservationLoss", vpL)
 
         # increase regularisation loss inside mask and set other losses to zero
         if deviationFroMeanJacobyMask is not None:
