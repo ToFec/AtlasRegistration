@@ -106,13 +106,14 @@ def main(argv=None):
                 with open(args.output, "a") as csvFile:
                     w = csv.writer(csvFile)
                     if not file_exists:
-                        w.writerow(("FileName", "Structure", "Mean", "Std", "Min", "Max"))
+                        w.writerow(("FileName", "Structure", "Median", "Mean", "Std", "Min", "Max"))
 
                     jacobyValsInMask = jacobiA[sampledMaskA > 0.0]
                     w.writerow(
                         [
                             args.mask,
                             "mask",
+                            jacobyValsInMask.median().item(),
                             jacobyValsInMask.mean().item(),
                             jacobyValsInMask.std().item(),
                             jacobyValsInMask.min().item(),
@@ -148,6 +149,7 @@ def main(argv=None):
                                 [
                                     args.mask,
                                     f"Organ{organVal.item()} without Mask",
+                                    jacobyValsForOrganOutOfGtv.median().item(),
                                     jacobyValsForOrganOutOfGtv.mean().item(),
                                     jacobyValsForOrganOutOfGtv.std().item(),
                                     jacobyValsForOrganOutOfGtv.min().item(),
@@ -159,6 +161,7 @@ def main(argv=None):
                                 [
                                     args.mask,
                                     f"Organ{organVal.item()} AND Mask",
+                                    jacobyValsForOrganInGtv.median().item(),
                                     jacobyValsForOrganInGtv.mean().item(),
                                     jacobyValsForOrganInGtv.std().item(),
                                     jacobyValsForOrganInGtv.min().item(),
@@ -171,6 +174,7 @@ def main(argv=None):
                             [
                                 args.mask,
                                 "allOrgans",
+                                jacobyValsSurroundingOrgan.median().item(),
                                 jacobyValsSurroundingOrgan.mean().item(),
                                 jacobyValsSurroundingOrgan.std().item(),
                                 jacobyValsSurroundingOrgan.min().item(),

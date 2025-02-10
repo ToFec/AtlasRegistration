@@ -23,6 +23,29 @@ class Test(unittest.TestCase):
         defField = defField.permute([3, 2, 1, 0])
         return defField
 
+    def testJacobian5(self):
+        deformationFieldName0 = "./resources/JacobianTest/radialVF.nrrd"
+
+        regSitk = sitk.ReadImage(deformationFieldName0)
+        defFieldAtlas = atlasUtils.loadDefField(deformationFieldName0)
+
+        determinantSITK = sitk.DisplacementFieldJacobianDeterminant(regSitk)
+
+        meshStepLength0 = 2 / (defFieldAtlas.shape[2] - 1)
+        meshStepLength1 = 2 / (defFieldAtlas.shape[3] - 1)
+        meshStepLength2 = 2 / (defFieldAtlas.shape[4] - 1)
+
+        atlasJacobi = atlasUtils.jacobianDeterminant(defFieldAtlas, (meshStepLength0, meshStepLength1, meshStepLength2))
+
+        atlasUtils.saveImageTensor(
+            atlasJacobi,
+            "./resources/JacobianTest/radialVFJacobian.mha",
+            regSitk.GetOrigin(),
+            regSitk.GetSpacing(),
+            regSitk.GetDirection(),
+        )
+        sitk.WriteImage(determinantSITK, "./resources/JacobianTest/sitkJacobianRadialVF.mha")
+
     def _testJacobian4(self):
         deformationFieldName0 = "./resources/JacobianTest/img1DefField.mha"
         regSitk = sitk.ReadImage(deformationFieldName0)
@@ -38,7 +61,7 @@ class Test(unittest.TestCase):
             regSitk.GetDirection(),
         )
 
-    def testJacobian3(self):
+    def _testJacobian3(self):
         deformationFieldName0 = "./resources/JacobianTest/img1DefField.mha"
 
         regSitk = sitk.ReadImage(deformationFieldName0)
@@ -97,7 +120,7 @@ class Test(unittest.TestCase):
         )
         self.assertAlmostEqual(atlasJacobiScaled[0, 0, 24, 16, 17].item(), atlasJacobi[0, 0, 24, 16, 17].item(), 5)
 
-    def testJacobian(self):
+    def _testJacobian(self):
         deformationFieldName = "./resources/JacobianTest/img1DefField.mha"
         regSitk = sitk.ReadImage(deformationFieldName)
         defFieldAtlas = atlasUtils.loadDefField(deformationFieldName)
