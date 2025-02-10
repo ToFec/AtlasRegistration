@@ -326,7 +326,7 @@ def jacobianDeterminant(deform_field, spacing=(1.0, 1.0, 1.0)):
         - dx[:, 1, None] * dy[:, 0, None] * (1 + dz[:, 2, None])
         - dx[:, 2, None] * (1 + dy[:, 1, None]) * dz[:, 0, None]
     )
-    jacobian_det[jacobian_det != 0.0] = 1.0 / jacobian_det[jacobian_det != 0.0]
+    #jacobian_det[jacobian_det != 0.0] = 1.0 / jacobian_det[jacobian_det != 0.0]
     return jacobian_det
 
 
