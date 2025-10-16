@@ -73,11 +73,22 @@ def main(argv=None):
                     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
                 else:
                     resampler.SetInterpolator(sitk.sitkLinear)
-                dis_tx = sitk.DisplacementFieldTransform(sitk.Cast(deformation_field, sitk.sitkVectorFloat64))
+                dis_tx = sitk.DisplacementFieldTransform(
+                    sitk.Cast(deformation_field, sitk.sitkVectorFloat64)
+                )
                 resampler.SetTransform(dis_tx)
                 sitkImage = resampler.Execute(sitkImage)
+            elif args.atlas:
+                resampler = sitk.ResampleImageFilter()
+                referenceImg = sitk.ReadImage(args.atlas)
+                resampler.SetReferenceImage(referenceImg)
+                if args.binary:
+                    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+                else:
+                    resampler.SetInterpolator(sitk.sitkLinear)
+                sitkImage = resampler.Execute(sitkImage)
 
-            sitk.WriteImage(sitkImage, args.output)
+            sitk.WriteImage(sitkImage, args.output, useCompression=True)
         return 0
     except KeyboardInterrupt:
         return 0
