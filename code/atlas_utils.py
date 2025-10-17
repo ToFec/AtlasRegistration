@@ -198,7 +198,8 @@ def createSignedDistanceMap(sitkLabel, maxValue=None):
     distanceMapTensor = np.abs(distanceMapTensor)
     if maxValue is None:
         maxValue = np.ceil(distanceMapTensor.max())
-    array = array * maxValue
+    distanceMapTensor = np.clip(distanceMapTensor,0,maxValue) / maxValue
+    array = array# * maxValue
     distanceMapTensor[0, ...] = distanceMapTensor[0, ...] + array
     return distanceMapTensor
 

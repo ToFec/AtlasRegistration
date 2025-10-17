@@ -164,10 +164,9 @@ class AtlasModule(pl.LightningModule):
         self.manual_backward(loss)
 
         #print(optNetwork)
-        #torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
 
         optNetwork.step()
-
         return stepInfo
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -211,7 +210,6 @@ class AtlasModule(pl.LightningModule):
                 if isinstance(logger, ImageLogger):
                     defFieldToSave = torch.Tensor.cpu(neg_flow[0, None, ...].detach())
                     logger.saveImage(defFieldToSave, "DeformationField0", self.current_epoch)
-
         return {
             "loss": totalLoss,
             "val_atlas_space_label_loss_uw": lossWrapper.getWeightedLoss("atlasSpaceLabelLoss"),
