@@ -8,6 +8,7 @@ from config import Config
 from atlasDataModule import AtlasDataModule
 from losses import LossFactory
 import torchio as tio
+import torch
 
 
 class Test(unittest.TestCase):
@@ -22,6 +23,14 @@ class Test(unittest.TestCase):
         config.setParam("batchSize", batchSize)
         return config
 
+    def prepare_batch(self, batch):
+        # images = batch["image"][tio.DATA]
+        images = [image[tio.DATA] for image in batch["image"]]
+        meshes = batch["samplingMesh"]
+        # labels = batch["label"][tio.DATA]
+        labels = [image[tio.DATA] for image in batch["label"]]
+        return images, meshes, labels
+
     def testNCC(self):
         batchSize = 2
         data = AtlasDataModule(self.getConfig(batchSize))
@@ -31,7 +40,7 @@ class Test(unittest.TestCase):
         nccLoss1 = LossFactory.lossMap["NCC"]()
         nccLoss2 = LossFactory.lossMap["NCC2"]()
         for batch in data.train_dataloader():
-            labels = batch["image"][tio.DATA]
+            images, meshes, labels = self.prepare_batch(batch)
 
             loss1 = nccLoss1(labels[: int(batchSize / 2)], labels[: int(batchSize / 2)])
             loss2 = nccLoss2(labels[: int(batchSize / 2)], labels[: int(batchSize / 2)])

@@ -157,7 +157,7 @@ def runTests(config):
     evaluationWriter = PredictionEvaluationWriter(config)
     trainer = pl.Trainer(
         accelerator=config.getParam("accelerator"),
-        devices=pl.accelerators.find_usable_cuda_devices(1),
+        devices=1,  # pl.accelerators.find_usable_cuda_devices(1),
         precision=32,
         logger=logger,
         callbacks=[pred_writer, evaluationWriter],
@@ -175,7 +175,7 @@ def runPrediction(config):
     evaluationWriter = PredictionEvaluationWriter(config)
     trainer = pl.Trainer(
         accelerator=config.getParam("accelerator"),
-        devices=pl.accelerators.find_usable_cuda_devices(1),
+        devices=1,  # pl.accelerators.find_usable_cuda_devices(1),
         precision=32,
         callbacks=[pred_writer, evaluationWriter],
     )
@@ -349,7 +349,7 @@ def runTraining(config, resume: str = None):
 
     trainer = pl.Trainer(
         accelerator=config.getParam("accelerator"),
-        devices=pl.accelerators.find_usable_cuda_devices(1),
+        devices=1,  # pl.accelerators.find_usable_cuda_devices(1),
         # strategy="auto",
         precision=32,
         callbacks=callBackFunctions,

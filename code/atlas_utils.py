@@ -175,7 +175,7 @@ def roundToHighestPosition(arr):
     return rounded
 
 
-def convertDistanceMapToLabelMap(distanceMap, maxDistanceInDistanceMaps):
+def convertDistanceMapToLabelMap(distanceMap):
     labelMap = torch.floor(distanceMap) - 1
     return labelMap
 
@@ -197,7 +197,7 @@ def createSignedDistanceMap(sitkLabel, maxValue=None):
     distanceMapTensor = np.abs(distanceMapTensor)
     if maxValue is None:
         maxValue = np.ceil(distanceMapTensor.max())
-    distanceMapTensor = np.clip(distanceMapTensor,0,maxValue) / maxValue
+    distanceMapTensor = np.clip(distanceMapTensor,0,maxValue) / (maxValue + 0.0001)
     array = array# * maxValue
     distanceMapTensor[0, ...] = distanceMapTensor[0, ...] + array
     return distanceMapTensor

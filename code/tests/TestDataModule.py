@@ -9,6 +9,7 @@ from config import Config
 from atlasDataModule import AtlasDataModule
 import torchio as tio
 import torch
+import numpy as np
 import os
 import imageTransformation
 import SimpleITK as sitk
@@ -16,7 +17,7 @@ import atlas_utils as au
 
 
 class Test(unittest.TestCase):
-    def testMeshWithTransformation(self):
+    def _testMeshWithTransformation(self):
         config = Config()
         config.setParam("registrationGridsize", [96, 96, 80])
         config.setParam("registrationGridSpacing", [2.0, 2.0, 2.0])
@@ -35,6 +36,28 @@ class Test(unittest.TestCase):
             "/media/fechter/FastData/Learn2Reg/OASIS_OAS1_0004_MR1/affineRegistrationMatrix.txt",
         )
         meshOrigin = subject["meshOrigin"]
+        
+    def testRepairDistanceMap(self):
+        config = Config()
+        config.setParam("registrationGridsize", [96, 96, 80])
+        config.setParam("registrationGridSpacing", [2.0, 2.0, 2.0])
+        config.setParam("initializeAtlasWithAverageImg", False)
+        config.setParam("useAtlasSpaceAsReferenceForMeshCreation", True)
+        config.setParam("trainingDataFile", "./resources/DataTrainForAvgAtlasTest.csv")
+        config.setParam("doNormalisation", False)
+        config.setParam("atlasImage", "/home/fechter/Bilder/Atlas/mni_icbm152_t1_tal_nlin_sym_55_ext.nrrd")
+        config.setParam("atlasLabel", "/home/fechter/Bilder/Atlas/seg35_short.nrrd")
+        config.setParam("convertToDistanceMaps", True)
+        config.setParam("repairDistanceMaps", True)
+        config.setParam("maxDistanceForDistanceMaps", 8.0)
+        data = AtlasDataModule(config)
+
+        data._setAtlasImage()
+        subject = data.getSubject(
+            "/media/fechter/FastData/Learn2Reg/OASIS_OAS1_0004_MR1/orig.nii.gz",
+            "/media/fechter/FastData/Learn2Reg/OASIS_OAS1_0004_MR1/seg35.nii.gz",
+            "/media/fechter/FastData/Learn2Reg/OASIS_OAS1_0004_MR1/affineRegistrationMatrix.txt",
+        )
 
     def _testNormalisation(self):
         config = Config()
@@ -255,9 +278,13 @@ class Test(unittest.TestCase):
         if os.path.exists("./resources/DummyRotatedMesh.pt"):
             os.remove("./resources/DummyRotatedMesh.pt")
 
-    def _testSignedDistanceMapGeneration(self):
+    def testSignedDistanceMapGeneration(self):
         sitkLabel = sitk.ReadImage("./resources/DscLoss/Label1.nii.gz", sitk.sitkFloat32)
-        sigendDistanceMapTensor = au.createSignedDistanceMap(sitkLabel)
+        sigendDistanceMapTensor = torch.from_numpy(au.createSignedDistanceMap(sitkLabel, 8.0))
+        labelMap = au.convertDistanceMapToLabelMap(sigendDistanceMapTensor)
+        npLabel = sitk.GetArrayFromImage(sitkLabel)
+        diff = np.sum(npLabel - labelMap[0,...].numpy())
+        self.assertEqual(diff, 0.0)
 
 
 if __name__ == "__main__":

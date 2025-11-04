@@ -14,9 +14,10 @@ import numpy as np
 import SimpleITK as sitk
 import torch
 import atlas_utils as atlasUtils
-
+import logging
 from config import Config
 from imageTransformation import Transformation
+import atlas_utils
 
 
 class AtlasDataModule(pl.LightningDataModule):
@@ -55,6 +56,9 @@ class AtlasDataModule(pl.LightningDataModule):
             self.createDistanceMapFromlabel = True
         else:
             self.createDistanceMapFromlabel = False
+            
+        self.repairDistanceMaps = True
+        
 
         self.registrationGridsize = config.getParam("registrationGridsize")
         self.registrationGridSpacing = config.getParam("registrationGridSpacing")
@@ -158,6 +162,23 @@ class AtlasDataModule(pl.LightningDataModule):
                 distanceMapName = os.path.splitext(imageFileName)[0] + "distanceMap.pt"
                 if os.path.exists(distanceMapName) and meshParamsMatch:
                     distnaceMapTensor = torch.load(distanceMapName)
+                    if self.repairDistanceMaps:
+                        lmFromDm = atlas_utils.convertDistanceMapToLabelMap(distnaceMapTensor)
+                        diff = torch.abs(lmFromDm - labelImage.data)
+                        if torch.sum(diff) > 0.0:
+                            diffMask = diff > 0.0
+                            newDistanceMapTensor = torch.zeros_like(distnaceMapTensor)
+                            newDistanceMapTensor[diffMask] = distnaceMapTensor[diffMask] - 0.0001
+                            newDistanceMapTensor[~diffMask] = distnaceMapTensor[~diffMask]
+                            lmFromDmNew = atlas_utils.convertDistanceMapToLabelMap(newDistanceMapTensor)
+                            if torch.sum(torch.abs(lmFromDmNew - labelImage.data)) == 0.0:
+                                torch.save(distnaceMapTensor, os.path.splitext(imageFileName)[0] + "distanceMapBUP.pt")
+                                distnaceMapTensor = newDistanceMapTensor
+                                torch.save(distnaceMapTensor, distanceMapName)
+                            else:
+                                logging.warn(
+                                    f"Repair of distance Map failed: {distanceMapName}"
+                                )
                 else:
                     sitkLabel = sitk.GetImageFromArray(labelImage.data.squeeze().swapaxes(0, -1))
                     sitkLabel.CopyInformation(sitkImage)

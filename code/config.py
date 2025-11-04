@@ -6,7 +6,6 @@ Created on Apr 11, 2022
 
 import os, json, logging
 from pathlib import Path
-from ray import tune
 
 
 class Config(object):
