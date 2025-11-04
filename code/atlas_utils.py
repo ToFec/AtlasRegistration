@@ -176,8 +176,7 @@ def roundToHighestPosition(arr):
 
 
 def convertDistanceMapToLabelMap(distanceMap, maxDistanceInDistanceMaps):
-    labelMap = torch.floor(distanceMap / maxDistanceInDistanceMaps)
-    labelMap = labelMap - 1
+    labelMap = torch.floor(distanceMap) - 1
     return labelMap
 
 
