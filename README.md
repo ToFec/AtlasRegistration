@@ -10,8 +10,15 @@ This is a highly refactored fork of **Aladdin** that I adapted to my needs for a
 [Zhipeng Ding](https://biag.cs.unc.edu/author/zhipeng-ding/) and [Marc Niethammer](https://biag.cs.unc.edu/author/marc-niethammer/)   
 *CVPR 2022* [eprint arxiv](https://arxiv.org/abs/2202.03563)
 
+## Key Features
 
-## Installation & Usage
+- **Preprocessing-free**: Works directly on native medical images
+- **Lesion-aware**: Handles cases where lesions have no anatomical counterpart in the atlas
+- **Robust registration**: Uses distance-map-based similarity and volume-preserving loss
+- **Multi-center support**: Achieves high-accuracy registrations across clinical datasets
+- **Flexible training**: Supports calssical model training as well as one-shot overfitting for patient-specific refinement
+
+## Installation
 
 For managing dependencies we use [Poetry](https://python-poetry.org/docs/basic-usage/).
 After checking out the repository call:
@@ -38,12 +45,14 @@ To test a trained model with the best checkpoint, use:
 ```bash
 python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -t
 ```
+In testing mode the framwork will store the results in the *outputPath* configured in the config-file.
 
 ### Making Predictions
 To make predictions with a trained model, use:
 ```bash
 python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -p
 ```
+In prediction mode the framwork will store the results for each input dataset in the folder of the respective dataset.
 
 ### Resuming Training
 To resume training from a specific checkpoint, use:
@@ -59,7 +68,7 @@ python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -s 10
 This will sample 10 images from the dataset.
 
 ### Hyperparameter Optimization
-To run hyperparameter optimization:
+To run hyperparameter optimization with [TUNE](https://docs.ray.io/en/latest/tune/index.html):
 ```bash
 python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -o
 ```
@@ -83,12 +92,3 @@ The framework uses JSON configuration files to specify all parameters. A sample 
 - Learning rates
 - Loss weights
 
-## Key Features
-
-- **Preprocessing-free**: Works directly on native medical images
-- **Lesion-aware**: Handles cases where lesions have no anatomical counterpart in the atlas
-- **Robust registration**: Uses distance-map-based similarity and volume-preserving loss
-- **Multi-center support**: Achieves high-accuracy registrations across clinical datasets
-- **Flexible training**: Supports one-shot overfitting for patient-specific refinement
-
-## License 
