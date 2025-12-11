@@ -22,14 +22,73 @@ To activate the environment call:
 ```
 poetry shell
 ```
-The main function is in TrainAtlas.py. To start training you can run:
-```
+
+## Basic Usage
+
+The main entry point for the framework is `TrainAtlas.py`. This script provides multiple modes of operation through command-line arguments:
+
+### Training a Model
+To start training a new model, run:
+```bash
 python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json
 ```
 
+### Testing a Trained Model
+To test a trained model with the best checkpoint, use:
+```bash
+python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -t
+```
+
+### Making Predictions
+To make predictions with a trained model, use:
+```bash
+python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -p
+```
+
+### Resuming Training
+To resume training from a specific checkpoint, use:
+```bash
+python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -r path/to/checkpoint.txt
+```
+
+### Testing Image Sampling
+To test image sampling functionality (e.g., for debugging), use:
+```bash
+python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -s 10
+```
+This will sample 10 images from the dataset.
+
+### Hyperparameter Optimization
+To run hyperparameter optimization:
+```bash
+python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -o
+```
+
+### Analyzing Hyperparameter Search Results
+To analyze results from a hyperparameter search:
+```bash
+python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -a
+```
+
+## Configuration
+
+The framework uses JSON configuration files to specify all parameters. A sample configuration file can be found in the `resources` directory. The configuration file includes parameters for:
+
+- Data paths and settings
+- Network architecture
+- Loss functions
+- Optimization settings
+- Logging and checkpointing
+- Registration grid parameters
+- Learning rates
+- Loss weights
+
+## Key Features
+
+- **Preprocessing-free**: Works directly on native medical images
+- **Lesion-aware**: Handles cases where lesions have no anatomical counterpart in the atlas
+- **Robust registration**: Uses distance-map-based similarity and volume-preserving loss
+- **Multi-center support**: Achieves high-accuracy registrations across clinical datasets
+- **Flexible training**: Supports one-shot overfitting for patient-specific refinement
+
 ## License 
-
-
-
-
-
