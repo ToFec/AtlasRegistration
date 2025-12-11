@@ -18,6 +18,9 @@ This is a highly refactored fork of **Aladdin** that I adapted to my needs for a
 - **Multi-center support**: Achieves high-accuracy registrations across clinical datasets
 - **Flexible training**: Supports calssical model training as well as one-shot overfitting for patient-specific refinement
 
+## Architecture
+<img src="figs/NetworkArchitecture.png" alt="Logo" width="700" height="700">
+
 ## Installation
 
 For managing dependencies we use [Poetry](https://python-poetry.org/docs/basic-usage/).
