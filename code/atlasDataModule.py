@@ -46,6 +46,7 @@ class AtlasDataModule(pl.LightningDataModule):
         self.atlasLabelToLoad = config.getParam("atlasLabel")
         self.loadImagesAsDataType = config.getParam("loadImagesAsDataType")
         self.useAtlasSpaceAsReferenceForMeshCreation = config.getParam("useAtlasSpaceAsReferenceForMeshCreation")
+        self.labelValueToDefineRegistrationCenter = config.getParam("labelValueToDefineRegistrationCenter")
 
         self.maxDistanceForDistanceMaps = config.getParam("maxDistanceForDistanceMaps")
 
@@ -351,7 +352,10 @@ class AtlasDataModule(pl.LightningDataModule):
             if labelImage:
                 sitkLabelImage = labelImage.as_sitk()
                 label_statistic = sitk.LabelIntensityStatisticsImageFilter()
-                label_statistic.Execute(sitkLabelImage > 0, sitkLabelImage)
+                if self.labelValueToDefineRegistrationCenter is not None:
+                    label_statistic.Execute(sitkLabelImage == self.labelValueToDefineRegistrationCenter, sitkLabelImage)
+                else:
+                    label_statistic.Execute(sitkLabelImage > 0, sitkLabelImage) 
                 centerPoint = label_statistic.GetCentroid(1)
             else:
                 centerPoint = sitkScalarImage.TransformContinuousIndexToPhysicalPoint(

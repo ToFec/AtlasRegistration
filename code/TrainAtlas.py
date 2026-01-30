@@ -260,10 +260,7 @@ def runTraining(config, resume: str = None):
 
     stringForStoringVariables = getCheckPointString(config)
 
-    data = AtlasDataModule(config)
-    data.prepare_data()
-    data.setup(stage="fit")
-    atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
+    
 
     if resume is None:
         network = NetworkFactory.getNetwork(config)
@@ -271,6 +268,11 @@ def runTraining(config, resume: str = None):
         config.setParam("registrationGridsize", newShape.tolist())
         loss = LossCalculator(config)
         optimizer = atlas_utils.getOptimizer(config.getParam("optimizer"))
+
+        data = AtlasDataModule(config)
+        data.prepare_data()
+        data.setup(stage="fit")
+        atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
         model = AtlasModule(
             network,
@@ -296,6 +298,11 @@ def runTraining(config, resume: str = None):
         loss = LossCalculator(config)
         model.criterion = loss
         model.hparams["loss"] = loss
+
+        data = AtlasDataModule(config)
+        data.prepare_data()
+        data.setup(stage="fit")
+        atlasImage, atlasMesh, atlasOrigin, atlasLabel = data.getInitalAtlas()
 
         model.setAtlasInformation(
             atlasImage, atlasLabel, atlasMesh, atlasOrigin, atlasLearning_rate=config.getParam("atlasLearningRate")
