@@ -10,7 +10,7 @@ A **more detailed description** of this work can be found here: [eprint arxiv](h
 **If you use this work please cite**:
 Wielenberg, N. E., Popp, I., Blanck, O., Zander, L., Peeken, J. C., Combs, S. E., ... & Fechter, T. (2026). Deep-Learning Atlas Registration for Melanoma Brain Metastases: Preserving Pathology While Enabling Cohort-Level Analyses. arXiv preprint **arXiv:2602.12933**.
 
-The code you find here bases on the Aladdin project, was highly refactored and adapted to my needs for atlas registration. Here you can find the original work:
+The code you find here bases on the Aladdin project, was highly refactored, adapted and extended to my needs for atlas registration. Here you can find the original work:
 Aladdin: Joint Atlas Building and Diffeomorphic Registration Learning with Pairwise Alignment
 Zhipeng Ding and Marc Niethammer
 *CVPR 2022* [eprint arxiv](https://arxiv.org/abs/2202.03563)
