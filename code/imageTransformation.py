@@ -70,24 +70,95 @@ class Transformation(torch.nn.Module):
             )
         return sampledImage
 
-    def combineMeshesAndFlowField(self, meshes, flowField):
-        normVec0 = torch.nn.functional.normalize(meshes[:, :, -1, 0, 0] - meshes[:, :, 0, 0, 0])
-        normVec1 = torch.nn.functional.normalize(meshes[:, :, 0, -1, 0] - meshes[:, :, 0, 0, 0])
-        normVec2 = torch.nn.functional.normalize(meshes[:, :, 0, 0, -1] - meshes[:, :, 0, 0, 0])
-        orientationMatrices = torch.cat((normVec0, normVec1, normVec2), 1).reshape(-1, 3, 3)
-        orientationMatrix = torch.inverse(orientationMatrices)
+    def combineMeshesAndFlowField(self, meshes: torch.Tensor, flowField: torch.Tensor) -> torch.Tensor:
+        """
+        Combine normalized mesh coordinates with a deformation field given in world (physical) coordinates.
 
-        scaling = torch.zeros_like(orientationMatrix)
-        scaling[:, 0, 0] = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, -1, 0, 0], dim=1) / 2.0
-        scaling[:, 1, 1] = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, 0, -1, 0], dim=1) / 2.0
-        scaling[:, 2, 2] = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, 0, 0, -1], dim=1) / 2.0
+        meshes:     (B, 3, X, Y, Z) normalized index coordinates in [-1, 1]
+        flowField:  (B, 3, X, Y, Z) world displacement vectors (physical space, mm)
 
-        combinedMatrix = torch.matmul(orientationMatrix, scaling)
+        Returns:
+            Deformed mesh in normalized index space.
+        """
 
-        tmp = torch.moveaxis(flowField, 1, -1)
-        a = tmp.reshape(tmp.shape[0], -1, 3)
-        c = torch.matmul(combinedMatrix, a.moveaxis(-1, -2))
-        c = c.moveaxis(-2, -1)
-        newField = c.reshape(tmp.shape).moveaxis(-1, 1)
+        # ---------------------------------------------------------------------
+        # OLD IMPLEMENTATION (kept for reference)
+        #
+        # normVec0 = torch.nn.functional.normalize(meshes[:, :, -1, 0, 0] - meshes[:, :, 0, 0, 0])
+        # normVec1 = torch.nn.functional.normalize(meshes[:, :, 0, -1, 0] - meshes[:, :, 0, 0, 0])
+        # normVec2 = torch.nn.functional.normalize(meshes[:, :, 0, 0, -1] - meshes[:, :, 0, 0, 0])
+        # orientationMatrices = torch.cat((normVec0, normVec1, normVec2), 1).reshape(-1, 3, 3)
+        # orientationMatrix = torch.inverse(orientationMatrices)
+        #
+        # scaling = torch.zeros_like(orientationMatrix)
+        # scaling[:, 0, 0] = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, -1, 0, 0], dim=1) / 2.0
+        # scaling[:, 1, 1] = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, 0, -1, 0], dim=1) / 2.0
+        # scaling[:, 2, 2] = torch.linalg.vector_norm(meshes[:, :, 0, 0, 0] - meshes[:, :, 0, 0, -1], dim=1) / 2.0
+        #
+        # combinedMatrix = torch.matmul(orientationMatrix, scaling)
+        #
+        # tmp = torch.moveaxis(flowField, 1, -1)
+        # a = tmp.reshape(tmp.shape[0], -1, 3)
+        # c = torch.matmul(combinedMatrix, a.moveaxis(-1, -2))
+        # c = c.moveaxis(-2, -1)
+        # newField = c.reshape(tmp.shape).moveaxis(-1, 1)
+        #
+        # return meshes + newField
+        # ---------------------------------------------------------------------
 
-        return meshes + newField
+        batch_size: int = meshes.shape[0]
+        spatial_shape = meshes.shape[2:]  # (X, Y, Z)
+        device = meshes.device
+        dtype = meshes.dtype
+
+        # --- Reconstruct direction vectors from mesh ---
+        vec_x = meshes[:, :, -1, 0, 0] - meshes[:, :, 0, 0, 0]
+        vec_y = meshes[:, :, 0, -1, 0] - meshes[:, :, 0, 0, 0]
+        vec_z = meshes[:, :, 0, 0, -1] - meshes[:, :, 0, 0, 0]
+
+        length_x = torch.linalg.vector_norm(vec_x, dim=1, keepdim=True)
+        length_y = torch.linalg.vector_norm(vec_y, dim=1, keepdim=True)
+        length_z = torch.linalg.vector_norm(vec_z, dim=1, keepdim=True)
+
+        dir_x = vec_x / length_x
+        dir_y = vec_y / length_y
+        dir_z = vec_z / length_z
+
+        direction_matrix = torch.stack((dir_x, dir_y, dir_z), dim=2)  # (B, 3, 3)
+
+        voxel_counts = torch.tensor(
+            [spatial_shape[0] - 1, spatial_shape[1] - 1, spatial_shape[2] - 1],
+            device=device,
+            dtype=dtype,
+        )
+
+        half_lengths = torch.stack(
+            (
+                torch.linalg.vector_norm(vec_x, dim=1),
+                torch.linalg.vector_norm(vec_y, dim=1),
+                torch.linalg.vector_norm(vec_z, dim=1),
+            ),
+            dim=1,
+        ) / 2.0
+
+        spacing = half_lengths * 2.0 / voxel_counts  # spacing per axis
+
+        spacing_matrix = torch.zeros((batch_size, 3, 3), device=device, dtype=dtype)
+        spacing_matrix[:, 0, 0] = spacing[:, 0]
+        spacing_matrix[:, 1, 1] = spacing[:, 1]
+        spacing_matrix[:, 2, 2] = spacing[:, 2]
+
+        ds_matrix = torch.matmul(direction_matrix, spacing_matrix)  # D·S
+        inv_ds_matrix = torch.inverse(ds_matrix)
+
+        # --- World → voxel ---
+        flow_flat = flowField.permute(0, 2, 3, 4, 1).reshape(batch_size, -1, 3)
+        flow_voxel = torch.matmul(inv_ds_matrix, flow_flat.transpose(1, 2)).transpose(1, 2)
+
+        # --- Voxel → normalized ---
+        scale_to_norm = 2.0 / voxel_counts
+        flow_norm = flow_voxel * scale_to_norm
+
+        flow_norm = flow_norm.reshape(batch_size, *spatial_shape, 3).permute(0, 4, 1, 2, 3)
+
+        return meshes + flow_norm
