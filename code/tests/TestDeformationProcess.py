@@ -116,7 +116,7 @@ class Test(unittest.TestCase):
 
         atlasUtils.applyRigidRegistrationToImgHeader(img, reg)
         sitk.WriteImage(img, "./resources/AffineReg2/t1Reg.nrrd")
-
+    
     def _testDeformationCombination(self):
         batchSize = 2
         data = AtlasDataModule(self.getConfig(batchSize))
