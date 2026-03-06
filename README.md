@@ -1,13 +1,18 @@
-# Atlas Registration
+# Deep-Learning Atlas Registration: Preserving Pathology While Enabling Cohort-Level Analyses
 A preprocessing-free, lesion-aware deep learning framework for robust atlas registration.
 
 This repository contains a deep-learning atlas registration framework designed for pathological images, with a special focus on cases where lesions have no anatomical counterpart in the atlas. The method operates directly on native medical images—no preprocessing or lesion masks required—and robustly handles missing correspondences using distance-map–based similarity and a volume-preserving loss. It supports one-shot overfitting for patient-specific refinement and achieves high-accuracy, anatomically plausible registrations across multi-centre clinical datasets. The framework enables reproducible cohort-level spatial analyses and has been successfully applied to melanoma brain metastases across multiple institutions.
 
 **Please note:** There is currently no maintained main branch, please check out the *refactoring* branch instead.
 
-This is a highly refactored fork of **Aladdin** that I adapted to my needs for atlas registration. Here you can find the original work:
-**Aladdin: Joint Atlas Building and Diffeomorphic Registration Learning with Pairwise Alignment**   
-[Zhipeng Ding](https://biag.cs.unc.edu/author/zhipeng-ding/) and [Marc Niethammer](https://biag.cs.unc.edu/author/marc-niethammer/)   
+A **more detailed description** of this work can be found here: [eprint arxiv](https://arxiv.org/abs/2602.12933)
+
+**If you use this work please cite**:
+Wielenberg, N. E., Popp, I., Blanck, O., Zander, L., Peeken, J. C., Combs, S. E., ... & Fechter, T. (2026). Deep-Learning Atlas Registration for Melanoma Brain Metastases: Preserving Pathology While Enabling Cohort-Level Analyses. arXiv preprint **arXiv:2602.12933**.
+
+The code you find here bases on the Aladdin project, was highly refactored, adapted and extended to my needs for atlas registration. Here you can find the original work:
+Aladdin: Joint Atlas Building and Diffeomorphic Registration Learning with Pairwise Alignment
+Zhipeng Ding and Marc Niethammer
 *CVPR 2022* [eprint arxiv](https://arxiv.org/abs/2202.03563)
 
 ## Key Features
@@ -81,6 +86,10 @@ To analyze results from a hyperparameter search:
 ```bash
 python ./code/TrainAtlas.py -c ./Path/to/your/config/file.json -a
 ```
+
+## Public Models
+The Learn2Reg-G model, which was trained on the dataset from Task 3 of the 2021 Learn2Reg challenge, can be downloaded here: [https://doi.org/10.5281/zenodo.18740648](https://doi.org/10.5281/zenodo.18740648).
+More details about the model can be found in the paper.
 
 ## Configuration
 
